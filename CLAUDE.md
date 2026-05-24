@@ -15,6 +15,8 @@ any other repository from this thread.
 - Keep low-confidence items visible with warnings.
 - TDEE must return incomplete warnings instead of fake precision.
 - Parse LLM JSON defensively and validate with Zod.
+- Mutating and auth-related API routes should write request traces to `app_request_logs`.
+- Never log passwords, API keys, service role keys, or session secrets.
 - Keep service role, Gemini, Langfuse secret, password hash, and session secret
   server-side only.
 

@@ -1,0 +1,193 @@
+import { parseISO } from "date-fns";
+
+function normalizeOccurredTime(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const trimmed = value.trim();
+  const hhmm = trimmed.match(/^(\d{2}):(\d{2})/);
+  if (hhmm) return `${hhmm[1]}:${hhmm[2]}`;
+  const maybeDate = Date.parse(trimmed);
+  if (!Number.isNaN(maybeDate)) {
+    const parsed = parseISO(trimmed);
+    return `${String(parsed.getUTCHours()).padStart(2, "0")}:${String(parsed.getUTCMinutes()).padStart(2, "0")}`;
+  }
+  return undefined;
+}
+
+function normalizeActionType(value: unknown) {
+  if (typeof value !== "string") return "create";
+  const normalized = value.toLowerCase().trim();
+  if (["create", "edit", "delete", "clarify"].includes(normalized)) return normalized;
+  if (["eat", "drink", "exercise", "log", "record", "add"].includes(normalized)) return "create";
+  if (["remove", "removed"].includes(normalized)) return "delete";
+  if (["update", "updated", "change", "changed"].includes(normalized)) return "edit";
+  return "create";
+}
+
+function normalizeWarnings(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((warning) => {
+      if (typeof warning === "string") {
+        return { code: "model_warning", message: warning };
+      }
+      if (warning && typeof warning === "object") {
+        const record = warning as Record<string, unknown>;
+        const message = typeof record.message === "string" ? record.message : typeof record.warning === "string" ? record.warning : "";
+        if (!message) return null;
+        return {
+          code: typeof record.code === "string" ? record.code : "model_warning",
+          message,
+          improveWith: typeof record.improveWith === "string" ? record.improveWith : undefined,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+function normalizeNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function normalizeConfidence(value: unknown, fallback = 0.6) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const candidates = [record.overall, record.profile, record.measurements];
+    for (const candidate of candidates) {
+      if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
+    }
+  }
+  return fallback;
+}
+
+function normalizeRemarks(value: unknown) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const text = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).join("; ");
+    return text || null;
+  }
+  return null;
+}
+
+export function normalizeDailyResult(raw: unknown) {
+  const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rawItems = Array.isArray(record.items) ? record.items : [];
+
+  return {
+    occurredTime: normalizeOccurredTime(record.occurredTime),
+    actionType: normalizeActionType(record.actionType),
+    items: rawItems.map((item, index) => {
+      const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const nutritionSource = source.nutrition && typeof source.nutrition === "object" ? (source.nutrition as Record<string, unknown>) : source;
+      const kindInput = typeof source.kind === "string" ? source.kind.toLowerCase() : typeof source.type === "string" ? source.type.toLowerCase() : "note";
+      const kind = kindInput === "meal" ? "food" : kindInput === "drink" ? "water" : kindInput;
+      return {
+        id: typeof source.id === "string" ? source.id : `item-${index + 1}`,
+        kind: ["food", "water", "exercise", "note"].includes(kind) ? kind : "note",
+        label:
+          typeof source.label === "string"
+            ? source.label
+            : typeof source.food === "string"
+              ? source.food
+              : typeof source.name === "string"
+                ? source.name
+                : "Unlabeled item",
+        occurredTime: normalizeOccurredTime(source.occurredTime),
+        quantity:
+          typeof source.quantity === "string"
+            ? source.quantity
+            : typeof source.amount === "string"
+              ? source.amount
+              : typeof source.serving === "string"
+                ? source.serving
+                : null,
+        nutrition: {
+          calories: normalizeNumber(nutritionSource.calories),
+          proteinG: normalizeNumber(nutritionSource.proteinG ?? nutritionSource.protein),
+          fatG: normalizeNumber(nutritionSource.fatG ?? nutritionSource.fat),
+          carbsG: normalizeNumber(nutritionSource.carbsG ?? nutritionSource.carbs),
+        },
+        waterMl: normalizeNumber(source.waterMl ?? source.water ?? source.volumeMl),
+        exerciseCalories: normalizeNumber(source.exerciseCalories ?? source.caloriesBurned ?? source.burnedCalories),
+        confidence: normalizeConfidence(source.confidence, normalizeConfidence(record.confidence, 0.6)),
+        warnings: normalizeWarnings(source.warnings),
+        remarks: normalizeRemarks(source.remarks) ?? (typeof source.note === "string" ? source.note : null),
+        metadata: source,
+      };
+    }),
+    confidence: normalizeConfidence(record.confidence, 0.6),
+    warnings: normalizeWarnings(record.warnings),
+    remarks: normalizeRemarks(record.remarks),
+  };
+}
+
+export function normalizeBodyResult(raw: unknown) {
+  const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const profile = record.profile && typeof record.profile === "object" ? (record.profile as Record<string, unknown>) : undefined;
+  const measurements = Array.isArray(record.measurements) ? record.measurements : [];
+
+  return {
+    profile: profile
+      ? {
+          age: normalizeNumber(profile.age),
+          sex:
+            profile.sex === "male" || profile.sex === "female"
+              ? profile.sex
+              : profile.gender === "male" || profile.gender === "female"
+                ? profile.gender
+                : null,
+          heightCm: normalizeNumber(profile.heightCm ?? profile.height),
+          weightKg: normalizeNumber(profile.weightKg ?? profile.weight),
+          activityLevel:
+            typeof profile.activityLevel === "string"
+              ? (
+                  {
+                    sedentary: "sedentary",
+                    low: "light",
+                    light: "light",
+                    moderate: "moderate",
+                    active: "active",
+                    very_active: "very_active",
+                    veryactive: "very_active",
+                    high: "very_active",
+                  } as const
+                )[profile.activityLevel.toLowerCase().replace(/\s+/g, "_") as keyof {
+                  sedentary: "sedentary";
+                  low: "light";
+                  light: "light";
+                  moderate: "moderate";
+                  active: "active";
+                  very_active: "very_active";
+                  veryactive: "very_active";
+                  high: "very_active";
+                }] ?? null
+              : null,
+          goal: typeof profile.goal === "string" ? profile.goal : null,
+          country: typeof profile.country === "string" ? profile.country : "Singapore",
+          remarks: normalizeRemarks(profile.remarks),
+          metadata: profile,
+        }
+      : undefined,
+    measurements: measurements.map((item) => {
+      const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      return {
+        measuredAt: typeof source.measuredAt === "string" ? source.measuredAt : undefined,
+        type: typeof source.type === "string" ? source.type : typeof source.name === "string" ? source.name : "measurement",
+        value: normalizeNumber(source.value) ?? 0,
+        unit: typeof source.unit === "string" ? source.unit : "unit",
+        confidence: normalizeConfidence(source.confidence, normalizeConfidence(record.confidence, 0.6)),
+        remarks: normalizeRemarks(source.remarks),
+        metadata: source,
+      };
+    }),
+    confidence: normalizeConfidence(record.confidence, 0.6),
+    warnings: normalizeWarnings(record.warnings),
+    remarks: normalizeRemarks(record.remarks),
+  };
+}

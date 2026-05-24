@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Langfuse } from "langfuse";
 import { getEnv, requireEnv } from "@/lib/env";
 import { extractJsonObject } from "@/lib/json";
+import { normalizeBodyResult, normalizeDailyResult } from "@/lib/llm-normalizers";
 import { bodyParseResultSchema, dailyParseResultSchema, Profile } from "@/lib/schemas";
 
 type LlmScenario = "daily_quick" | "daily_grounded" | "body";
@@ -17,6 +18,7 @@ const modelsByScenario: Record<LlmScenario, string> = {
 function needsGrounding(note: string) {
   return /\b(kfc|mcdonald|subway|starbucks|brand|packet|pack|restaurant|menu|hawker|cafe)\b/i.test(note);
 }
+
 
 function getLangfuse() {
   const env = getEnv();
@@ -72,6 +74,9 @@ export async function parseDailyNote(input: {
   const prompt = [
     "You parse messy health notes into structured JSON for a private single-user app.",
     "The note may mix English and Chinese. Preserve original food names and important wording.",
+    "Use actionType only from: create, edit, delete, clarify.",
+    "Use occurredTime only as HH:MM if the note gives a specific time. Otherwise omit it.",
+    "Each item must include: kind, label, confidence, warnings, metadata.",
     "Return only JSON matching this shape: { occurredTime, actionType, items, confidence, warnings, remarks }.",
     "Items use kind food/water/exercise/note. Preserve important details in remarks or metadata. Do not invent precision.",
     "Nutrition keys are calories, proteinG, fatG, carbsG. Water uses waterMl. Exercise uses exerciseCalories.",
@@ -83,13 +88,14 @@ export async function parseDailyNote(input: {
     `New note: ${input.note}`,
   ].join("\n\n");
 
-  return dailyParseResultSchema.parse(await generateJson(scenario, prompt));
+  return dailyParseResultSchema.parse(normalizeDailyResult(await generateJson(scenario, prompt)));
 }
 
 export async function parseBodyNote(input: { note: string; currentProfile: Profile | null }) {
   const prompt = [
     "You parse body/profile notes into structured JSON for a private health log.",
     "The note may mix English and Chinese. Preserve original wording where useful.",
+    "Use activityLevel only from: sedentary, light, moderate, active, very_active.",
     "Return only JSON matching this shape: { profile, measurements, confidence, warnings, remarks }.",
     "Profile can include age, sex, heightCm, weightKg, activityLevel, goal, country, remarks, metadata.",
     "Measurements use measuredAt, type, value, unit, confidence, remarks, metadata.",
@@ -98,5 +104,5 @@ export async function parseBodyNote(input: { note: string; currentProfile: Profi
     `New note: ${input.note}`,
   ].join("\n\n");
 
-  return bodyParseResultSchema.parse(await generateJson("body", prompt));
+  return bodyParseResultSchema.parse(normalizeBodyResult(await generateJson("body", prompt)));
 }
