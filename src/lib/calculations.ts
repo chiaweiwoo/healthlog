@@ -54,17 +54,35 @@ export function calculateTdee(profile: Profile, exerciseCalories = 0) {
   };
 }
 
+function hasKnownNutritionValue(item: ParsedDailyItem, key: "calories" | "proteinG" | "fatG" | "carbsG") {
+  return item.kind === "food" && item.nutrition && typeof item.nutrition[key] === "number";
+}
+
 export function summarizeDailyItems(items: ParsedDailyItem[], profile: Profile) {
   const totals = items.reduce(
     (acc, item) => {
-      acc.calories += item.nutrition?.calories ?? 0;
-      acc.proteinG += item.nutrition?.proteinG ?? 0;
-      acc.fatG += item.nutrition?.fatG ?? 0;
-      acc.carbsG += item.nutrition?.carbsG ?? 0;
+      const calories = hasKnownNutritionValue(item, "calories") ? item.nutrition?.calories ?? 0 : 0;
+      const proteinG = hasKnownNutritionValue(item, "proteinG") ? item.nutrition?.proteinG ?? 0 : 0;
+      const fatG = hasKnownNutritionValue(item, "fatG") ? item.nutrition?.fatG ?? 0 : 0;
+      const carbsG = hasKnownNutritionValue(item, "carbsG") ? item.nutrition?.carbsG ?? 0 : 0;
+
+      acc.calories += calories;
+      acc.proteinG += proteinG;
+      acc.fatG += fatG;
+      acc.carbsG += carbsG;
       acc.waterMl += item.waterMl ?? 0;
       acc.exerciseCalories += item.exerciseCalories ?? 0;
       acc.confidenceValues.push(item.confidence);
       acc.warnings.push(...item.warnings);
+
+      if (item.kind === "food") {
+        acc.foodItemCount += 1;
+        if (!hasKnownNutritionValue(item, "calories")) acc.unknownCaloriesCount += 1;
+        if (!hasKnownNutritionValue(item, "proteinG") || !hasKnownNutritionValue(item, "fatG") || !hasKnownNutritionValue(item, "carbsG")) {
+          acc.unknownMacroCount += 1;
+        }
+      }
+
       return acc;
     },
     {
@@ -76,6 +94,9 @@ export function summarizeDailyItems(items: ParsedDailyItem[], profile: Profile) 
       exerciseCalories: 0,
       confidenceValues: [] as number[],
       warnings: [] as Warning[],
+      foodItemCount: 0,
+      unknownCaloriesCount: 0,
+      unknownMacroCount: 0,
     },
   );
 
@@ -83,6 +104,25 @@ export function summarizeDailyItems(items: ParsedDailyItem[], profile: Profile) 
   const confidence = totals.confidenceValues.length
     ? round(totals.confidenceValues.reduce((sum, value) => sum + value, 0) / totals.confidenceValues.length, 2)
     : 1;
+
+  const warnings = [...totals.warnings, ...tdee.warnings];
+  if (totals.unknownCaloriesCount > 0) {
+    warnings.push({
+      code: "calories_incomplete",
+      message: `${totals.unknownCaloriesCount} food item${totals.unknownCaloriesCount === 1 ? "" : "s"} still need calorie estimates.`,
+      improveWith: "Add portion size, brand, or preparation details to improve the estimate.",
+    });
+  }
+  if (totals.unknownMacroCount > 0) {
+    warnings.push({
+      code: "macros_incomplete",
+      message: `${totals.unknownMacroCount} food item${totals.unknownMacroCount === 1 ? "" : "s"} still have incomplete macros.`,
+      improveWith: "Add portion size or product nutrition details for fuller macro estimates.",
+    });
+  }
+
+  const caloriesIncomplete = totals.foodItemCount > 0 && totals.unknownCaloriesCount > 0;
+  const macrosIncomplete = totals.foodItemCount > 0 && totals.unknownMacroCount > 0;
 
   return {
     calories: round(totals.calories),
@@ -94,14 +134,21 @@ export function summarizeDailyItems(items: ParsedDailyItem[], profile: Profile) 
     bmr: tdee.bmr,
     baseTdee: tdee.baseTdee,
     tdee: tdee.tdee,
-    estimatedDeficit: tdee.tdee === null ? null : round(tdee.tdee - totals.calories),
+    estimatedDeficit: tdee.tdee === null || caloriesIncomplete ? null : round(tdee.tdee - totals.calories),
     confidence,
-    warnings: [...totals.warnings, ...tdee.warnings],
+    warnings,
     breakdown: {
       food: items.filter((item) => item.kind === "food"),
       water: items.filter((item) => item.kind === "water"),
       exercise: items.filter((item) => item.kind === "exercise"),
       notes: items.filter((item) => item.kind === "note"),
+      meta: {
+        foodItemCount: totals.foodItemCount,
+        unknownCaloriesCount: totals.unknownCaloriesCount,
+        unknownMacroCount: totals.unknownMacroCount,
+        caloriesIncomplete,
+        macrosIncomplete,
+      },
     },
   };
 }

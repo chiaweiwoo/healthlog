@@ -1,7 +1,15 @@
 import { NextRequest } from "next/server";
 import { getErrorMessage, logUserAction } from "@/lib/action-logs";
 import { requireApiSession } from "@/lib/auth";
-import { createDailyEntry, getDailySummary, getProfile, listDailyEntries, patchDailyEntry } from "@/lib/db";
+import {
+  createPendingDailyEntry,
+  finalizeDailyEntryFailed,
+  finalizeDailyEntryParsed,
+  getDailySummary,
+  getProfile,
+  listDailyEntries,
+  patchDailyEntry,
+} from "@/lib/db";
 import { parseDailyNote } from "@/lib/llm";
 import { isoDateSchema } from "@/lib/schemas";
 
@@ -39,14 +47,19 @@ export async function POST(request: NextRequest) {
     const rawNote = String(body.rawNote ?? "").trim();
     if (!rawNote) return Response.json({ error: "Note is required." }, { status: 400 });
 
+    let entry = await createPendingDailyEntry(date, rawNote);
     const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(date)]);
-    const parsed = await parseDailyNote({
-      note: rawNote,
-      date,
-      profile,
-      activeEntries: activeEntries.filter((entry) => entry.is_active),
-    });
-    const entry = await createDailyEntry(date, rawNote, parsed);
+    try {
+      const parsed = await parseDailyNote({
+        note: rawNote,
+        date,
+        profile,
+        activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
+      });
+      entry = await finalizeDailyEntryParsed(entry.id, parsed);
+    } catch (parseError) {
+      entry = await finalizeDailyEntryFailed(entry.id, parseError);
+    }
     const summary = await getDailySummary(date);
     await logUserAction({
       requestId,
@@ -61,8 +74,9 @@ export async function POST(request: NextRequest) {
       responsePayload: {
         requestId,
         entryId: entry.id,
-        itemCount: parsed.items.length,
-        warningsCount: parsed.warnings.length,
+        parseStatus: entry.parse_status,
+        itemCount: entry.parsed_items.length,
+        warningsCount: entry.warnings.length,
         hasSummary: Boolean(summary),
       },
       userAgent: request.headers.get("user-agent"),
@@ -95,10 +109,25 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const id = String(body.id ?? "");
     if (!id) return Response.json({ error: "Entry id is required.", requestId }, { status: 400 });
-
-    const entry = await patchDailyEntry(id, {
+    let entry = await patchDailyEntry(id, {
+      rawNote: typeof body.rawNote === "string" ? body.rawNote.trim() : undefined,
       isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
     });
+
+    if (typeof body.rawNote === "string" && body.rawNote.trim()) {
+      const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(entry.entry_date)]);
+      try {
+        const parsed = await parseDailyNote({
+          note: body.rawNote.trim(),
+          date: entry.entry_date,
+          profile,
+          activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
+        });
+        entry = await finalizeDailyEntryParsed(entry.id, parsed);
+      } catch (parseError) {
+        entry = await finalizeDailyEntryFailed(entry.id, parseError);
+      }
+    }
     const summary = await getDailySummary(entry.entry_date);
     await logUserAction({
       requestId,
@@ -109,8 +138,8 @@ export async function PATCH(request: NextRequest) {
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
-      requestPayload: { id, isActive: body.isActive },
-      responsePayload: { requestId, entryId: entry.id, hasSummary: Boolean(summary) },
+      requestPayload: { id, isActive: body.isActive, hasRawNote: typeof body.rawNote === "string" },
+      responsePayload: { requestId, entryId: entry.id, parseStatus: entry.parse_status, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });
     return Response.json({ entry, summary, requestId });

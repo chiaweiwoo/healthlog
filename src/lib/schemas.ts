@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const timeSchema = z.string().regex(/^\d{2}:\d{2}$/).nullable();
+export const parseStatusSchema = z.enum(["pending", "parsed", "failed"]);
 
 export const warningSchema = z.object({
   code: z.string(),
@@ -77,3 +78,4 @@ export type ParsedDailyItem = z.infer<typeof parsedDailyItemSchema>;
 export type DailyParseResult = z.infer<typeof dailyParseResultSchema>;
 export type Profile = z.infer<typeof profileSchema>;
 export type BodyParseResult = z.infer<typeof bodyParseResultSchema>;
+export type ParseStatus = z.infer<typeof parseStatusSchema>;

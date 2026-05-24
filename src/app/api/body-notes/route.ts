@@ -1,7 +1,14 @@
 import { NextRequest } from "next/server";
 import { getErrorMessage, logUserAction } from "@/lib/action-logs";
 import { requireApiSession } from "@/lib/auth";
-import { addBodyMeasurements, getProfile, listBodyMeasurements, upsertProfile } from "@/lib/db";
+import {
+  createPendingBodyNote,
+  finalizeBodyNoteFailed,
+  finalizeBodyNoteParsed,
+  getProfile,
+  listBodyMeasurements,
+  listBodyNotes,
+} from "@/lib/db";
 import { parseBodyNote } from "@/lib/llm";
 
 export async function GET(request: NextRequest) {
@@ -9,7 +16,7 @@ export async function GET(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const auth = await requireApiSession(request);
   if (!auth.ok) return auth.response;
-  const [profile, measurements] = await Promise.all([getProfile(), listBodyMeasurements()]);
+  const [profile, measurements, notes] = await Promise.all([getProfile(), listBodyMeasurements(), listBodyNotes()]);
   await logUserAction({
     requestId,
     route: "/api/body-notes",
@@ -19,10 +26,10 @@ export async function GET(request: NextRequest) {
     statusCode: 200,
     success: true,
     durationMs: Date.now() - started,
-    responsePayload: { requestId, hasProfile: Boolean(profile), measurementCount: measurements.length },
+    responsePayload: { requestId, hasProfile: Boolean(profile), measurementCount: measurements.length, noteCount: notes.length },
     userAgent: request.headers.get("user-agent"),
   });
-  return Response.json({ profile, measurements, requestId });
+  return Response.json({ profile, measurements, notes, requestId });
 }
 
 export async function POST(request: NextRequest) {
@@ -35,11 +42,31 @@ export async function POST(request: NextRequest) {
     const rawNote = String(body.rawNote ?? "").trim();
     if (!rawNote) return Response.json({ error: "Note is required.", requestId }, { status: 400 });
 
+    let bodyNote = await createPendingBodyNote(rawNote);
     const currentProfile = await getProfile();
-    const parsed = await parseBodyNote({ note: rawNote, currentProfile });
-    if (parsed.profile) await upsertProfile(parsed.profile);
-    await addBodyMeasurements(parsed.measurements);
-    const [profile, measurements] = await Promise.all([getProfile(), listBodyMeasurements()]);
+    let parsedWarningsCount = 0;
+    let profile = currentProfile;
+    let measurements = await listBodyMeasurements();
+    let changeSummary: {
+      profileChanges: Array<{ field: string; before: unknown; after: unknown }>;
+      addedMeasurements: Array<{ id: string; type: string; value: number; unit: string; measuredAt: string }>;
+    } = { profileChanges: [], addedMeasurements: [] };
+    try {
+      const parsed = await parseBodyNote({ note: rawNote, currentProfile });
+      parsedWarningsCount = parsed.warnings.length;
+      const result = await finalizeBodyNoteParsed(bodyNote.id, rawNote, parsed);
+      bodyNote = result.note;
+      profile = result.profile;
+      measurements = result.measurements;
+      changeSummary = result.changeSummary;
+    } catch (parseError) {
+      const result = await finalizeBodyNoteFailed(bodyNote.id, parseError);
+      bodyNote = result.note;
+      profile = result.profile;
+      measurements = result.measurements;
+      changeSummary = result.changeSummary;
+    }
+    const notes = await listBodyNotes();
     await logUserAction({
       requestId,
       route: "/api/body-notes",
@@ -53,12 +80,13 @@ export async function POST(request: NextRequest) {
       responsePayload: {
         requestId,
         hasProfile: Boolean(profile),
-        measurementCount: parsed.measurements.length,
-        warningsCount: parsed.warnings.length,
+        measurementCount: measurements.length,
+        warningsCount: parsedWarningsCount,
+        parseStatus: bodyNote.parse_status,
       },
       userAgent: request.headers.get("user-agent"),
     });
-    return Response.json({ profile, measurements, parsed, requestId });
+    return Response.json({ profile, measurements, notes, bodyNote, changeSummary, requestId });
   } catch (error) {
     await logUserAction({
       requestId,
