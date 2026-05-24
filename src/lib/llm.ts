@@ -71,38 +71,59 @@ export async function parseDailyNote(input: {
   activeEntries: unknown[];
 }) {
   const scenario: LlmScenario = needsGrounding(input.note) ? "daily_grounded" : "daily_quick";
-  const prompt = [
-    "You parse messy health notes into structured JSON for a private single-user app.",
-    "The note may mix English and Chinese. Preserve original food names and important wording.",
-    "Use actionType only from: create, edit, delete, clarify.",
-    "Use occurredTime only as HH:MM if the note gives a specific time. Otherwise omit it.",
-    "Each item must include: kind, label, confidence, warnings, metadata.",
-    "Return only JSON matching this shape: { occurredTime, actionType, items, confidence, warnings, remarks }.",
-    "Items use kind food/water/exercise/note. Preserve important details in remarks or metadata. Do not invent precision.",
-    "Nutrition keys are calories, proteinG, fatG, carbsG. Water uses waterMl. Exercise uses exerciseCalories.",
-    "Use Singapore food context by default unless the note says otherwise.",
-    "If uncertain, keep the item visible, lower confidence, and add warnings with improveWith.",
-    `Selected date: ${input.date}`,
-    `Profile: ${JSON.stringify(input.profile ?? {})}`,
-    `Current active entries: ${JSON.stringify(input.activeEntries)}`,
-    `New note: ${input.note}`,
-  ].join("\n\n");
+  const prompt = `
+You parse messy health notes into structured JSON for a private single-user app.
+
+The note may mix English and Chinese. Preserve original food names and important wording.
+
+Use actionType only from: create, edit, delete, clarify.
+
+Use occurredTime only as HH:MM if the note gives a specific time. Otherwise omit it.
+
+Each item must include: kind, label, confidence, warnings, metadata.
+
+Return only JSON matching this shape: { occurredTime, actionType, items, confidence, warnings, remarks }.
+
+Items use kind food/water/exercise/note. Preserve important details in remarks or metadata. Do not invent precision.
+
+Nutrition keys are calories, proteinG, fatG, carbsG. Water uses waterMl. Exercise uses exerciseCalories.
+
+Use Singapore food context by default unless the note says otherwise.
+
+If uncertain, keep the item visible, lower confidence, and add warnings with improveWith.
+
+Selected date: ${input.date}
+
+Profile: ${JSON.stringify(input.profile ?? {})}
+
+Current active entries: ${JSON.stringify(input.activeEntries)}
+
+New note: ${input.note}
+  `.trim();
 
   return dailyParseResultSchema.parse(normalizeDailyResult(await generateJson(scenario, prompt)));
 }
 
 export async function parseBodyNote(input: { note: string; currentProfile: Profile | null }) {
-  const prompt = [
-    "You parse body/profile notes into structured JSON for a private health log.",
-    "The note may mix English and Chinese. Preserve original wording where useful.",
-    "Use activityLevel only from: sedentary, light, moderate, active, very_active.",
-    "Return only JSON matching this shape: { profile, measurements, confidence, warnings, remarks }.",
-    "Profile can include age, sex, heightCm, weightKg, activityLevel, goal, country, remarks, metadata.",
-    "Measurements use measuredAt, type, value, unit, confidence, remarks, metadata.",
-    "Preserve uncertainty and important remarks. Do not invent missing body profile fields.",
-    `Current profile: ${JSON.stringify(input.currentProfile ?? {})}`,
-    `New note: ${input.note}`,
-  ].join("\n\n");
+  const prompt = `
+You parse body/profile notes into structured JSON for a private health log.
+
+The note may mix English and Chinese. Preserve original wording where useful.
+
+Use activityLevel only from: sedentary, light, moderate, active, very_active.
+
+Return only JSON matching this shape: { profile, measurements, confidence, warnings, remarks }.
+
+Profile can include age, sex, heightCm, weightKg, activityLevel, goal, country, remarks, metadata.
+
+Measurements use measuredAt, type, value, unit, confidence, remarks, metadata.
+
+Preserve uncertainty and important remarks. Do not invent missing body profile fields.
+
+Current profile: ${JSON.stringify(input.currentProfile ?? {})}
+
+New note: ${input.note}
+  `.trim();
 
   return bodyParseResultSchema.parse(normalizeBodyResult(await generateJson("body", prompt)));
 }
