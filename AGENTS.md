@@ -38,8 +38,17 @@ Gemini may suggest structure, but it must never directly mutate database state.
 
 Correct flow:
 - insert/update `daily_entries.raw_note`
+- mark parse state on the entry
 - store validated parsed JSON on the entry
 - recalculate `daily_summaries` from active entries
+
+Accepted parse states:
+- `pending`
+- `parsed`
+- `failed`
+
+If parsing fails, keep the raw note row visible and return a user-facing warning.
+Do not drop the input or pretend it was parsed cleanly.
 
 ### 2. Model choice is internal
 
@@ -165,6 +174,7 @@ application bug.
 |---|---|
 | `profile` | Single `id='current'` row for current profile/goals |
 | `body_measurements` | Timestamped measurements |
+| `body_notes` | Raw body/profile note history plus parse status |
 | `daily_entries` | Raw notes plus validated parsed JSON |
 | `daily_summaries` | One row per date, recalculated from active entries |
 | `llm_runs` | Prompt/model/output audit table |
@@ -185,3 +195,11 @@ npm run build
 ```
 
 CI should run lint, typecheck, tests, and production build.
+
+## Good Practice Reminders
+
+- Prefer preserving a user action with a warning over rejecting it after partial work
+- Treat unknown nutrition as incomplete, not zero
+- Keep mobile interactions tap-friendly; do not rely on hover-only affordances for important detail
+- When adding Supabase objects in `healthlog`, include grants and defaults in the migration
+- When changing prompt contracts, update the normalizers and tests in the same pass

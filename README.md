@@ -6,7 +6,9 @@ records with Gemini, and recalculates a daily summary for calories, macros, wate
 exercise, TDEE, and deficit or surplus.
 
 The app also keeps request-level debug traces in Supabase so production issues can
-be tied back to a `requestId` and a server-side log row.
+be tied back to a `requestId` and a server-side log row. LLM parse attempts are
+also recorded in `llm_runs`, and raw body/profile notes are preserved in
+`body_notes`.
 
 ## Stack
 
@@ -34,11 +36,29 @@ be tied back to a `requestId` and a server-side log row.
 5. Run the Supabase migrations in `supabase/migrations`
 6. Start the app with `npm run dev`
 
+## Supabase Setup Notes
+
+- The app uses schema `healthlog`, not `public`
+- In Supabase `Project Settings -> API -> Exposed schemas`, include `healthlog`
+- `service_role` needs grants on schema `healthlog`, its tables, sequences, and routines
+- The migration `supabase/migrations/20260525113000_harden_note_lifecycle.sql` includes the current grant baseline
+- After schema or grant changes, verify the app can read and write `healthlog.daily_entries`
+
 ## Debug Logging
 
 - User actions and auth-related API requests are written to `healthlog.app_request_logs`
+- Every Gemini parse attempt is written to `healthlog.llm_runs`
+- Raw body/profile notes are written to `healthlog.body_notes`
 - Error responses may include a `requestId`
 - Use that `requestId` to find the matching log row in Supabase when debugging production issues
+
+## Current Behavior
+
+- Daily notes are inserted first with parse state `pending`, then updated to `parsed` or `failed`
+- Failed parsing keeps the raw note visible instead of dropping the user input
+- Daily summaries treat unknown calories and macros as incomplete, not zero
+- Mobile warning details open in a tap-friendly dialog
+- Activity level can be set from the body page without typing a full body note
 
 ## Good Practices
 

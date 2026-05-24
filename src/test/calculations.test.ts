@@ -97,4 +97,38 @@ describe("summarizeDailyItems", () => {
     expect(summary.estimatedDeficit).toBe(1950);
     expect(summary.breakdown.food).toHaveLength(1);
   });
+
+  it("keeps incomplete calorie estimates out of deficit math", () => {
+    const summary = summarizeDailyItems(
+      [
+        {
+          kind: "food",
+          label: "Bak chor mee",
+          confidence: 0.7,
+          warnings: [],
+          metadata: {},
+          nutrition: {
+            calories: null,
+            proteinG: 20,
+            fatG: 15,
+            carbsG: null,
+          },
+        },
+      ],
+      {
+        age: 31,
+        sex: "male",
+        heightCm: 172,
+        weightKg: 78.4,
+        activityLevel: "light",
+        country: "Singapore",
+        metadata: {},
+      },
+    );
+
+    expect(summary.calories).toBe(0);
+    expect(summary.estimatedDeficit).toBeNull();
+    expect(summary.breakdown.meta.caloriesIncomplete).toBe(true);
+    expect(summary.warnings.some((warning) => warning.code === "calories_incomplete")).toBe(true);
+  });
 });

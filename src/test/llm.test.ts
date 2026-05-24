@@ -40,6 +40,40 @@ describe("normalizeDailyResult", () => {
     expect(parsed.items[0]?.label).toBe("Bedok Bak Chor Mee");
     expect(parsed.items[0]?.confidence).toBe(0.9);
   });
+
+  it("supports nutrients, macros, kcal, and partial unknown nutrition", () => {
+    const normalized = normalizeDailyResult({
+      actionType: "record",
+      items: [
+        {
+          type: "meal",
+          name: "Bak chor mee",
+          nutrients: {
+            kcal: "520",
+            protein_g: "24",
+            fat: "18",
+            carbohydrates: null,
+          },
+          confidence: 82,
+          warnings: [{ warning: "Portion estimated" }],
+          remarks: ["Morning", "Hawker bowl"],
+        },
+      ],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.actionType).toBe("create");
+    expect(parsed.items[0]?.kind).toBe("food");
+    expect(parsed.items[0]?.nutrition?.calories).toBe(520);
+    expect(parsed.items[0]?.nutrition?.proteinG).toBe(24);
+    expect(parsed.items[0]?.nutrition?.fatG).toBe(18);
+    expect(parsed.items[0]?.nutrition?.carbsG).toBeNull();
+    expect(parsed.items[0]?.confidence).toBe(0.82);
+    expect(parsed.items[0]?.remarks).toBe("Morning; Hawker bowl");
+  });
 });
 
 describe("normalizeBodyResult", () => {
