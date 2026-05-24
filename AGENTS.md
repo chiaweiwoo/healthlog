@@ -55,9 +55,9 @@ Do not drop the input or pretend it was parsed cleanly.
 Do not require the user to provide a Gemini model env var.
 
 Current routing:
-- routine daily parsing -> fast Gemini Flash Lite path
-- brand/menu/restaurant uncertainty -> stronger Gemini Flash path
-- body/profile parsing -> fast Gemini Flash Lite path
+- routine daily parsing -> fast Gemini Flash Lite path (`gemini-3.1-flash-lite`)
+- brand/menu/restaurant uncertainty -> stronger Gemini Flash path (`gemini-3.5-flash`)
+- body/profile parsing -> fast Gemini Flash Lite path (`gemini-3.1-flash-lite`)
 
 If models change, update the model map in code and tests/docs together.
 
@@ -225,3 +225,21 @@ CI should run lint, typecheck, tests, and production build.
 - Keep mobile interactions tap-friendly; do not rely on hover-only affordances for important detail
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass
+
+---
+
+## Session Insights & Lessons Learnt
+
+### 1. Model Demands & Spikes (503 Errors)
+- **Problem**: Older/experimental model configurations (like `gemini-2.5-flash-lite`) experienced frequent `503 Service Unavailable` errors during periods of high demand, resulting in unstable parsing states.
+- **Solution**: Upgraded model routing to standard 2026 releases: `gemini-3.1-flash-lite` for daily/body quick notes and `gemini-3.5-flash` for complex brand/restaurant grounding. This immediately restored stable, sub-second parsing with zero timeout spikes.
+- **Lesson**: Do not rely on temporary, unreleased, or non-GA model variations. Align standard routing with active, robust Flash-Lite offerings.
+
+### 2. Langfuse Observability Specifications
+- **Problem**: Passing token metrics (like `promptTokens`, `completionTokens`, or `totalTokens`) as top-level trace generation fields led to telemetry conflicts or silently dropped usage metadata in Langfuse.
+- **Solution**: Unified all manual generation logging under standard SDK attributes—passing token numbers within the `usage` sub-object (`usage.promptTokens`, `usage.completionTokens`, `usage.totalTokens`) and using `usageDetails` for granular splits.
+- **Lesson**: Ensure manual telemetry calls exactly match the SDK's schema definitions rather than passing intuitive top-level parameters.
+
+### 3. Soft Delete UX Client-Side Handling
+- **Problem**: Displaying soft-deleted items dimmed in the UI creates cluttered feeds, leading to a suboptimal user experience.
+- **Solution**: Maintained database soft delete invariants (`is_active = false`) for auditability, but completely filtered them out on the client side (`entries.filter(...)`) and standard API retrievals. This achieves the visual responsiveness of immediate deletion while respecting database history.
