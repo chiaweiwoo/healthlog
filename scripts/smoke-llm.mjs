@@ -18,7 +18,7 @@ const prompt =
   process.argv.slice(2).join(" ").trim() ||
   "Return a one-line JSON object like {\"ok\":true,\"task\":\"healthlog smoke\"}.";
 
-const model = "gemini-2.5-flash-lite";
+const model = "gemini-3.1-flash-lite";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const langfuse = new Langfuse({
   publicKey: process.env.LANGFUSE_PUBLIC_KEY,

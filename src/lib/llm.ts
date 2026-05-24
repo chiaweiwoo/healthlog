@@ -16,9 +16,9 @@ const PROMPT_VERSION = "2026-05-25-hardening-v1";
 const LLM_TIMEOUT_MS = 20_000;
 
 const modelsByScenario: Record<LlmScenario, string> = {
-  daily_quick: "gemini-2.5-flash-lite",
-  daily_grounded: "gemini-2.5-flash",
-  body: "gemini-2.5-flash-lite",
+  daily_quick: "gemini-3.1-flash-lite",
+  daily_grounded: "gemini-3.5-flash",
+  body: "gemini-3.1-flash-lite",
 };
 
 type UsageSummary = {
