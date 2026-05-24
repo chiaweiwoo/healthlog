@@ -247,7 +247,7 @@ Nutrition keys are:
 - fatG
 - carbsG
 
-Water uses waterMl.
+Water uses waterMl. For beverages/drinks (e.g., soy milk, milk, coffee, tea, soda, soup), even if their kind is classified as "food" (because they have calories), always estimate and include their liquid volume in "waterMl" (e.g., one cup = 250ml, one can = 330ml) so they count towards daily liquid/water intake.
 Exercise uses exerciseCalories.
 Use Singapore food context by default unless the note clearly says otherwise.
 For common Singapore foods, provide a reasonable estimate with confidence when possible.
