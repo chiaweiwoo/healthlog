@@ -2,6 +2,7 @@
 
 import { Ruler, UserRound, Weight } from "lucide-react";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,43 +79,64 @@ export function BodyDashboard({
     !profile?.activityLevel ? "Activity level" : null,
   ].filter(Boolean) as string[];
 
-  async function saveBodyNote(rawNote: string) {
+  async function saveBodyNote(rawNote: string, messages?: { loading: string; success: string }) {
     setError(null);
-    const response = await fetch("/api/body-notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rawNote }),
-    });
-    const body = (await response.json().catch(() => null)) as
-      | {
-          profile?: Profile | null;
-          measurements?: Measurement[];
-          notes?: BodyNote[];
-          bodyNote?: BodyNote;
-          changeSummary?: ChangeSummary;
-          error?: string;
-          requestId?: string;
-        }
-      | null;
-    if (!response.ok) {
-      setError(body?.requestId ? `${body.error ?? "Could not save body note."} (${body.requestId})` : (body?.error ?? "Could not save body note."));
-      return;
+    const loadingMsg = messages?.loading ?? "Updating body profile...";
+    const successMsg = messages?.success ?? "Body profile updated successfully.";
+    const toastId = toast.loading(loadingMsg);
+    try {
+      const response = await fetch("/api/body-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawNote }),
+      });
+      const body = (await response.json().catch(() => null)) as
+        | {
+            profile?: Profile | null;
+            measurements?: Measurement[];
+            notes?: BodyNote[];
+            bodyNote?: BodyNote;
+            changeSummary?: ChangeSummary;
+            error?: string;
+            requestId?: string;
+          }
+        | null;
+      if (!response.ok) {
+        const errorMsg = body?.requestId ? `${body.error ?? "Could not save body note."} (${body.requestId})` : (body?.error ?? "Could not save body note.");
+        setError(errorMsg);
+        toast.error(errorMsg, { id: toastId });
+        return;
+      }
+      setProfile(body?.profile ?? null);
+      setMeasurements(body?.measurements ?? []);
+      setNotes(body?.notes ?? []);
+      setLastChange(body?.changeSummary ?? null);
+      setNote("");
+      if (body?.bodyNote?.parse_status === "failed") {
+        toast.warning("Saved, but profile update needs detail.", { id: toastId });
+      } else {
+        toast.success(successMsg, { id: toastId });
+      }
+    } catch {
+      toast.error("Could not save body note.", { id: toastId });
     }
-    setProfile(body?.profile ?? null);
-    setMeasurements(body?.measurements ?? []);
-    setNotes(body?.notes ?? []);
-    setLastChange(body?.changeSummary ?? null);
-    setNote("");
   }
 
   async function submitNote() {
     const rawNote = note.trim();
     if (!rawNote) return;
-    await saveBodyNote(rawNote);
+    await saveBodyNote(rawNote, {
+      loading: "Saving body profile...",
+      success: "Body profile updated successfully.",
+    });
   }
 
   async function setActivityLevel(value: string) {
-    await saveBodyNote(`Activity level: ${value}`);
+    const label = activityOptions.find((opt) => opt.value === value)?.label ?? value;
+    await saveBodyNote(`Activity level: ${value}`, {
+      loading: `Updating activity level to ${label}...`,
+      success: "Activity level updated.",
+    });
   }
 
   return (

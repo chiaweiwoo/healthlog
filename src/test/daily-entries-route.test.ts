@@ -128,4 +128,33 @@ describe("/api/daily-entries", () => {
     expect(response.status).toBe(200);
     expect(mockPatchDailyEntry).toHaveBeenCalledWith("entry-3", { isActive: false });
   });
+
+  it("GET /api/daily-entries excludes inactive entries by default", async () => {
+    const { GET } = await import("@/app/api/daily-entries/route");
+    mockListDailyEntries.mockResolvedValue([
+      { id: "entry-1", entry_date: "2026-05-25", is_active: true },
+      { id: "entry-2", entry_date: "2026-05-25", is_active: false },
+    ]);
+    mockGetDailySummary.mockResolvedValue({ entry_date: "2026-05-25" });
+
+    const response = await GET(new NextRequest("http://localhost/api/daily-entries?date=2026-05-25"));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0].id).toBe("entry-1");
+  });
+
+  it("GET /api/daily-entries?includeInactive=true includes inactive entries", async () => {
+    const { GET } = await import("@/app/api/daily-entries/route");
+    mockListDailyEntries.mockResolvedValue([
+      { id: "entry-1", entry_date: "2026-05-25", is_active: true },
+      { id: "entry-2", entry_date: "2026-05-25", is_active: false },
+    ]);
+    mockGetDailySummary.mockResolvedValue({ entry_date: "2026-05-25" });
+
+    const response = await GET(new NextRequest("http://localhost/api/daily-entries?date=2026-05-25&includeInactive=true"));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.entries).toHaveLength(2);
+  });
 });

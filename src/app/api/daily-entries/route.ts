@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
   const auth = await requireApiSession(request);
   if (!auth.ok) return auth.response;
   const date = isoDateSchema.parse(request.nextUrl.searchParams.get("date"));
-  const [entries, summary] = await Promise.all([listDailyEntries(date), getDailySummary(date)]);
+  const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "true";
+  const [allEntries, summary] = await Promise.all([listDailyEntries(date), getDailySummary(date)]);
+  const entries = includeInactive ? allEntries : allEntries.filter((e) => e.is_active);
   await logUserAction({
     requestId,
     route: "/api/daily-entries",
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
     statusCode: 200,
     success: true,
     durationMs: Date.now() - started,
-    requestPayload: { date },
+    requestPayload: { date, includeInactive },
     responsePayload: { requestId, entryCount: entries.length, hasSummary: Boolean(summary) },
     userAgent: request.headers.get("user-agent"),
   });

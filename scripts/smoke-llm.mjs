@@ -33,26 +33,55 @@ const trace = langfuse.trace({
 });
 
 try {
-  const result = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-    },
-  });
+const result = await ai.models.generateContent({
+  model,
+  contents: prompt,
+  config: {
+    responseMimeType: "application/json",
+  },
+});
 
-  const text = result.text ?? "";
-  trace.generation({
-    name: "gemini-smoke",
-    model,
-    input: prompt,
-    output: text,
-    metadata: { latencyMs: Date.now() - started },
-  });
+const text = result.text ?? "";
+const usageMetadata = result.usageMetadata
+  ? {
+      promptTokens: result.usageMetadata.promptTokenCount ?? null,
+      completionTokens:
+        (result.usageMetadata.candidatesTokenCount ?? 0) + (result.usageMetadata.thoughtsTokenCount ?? 0) || null,
+      thoughtsTokens: result.usageMetadata.thoughtsTokenCount ?? null,
+      totalTokens: result.usageMetadata.totalTokenCount ?? null,
+      usageDetails: {
+        ...(result.usageMetadata.promptTokenCount != null ? { input: result.usageMetadata.promptTokenCount } : {}),
+        ...((result.usageMetadata.candidatesTokenCount ?? 0) + (result.usageMetadata.thoughtsTokenCount ?? 0)
+          ? { output: (result.usageMetadata.candidatesTokenCount ?? 0) + (result.usageMetadata.thoughtsTokenCount ?? 0) }
+          : {}),
+        ...(result.usageMetadata.thoughtsTokenCount != null ? { thoughts: result.usageMetadata.thoughtsTokenCount } : {}),
+        ...(result.usageMetadata.totalTokenCount != null ? { total: result.usageMetadata.totalTokenCount } : {}),
+      },
+    }
+  : undefined;
 
-  await langfuse.flushAsync();
-  console.log(text);
-  console.log(`Langfuse trace: healthlog-smoke-llm`);
+trace.generation({
+  name: "gemini-smoke",
+  model,
+  input: prompt,
+  output: text,
+  metadata: { latencyMs: Date.now() - started, usageMetadata },
+  usage: usageMetadata
+    ? {
+        promptTokens: usageMetadata.promptTokens,
+        completionTokens: usageMetadata.completionTokens,
+        totalTokens: usageMetadata.totalTokens,
+      }
+    : undefined,
+  usageDetails: usageMetadata?.usageDetails,
+});
+
+await langfuse.flushAsync();
+console.log(text);
+if (usageMetadata) {
+  console.log(`Usage: ${JSON.stringify(usageMetadata)}`);
+}
+console.log(`Langfuse trace: healthlog-smoke-llm`);
 } catch (error) {
   await langfuse.flushAsync();
   console.error(error);

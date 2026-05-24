@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,23 +21,44 @@ export function LoginForm() {
     defaultValues: { username: "", password: "" },
   });
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("signedOut") === "1") {
+        toast.success("Successfully signed out.");
+        const url = new URL(window.location.href);
+        url.searchParams.delete("signedOut");
+        window.history.replaceState(null, "", url.toString());
+      }
+    }
+  }, []);
+
   const onSubmit = form.handleSubmit((values) => {
     setError(null);
+    const toastId = toast.loading("Signing in...");
     startTransition(async () => {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "Sign in failed.");
-        return;
+        const body = (await response.json().catch(() => null)) as { error?: string; requestId?: string } | null;
+
+        if (!response.ok) {
+          const errorMsg = body?.requestId ? `${body.error ?? "Sign in failed."} (${body.requestId})` : (body?.error ?? "Sign in failed.");
+          setError(errorMsg);
+          toast.error(errorMsg, { id: toastId });
+          return;
+        }
+
+        toast.success("Signed in successfully!", { id: toastId });
+        router.replace("/app");
+        router.refresh();
+      } catch {
+        toast.error("Sign in failed.", { id: toastId });
       }
-
-      router.replace("/app");
-      router.refresh();
     });
   });
 

@@ -5,7 +5,9 @@ import { getDailySummary, listDailyEntries } from "@/lib/db";
 export default async function AppPage() {
   const date = format(new Date(), "yyyy-MM-dd");
   const [entries, summary] = await Promise.all([
-    listDailyEntries(date).catch(() => []),
+    listDailyEntries(date)
+      .then((rows) => rows.filter((e) => e.is_active))
+      .catch(() => []),
     getDailySummary(date).catch(() => null),
   ]);
 

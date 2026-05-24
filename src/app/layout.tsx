@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Noto_Sans_SC } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,7 +22,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${notoSansSc.variable}`}>{children}</body>
+      <body className={`${geistSans.variable} ${notoSansSc.variable}`}>
+        {children}
+        <Toaster richColors closeButton />
+      </body>
     </html>
   );
 }

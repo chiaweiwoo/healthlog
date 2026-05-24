@@ -127,6 +127,10 @@ an exact log row.
 
 - Local bcrypt hashes in `.env` that start with `$2...` should be quoted or the
   dollar signs escaped because env expansion can mangle them in some loaders.
+- Blank optional env vars should be treated as `undefined`, not as invalid
+  configured values. Empty strings in local env files can otherwise cause Zod
+  validation to fail at request time and break unrelated flows such as session
+  verification.
 - Vercel env values should mirror production-only secrets without exposing them
   to client bundles.
 - After env changes on Vercel, redeploy or confirm a fresh deployment picked
@@ -165,6 +169,24 @@ If schema exposure is correct but grants are missing, requests can fail with:
 
 When that happens, fix the grants in Supabase SQL before treating it as an
 application bug.
+
+### 13. Langfuse generation usage must use the SDK's accepted fields
+
+For manual Langfuse generation logging:
+- pass Gemini token counts via `usage` and `usageDetails`
+- do not try to pass `promptTokens`, `completionTokens`, or `totalTokens`
+  as top-level generation fields in app code
+
+Current useful mapping from Gemini `usageMetadata`:
+- `promptTokenCount` -> `usage.promptTokens` and `usageDetails.input`
+- `candidatesTokenCount + thoughtsTokenCount` -> `usage.completionTokens` and
+  `usageDetails.output`
+- `thoughtsTokenCount` -> `usageDetails.thoughts`
+- `totalTokenCount` -> `usage.totalTokens` and `usageDetails.total`
+
+If Langfuse traces show `cost = 0`, do not assume the request was free. First
+check whether usage metadata is actually being forwarded and whether the model
+name matches a priced Langfuse model definition.
 
 ---
 

@@ -1,15 +1,22 @@
 import { z } from "zod";
 
+function optionalNonEmptyString(schema: z.ZodString) {
+  return z.preprocess((value) => {
+    if (typeof value === "string" && value.trim() === "") return undefined;
+    return value;
+  }, schema.optional());
+}
+
 const serverEnvSchema = z.object({
-  APP_USERNAME: z.string().min(1).optional(),
-  APP_PASSWORD_HASH: z.string().min(1).optional(),
-  SESSION_SECRET: z.string().min(32).optional(),
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1).optional(),
-  LANGFUSE_PUBLIC_KEY: z.string().min(1).optional(),
-  LANGFUSE_SECRET_KEY: z.string().min(1).optional(),
-  LANGFUSE_BASE_URL: z.string().url().optional(),
+  APP_USERNAME: optionalNonEmptyString(z.string().min(1)),
+  APP_PASSWORD_HASH: optionalNonEmptyString(z.string().min(1)),
+  SESSION_SECRET: optionalNonEmptyString(z.string().min(32)),
+  SUPABASE_URL: optionalNonEmptyString(z.string().url()),
+  SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString(z.string().min(1)),
+  GEMINI_API_KEY: optionalNonEmptyString(z.string().min(1)),
+  LANGFUSE_PUBLIC_KEY: optionalNonEmptyString(z.string().min(1)),
+  LANGFUSE_SECRET_KEY: optionalNonEmptyString(z.string().min(1)),
+  LANGFUSE_BASE_URL: optionalNonEmptyString(z.string().url()),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

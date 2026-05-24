@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { ChevronDown, Droplets, Flame, NotebookPen, Pencil, Sparkles, Timer, Trash2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { toast } from "sonner";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +94,7 @@ function formatNutrition(item: EntryItem) {
     if (item.nutrition?.proteinG != null) parts.push(`P ${item.nutrition.proteinG}g`);
     if (item.nutrition?.fatG != null) parts.push(`F ${item.nutrition.fatG}g`);
     if (item.nutrition?.carbsG != null) parts.push(`C ${item.nutrition.carbsG}g`);
-    if (parts.length) return parts.join(" · ");
+    if (parts.length) return parts.join(" | ");
     return "Estimate unavailable";
   }
   if (item.kind === "water") return item.waterMl != null ? `${item.waterMl} ml` : "Water recorded";
@@ -117,7 +118,7 @@ function getEnergyGapLabel(summary: Summary) {
 
 function getEntryHeadline(entry: Entry) {
   if (entry.parsed_items.length) {
-    return entry.parsed_items.map((item) => item.label).join(" · ");
+    return entry.parsed_items.map((item) => item.label).join(" | ");
   }
   if (entry.parse_status === "pending") return "Parsing note";
   if (entry.parse_status === "failed") return "Needs clarification";
@@ -158,11 +159,18 @@ export function DailyDashboard({
 
   useEffect(() => {
     if (selectedDate === initialDate && selectedDateOverride === null) return;
+    const toastId = toast.loading(`Loading entries for ${selectedDate}...`);
     startTransition(async () => {
-      const response = await fetch(`/api/daily-entries?date=${selectedDate}`);
-      const body = (await response.json()) as { entries: Entry[]; summary: Summary };
-      setEntries(body.entries ?? []);
-      setSummary(body.summary ?? null);
+      try {
+        const response = await fetch(`/api/daily-entries?date=${selectedDate}`);
+        if (!response.ok) throw new Error("Could not load entries.");
+        const body = (await response.json()) as { entries: Entry[]; summary: Summary };
+        setEntries(body.entries ?? []);
+        setSummary(body.summary ?? null);
+        toast.success(`Loaded entries for ${selectedDate}`, { id: toastId });
+      } catch {
+        toast.error(`Could not load entries for ${selectedDate}`, { id: toastId });
+      }
     });
   }, [initialDate, selectedDate, selectedDateOverride]);
 
@@ -170,53 +178,92 @@ export function DailyDashboard({
     setError(null);
     const rawNote = note.trim();
     if (!rawNote) return;
-    const response = await fetch("/api/daily-entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: selectedDate, rawNote }),
-    });
-    const body = (await response.json().catch(() => null)) as
-      | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
-      | null;
-    if (!response.ok) {
-      setError(body?.requestId ? `${body.error ?? "Could not save note."} (${body.requestId})` : (body?.error ?? "Could not save note."));
-      return;
+    const toastId = toast.loading("Saving note...");
+    try {
+      const response = await fetch("/api/daily-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, rawNote }),
+      });
+      const body = (await response.json().catch(() => null)) as
+        | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
+        | null;
+      if (!response.ok) {
+        const errorMsg = body?.requestId ? `${body.error ?? "Could not save note."} (${body.requestId})` : (body?.error ?? "Could not save note.");
+        setError(errorMsg);
+        toast.error(errorMsg, { id: toastId });
+        return;
+      }
+      const newEntry = body?.entry;
+      if (newEntry) {
+        setEntries((current) => [newEntry, ...current.filter((entry) => entry.id !== newEntry.id)]);
+        if (newEntry.parse_status === "failed") {
+          toast.warning("Saved, but parsing failed. Check warnings.", { id: toastId });
+        } else {
+          toast.success("Entry added.", { id: toastId });
+        }
+      } else {
+        toast.success("Entry added.", { id: toastId });
+      }
+      setSummary(body?.summary ?? null);
+      setNote("");
+    } catch {
+      toast.error("Could not save note.", { id: toastId });
     }
-    const newEntry = body?.entry;
-    if (newEntry) {
-      setEntries((current) => [newEntry, ...current.filter((entry) => entry.id !== newEntry.id)]);
-    }
-    setSummary(body?.summary ?? null);
-    setNote("");
   }
 
   async function saveEdit(id: string) {
     const rawNote = editNote.trim();
     if (!rawNote) return;
     setError(null);
-    const response = await fetch("/api/daily-entries", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, rawNote }),
-    });
-    const body = (await response.json().catch(() => null)) as
-      | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
-      | null;
-    if (!response.ok || !body?.entry) {
-      setError(body?.requestId ? `${body.error ?? "Could not update note."} (${body.requestId})` : (body?.error ?? "Could not update note."));
-      return;
+    const toastId = toast.loading("Saving edit...");
+    try {
+      const response = await fetch("/api/daily-entries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, rawNote }),
+      });
+      const body = (await response.json().catch(() => null)) as
+        | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
+        | null;
+      if (!response.ok || !body?.entry) {
+        const errorMsg = body?.requestId ? `${body.error ?? "Could not update note."} (${body.requestId})` : (body?.error ?? "Could not update note.");
+        setError(errorMsg);
+        toast.error(errorMsg, { id: toastId });
+        return;
+      }
+      setEntries((current) => current.map((entry) => (entry.id === id ? body.entry! : entry)));
+      if (body.entry.parse_status === "failed") {
+        toast.warning("Saved, but parsing failed.", { id: toastId });
+      } else {
+        toast.success("Entry updated.", { id: toastId });
+      }
+      setSummary(body.summary ?? null);
+      setEditingId(null);
+      setEditNote("");
+    } catch {
+      toast.error("Could not update note.", { id: toastId });
     }
-    setEntries((current) => current.map((entry) => (entry.id === id ? body.entry! : entry)));
-    setSummary(body.summary ?? null);
-    setEditingId(null);
-    setEditNote("");
   }
 
   async function removeEntry(id: string) {
-    const response = await fetch(`/api/daily-entries?id=${id}`, { method: "DELETE" });
-    const body = (await response.json()) as { summary: Summary };
-    setEntries((current) => current.map((entry) => (entry.id === id ? { ...entry, is_active: false } : entry)));
-    setSummary(body.summary);
+    const toastId = toast.loading("Deleting entry...");
+    try {
+      const response = await fetch(`/api/daily-entries?id=${id}`, { method: "DELETE" });
+      const body = (await response.json().catch(() => null)) as
+        | { summary: Summary; error?: string; requestId?: string }
+        | null;
+      if (!response.ok) {
+        const errorMsg = body?.requestId ? `${body.error ?? "Could not delete note."} (${body.requestId})` : (body?.error ?? "Could not delete note.");
+        toast.error(errorMsg, { id: toastId });
+        return;
+      }
+      setEntries((current) => current.filter((entry) => entry.id !== id));
+      setSummary(body?.summary ?? null);
+      toast.success("Entry deleted.", { id: toastId });
+    } catch {
+      toast.error("Could not delete note.", { id: toastId });
+    }
   }
 
   const breakdownSections = [
@@ -350,7 +397,7 @@ export function DailyDashboard({
                           <WarningDot warnings={entry.warnings} label="Entry warnings" />
                         </div>
                         <p className="mt-1 text-xs text-stone-500">
-                          {entry.occurred_time ? `${entry.occurred_time} · ` : ""}
+                          {entry.occurred_time ? `${entry.occurred_time} | ` : ""}
                           {format(new Date(entry.created_at), "p")}
                         </p>
                       </div>

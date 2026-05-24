@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
     statusCode: 303,
     success: true,
     durationMs: Date.now() - started,
-    responsePayload: { requestId, redirectedTo: "/login" },
+    responsePayload: { requestId, redirectedTo: "/login?signedOut=1" },
     userAgent: request.headers.get("user-agent"),
   });
-  return NextResponse.redirect(new URL("/login", request.url));
+  return NextResponse.redirect(new URL("/login?signedOut=1", request.url));
 }

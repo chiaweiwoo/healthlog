@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type GenerateContentResponseUsageMetadata } from "@google/genai";
 import { Langfuse } from "langfuse";
 import { z, type ZodType } from "zod";
 import { getEnv, requireEnv } from "@/lib/env";
@@ -19,6 +19,14 @@ const modelsByScenario: Record<LlmScenario, string> = {
   daily_quick: "gemini-2.5-flash-lite",
   daily_grounded: "gemini-2.5-flash",
   body: "gemini-2.5-flash-lite",
+};
+
+type UsageSummary = {
+  promptTokens: number | null;
+  completionTokens: number | null;
+  thoughtsTokens: number | null;
+  totalTokens: number | null;
+  usageDetails?: Record<string, number>;
 };
 
 function needsGrounding(note: string) {
@@ -49,6 +57,7 @@ async function logLlmRun(input: {
   model: string;
   requestSummary: Record<string, unknown>;
   outputJson?: unknown;
+  usage?: UsageSummary;
   latencyMs: number;
   success: boolean;
   error?: unknown;
@@ -64,7 +73,10 @@ async function logLlmRun(input: {
       scenario: input.scenario,
       model: input.model,
       input_hash: inputHash,
-      request_summary: input.requestSummary,
+      request_summary: {
+        ...input.requestSummary,
+        usage: input.usage ?? null,
+      },
       output_json: input.outputJson ?? null,
       latency_ms: input.latencyMs,
       success: input.success,
@@ -82,6 +94,44 @@ async function logLlmRun(input: {
   } catch (error) {
     console.error("Failed to log llm run", error);
   }
+}
+
+function normalizeUsageMetadata(usageMetadata?: GenerateContentResponseUsageMetadata): UsageSummary | undefined {
+  if (!usageMetadata) return undefined;
+
+  const promptTokens = usageMetadata.promptTokenCount ?? null;
+  const completionTokens = usageMetadata.candidatesTokenCount ?? null;
+  const thoughtsTokens = usageMetadata.thoughtsTokenCount ?? null;
+  const totalTokens = usageMetadata.totalTokenCount ?? null;
+
+  const usageDetails: Record<string, number> = {};
+  if (promptTokens !== null) usageDetails.input = promptTokens;
+  if (completionTokens !== null) usageDetails.output = completionTokens;
+  if (thoughtsTokens !== null) {
+    usageDetails.thoughts = thoughtsTokens;
+    usageDetails.output = (usageDetails.output ?? 0) + thoughtsTokens;
+  }
+  if (usageMetadata.cachedContentTokenCount != null) usageDetails.cached_input = usageMetadata.cachedContentTokenCount;
+  if (usageMetadata.toolUsePromptTokenCount != null) usageDetails.tool_input = usageMetadata.toolUsePromptTokenCount;
+  if (totalTokens !== null) usageDetails.total = totalTokens;
+
+  return {
+    promptTokens,
+    completionTokens: usageDetails.output ?? completionTokens,
+    thoughtsTokens,
+    totalTokens,
+    usageDetails: Object.keys(usageDetails).length ? usageDetails : undefined,
+  };
+}
+
+function toLangfuseUsage(usage?: UsageSummary) {
+  if (!usage) return undefined;
+  if (usage.promptTokens == null && usage.completionTokens == null && usage.totalTokens == null) return undefined;
+  return {
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+  };
 }
 
 async function generateStructuredJson<T>(input: {
@@ -102,6 +152,7 @@ async function generateStructuredJson<T>(input: {
 
   let responseText = "";
   let normalizedOutput: unknown;
+  let usage: UsageSummary | undefined;
 
   try {
     const result = await withTimeout(
@@ -115,6 +166,7 @@ async function generateStructuredJson<T>(input: {
       LLM_TIMEOUT_MS,
     );
     responseText = result.text ?? "{}";
+    usage = normalizeUsageMetadata(result.usageMetadata);
     normalizedOutput = input.normalizer(JSON.parse(extractJsonObject(responseText)));
     const parsed = input.schema.parse(normalizedOutput);
 
@@ -123,13 +175,16 @@ async function generateStructuredJson<T>(input: {
       model,
       input: input.prompt,
       output: responseText,
-      metadata: { latencyMs: Date.now() - started, promptVersion: PROMPT_VERSION },
+      metadata: { latencyMs: Date.now() - started, promptVersion: PROMPT_VERSION, usage },
+      usage: toLangfuseUsage(usage),
+      usageDetails: usage?.usageDetails,
     });
     await logLlmRun({
       scenario: input.scenario,
       model,
       requestSummary: input.requestSummary,
       outputJson: parsed,
+      usage,
       latencyMs: Date.now() - started,
       success: true,
     });
@@ -141,13 +196,16 @@ async function generateStructuredJson<T>(input: {
       model,
       input: input.prompt,
       output: responseText || null,
-      metadata: { latencyMs: Date.now() - started, promptVersion: PROMPT_VERSION, error: error instanceof Error ? error.message : String(error) },
+      metadata: { latencyMs: Date.now() - started, promptVersion: PROMPT_VERSION, error: error instanceof Error ? error.message : String(error), usage },
+      usage: toLangfuseUsage(usage),
+      usageDetails: usage?.usageDetails,
     });
     await logLlmRun({
       scenario: input.scenario,
       model,
       requestSummary: input.requestSummary,
       outputJson: normalizedOutput,
+      usage,
       latencyMs: Date.now() - started,
       success: false,
       error,
