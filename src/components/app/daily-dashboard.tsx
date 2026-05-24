@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ChevronDown, Droplets, Flame, NotebookPen, Sparkles, Timer } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,19 @@ type Summary = {
   };
 } | null;
 
+function getLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -64,23 +77,29 @@ export function DailyDashboard({
   initialEntries: Entry[];
   initialSummary: Summary;
 }) {
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const browserToday = useSyncExternalStore(
+    () => () => {},
+    getLocalDateString,
+    () => initialDate,
+  );
+  const [selectedDateOverride, setSelectedDateOverride] = useState<string | null>(null);
   const [entries, setEntries] = useState(initialEntries);
   const [summary, setSummary] = useState<Summary>(initialSummary);
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<string | null>("food");
   const [error, setError] = useState<string | null>(null);
+  const selectedDate = selectedDateOverride ?? browserToday;
 
   useEffect(() => {
-    if (selectedDate === initialDate) return;
+    if (selectedDate === initialDate && selectedDateOverride === null) return;
     startTransition(async () => {
       const response = await fetch(`/api/daily-entries?date=${selectedDate}`);
       const body = (await response.json()) as { entries: Entry[]; summary: Summary };
       setEntries(body.entries ?? []);
       setSummary(body.summary ?? null);
     });
-  }, [initialDate, selectedDate]);
+  }, [initialDate, selectedDate, selectedDateOverride]);
 
   async function submitNote() {
     setError(null);
@@ -92,10 +111,10 @@ export function DailyDashboard({
       body: JSON.stringify({ date: selectedDate, rawNote }),
     });
     const body = (await response.json().catch(() => null)) as
-      | { entry?: Entry; summary?: Summary; error?: string }
+      | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
       | null;
     if (!response.ok) {
-      setError(body?.error ?? "Could not save note.");
+      setError(body?.requestId ? `${body.error ?? "Could not save note."} (${body.requestId})` : (body?.error ?? "Could not save note."));
       return;
     }
     const newEntry = body?.entry;
@@ -127,7 +146,7 @@ export function DailyDashboard({
             <CardHeader className="space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-emerald-700">{format(new Date(selectedDate), "EEE, d MMM")}</p>
+                  <p className="text-sm font-medium text-emerald-700">{format(parseDateOnly(selectedDate), "EEE, d MMM")}</p>
                   <CardTitle className="mt-1 text-xl">How today is going</CardTitle>
                 </div>
                 <Input
@@ -135,7 +154,7 @@ export function DailyDashboard({
                   className="w-full bg-stone-50 sm:w-40"
                   type="date"
                   value={selectedDate}
-                  onChange={(event) => setSelectedDate(event.target.value)}
+                  onChange={(event) => setSelectedDateOverride(event.target.value)}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "hash-password": "node scripts/hash-password.mjs"
+    "hash-password": "node scripts/hash-password.mjs",
+    "smoke:llm": "node --env-file=.env scripts/smoke-llm.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",

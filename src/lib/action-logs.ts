@@ -58,5 +58,9 @@ export async function logUserAction(input: LogUserActionInput) {
 }
 
 export function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unexpected error.";
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return "Unexpected error.";
 }

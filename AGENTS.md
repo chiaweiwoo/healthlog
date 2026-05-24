@@ -123,6 +123,40 @@ an exact log row.
 - After env changes on Vercel, redeploy or confirm a fresh deployment picked
   them up.
 
+### 11. Supabase API schema exposure is required
+
+The app uses the Supabase Data API with `db.schema = "healthlog"`. That means the
+Supabase project must expose `healthlog` in:
+- `Project Settings`
+- `API`
+- `Exposed schemas`
+
+If `healthlog` is missing there, app reads and writes will fail with:
+- `PGRST106`
+- `Invalid schema: healthlog`
+
+Do not treat this as an app-code bug before checking schema exposure first.
+
+### 12. Supabase schema grants are required too
+
+Exposing a non-`public` schema is not enough by itself. The API role being used
+must also have grants on that schema and its objects.
+
+For this app, server-side requests use the `service_role` key, so `service_role`
+needs at minimum:
+- `usage` on schema `healthlog`
+- table privileges in schema `healthlog`
+- sequence privileges in schema `healthlog`
+- routine privileges in schema `healthlog`
+- default privileges for future objects in schema `healthlog`
+
+If schema exposure is correct but grants are missing, requests can fail with:
+- `42501`
+- `permission denied for schema healthlog`
+
+When that happens, fix the grants in Supabase SQL before treating it as an
+application bug.
+
 ---
 
 ## Supabase Tables
