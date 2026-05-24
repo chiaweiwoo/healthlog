@@ -1,0 +1,12 @@
+import { AppNav } from "@/components/app/nav";
+import { requireSession } from "@/lib/auth";
+
+export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  await requireSession();
+  return (
+    <div className="min-h-screen bg-stone-50">
+      <AppNav />
+      {children}
+    </div>
+  );
+}
