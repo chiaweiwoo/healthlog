@@ -1,11 +1,12 @@
 import { BodyDashboard } from "@/components/app/body-dashboard";
-import { getProfile, listBodyMeasurements } from "@/lib/db";
+import { getProfile, listBodyMeasurements, listBodyNotes } from "@/lib/db";
 
 export default async function BodyPage() {
-  const [profile, measurements] = await Promise.all([
+  const [profile, measurements, notes] = await Promise.all([
     getProfile().catch(() => null),
     listBodyMeasurements().catch(() => []),
+    listBodyNotes().catch(() => []),
   ]);
 
-  return <BodyDashboard initialProfile={profile} initialMeasurements={measurements} />;
+  return <BodyDashboard initialProfile={profile} initialMeasurements={measurements} initialNotes={notes} />;
 }

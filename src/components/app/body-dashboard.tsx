@@ -6,6 +6,9 @@ import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+type Warning = { code: string; message: string; improveWith?: string };
 
 type Profile = {
   age?: number | null;
@@ -28,24 +31,55 @@ type Measurement = {
   remarks: string | null;
 };
 
+type BodyNote = {
+  id: string;
+  raw_note: string;
+  parse_status: "pending" | "parsed" | "failed";
+  warnings: Warning[];
+  parse_error: string | null;
+  created_at: string;
+};
+
+type ChangeSummary = {
+  profileChanges: Array<{ field: string; before: unknown; after: unknown }>;
+  addedMeasurements: Array<{ id: string; type: string; value: number; unit: string; measuredAt: string }>;
+};
+
+const activityOptions = [
+  { value: "sedentary", label: "Sedentary" },
+  { value: "light", label: "Light" },
+  { value: "moderate", label: "Moderate" },
+  { value: "active", label: "Active" },
+  { value: "very_active", label: "Very active" },
+] as const;
+
 export function BodyDashboard({
   initialProfile,
   initialMeasurements,
+  initialNotes,
 }: {
   initialProfile: Profile | null;
   initialMeasurements: Measurement[];
+  initialNotes: BodyNote[];
 }) {
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
   const [measurements, setMeasurements] = useState<Measurement[]>(initialMeasurements);
+  const [notes, setNotes] = useState<BodyNote[]>(initialNotes);
   const [note, setNote] = useState("");
-  const [warnings, setWarnings] = useState<Array<{ code: string; message: string; improveWith?: string }>>([]);
+  const [lastChange, setLastChange] = useState<ChangeSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function submitNote() {
+  const missingFields = [
+    !profile?.age ? "Age" : null,
+    !profile?.sex ? "Sex" : null,
+    !profile?.heightCm ? "Height" : null,
+    !profile?.weightKg ? "Weight" : null,
+    !profile?.activityLevel ? "Activity level" : null,
+  ].filter(Boolean) as string[];
+
+  async function saveBodyNote(rawNote: string) {
     setError(null);
-    const rawNote = note.trim();
-    if (!rawNote) return;
     const response = await fetch("/api/body-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,46 +89,102 @@ export function BodyDashboard({
       | {
           profile?: Profile | null;
           measurements?: Measurement[];
-          parsed?: { warnings?: Array<{ code: string; message: string; improveWith?: string }> };
+          notes?: BodyNote[];
+          bodyNote?: BodyNote;
+          changeSummary?: ChangeSummary;
           error?: string;
+          requestId?: string;
         }
       | null;
     if (!response.ok) {
-      setError(body?.error ?? "Could not save body note.");
+      setError(body?.requestId ? `${body.error ?? "Could not save body note."} (${body.requestId})` : (body?.error ?? "Could not save body note."));
       return;
     }
     setProfile(body?.profile ?? null);
     setMeasurements(body?.measurements ?? []);
-    setWarnings(body?.parsed?.warnings ?? []);
+    setNotes(body?.notes ?? []);
+    setLastChange(body?.changeSummary ?? null);
     setNote("");
   }
 
-  const incompleteWarning = !profile?.age || !profile?.sex || !profile?.heightCm || !profile?.weightKg || !profile?.activityLevel;
+  async function submitNote() {
+    const rawNote = note.trim();
+    if (!rawNote) return;
+    await saveBodyNote(rawNote);
+  }
+
+  async function setActivityLevel(value: string) {
+    await saveBodyNote(`Activity level: ${value}`);
+  }
 
   return (
-    <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
-      <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-        <section className="space-y-4">
+    <main className="mx-auto max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+        <section className="min-w-0 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Profile</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-              <ProfileTile icon={<UserRound size={16} />} label="Age" value={profile?.age ? String(profile.age) : "Missing"} />
-              <ProfileTile icon={<Ruler size={16} />} label="Height" value={profile?.heightCm ? `${profile.heightCm} cm` : "Missing"} />
-              <ProfileTile icon={<Weight size={16} />} label="Weight" value={profile?.weightKg ? `${profile.weightKg} kg` : "Missing"} />
-              <ProfileTile label="Sex" value={profile?.sex ?? "Missing"} />
-              <ProfileTile label="Activity" value={profile?.activityLevel ?? "Missing"} />
-              <ProfileTile label="Goal" value={profile?.goal ?? "Not set"} />
-              {incompleteWarning ? (
-                <div className="col-span-full rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  TDEE and deficit will stay incomplete until age, sex, height, weight, and activity level are filled in.
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                <ProfileTile icon={<UserRound size={16} />} label="Age" value={profile?.age ? String(profile.age) : "Missing"} />
+                <ProfileTile icon={<Ruler size={16} />} label="Height" value={profile?.heightCm ? `${profile.heightCm} cm` : "Missing"} />
+                <ProfileTile icon={<Weight size={16} />} label="Weight" value={profile?.weightKg ? `${profile.weightKg} kg` : "Missing"} />
+                <ProfileTile label="Sex" value={profile?.sex ?? "Missing"} />
+                <ProfileTile label="Activity" value={profile?.activityLevel ?? "Missing"} />
+                <ProfileTile label="Goal" value={profile?.goal ?? "Not set"} />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-stone-900">Activity level</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {activityOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      className={cn(
+                        "min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition",
+                        profile?.activityLevel === option.value
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50",
+                      )}
+                      disabled={isPending}
+                      onClick={() => startTransition(() => setActivityLevel(option.value))}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {missingFields.length ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm font-medium text-amber-900">TDEE needs a few more profile fields</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {missingFields.map((field) => (
+                      <span key={field} className="rounded-full bg-white px-2 py-1 text-xs text-amber-900">
+                        {field}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : null}
-              {warnings.length ? (
-                <div className="col-span-full flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
-                  <span>Recent parsing warnings</span>
-                  <WarningDot warnings={warnings} />
+
+              {lastChange && (lastChange.profileChanges.length || lastChange.addedMeasurements.length) ? (
+                <div className="rounded-md border border-stone-200 bg-stone-50 p-3">
+                  <p className="text-sm font-medium text-stone-900">Latest update</p>
+                  <div className="mt-2 space-y-2 text-sm text-stone-600">
+                    {lastChange.profileChanges.map((change) => (
+                      <p key={change.field}>
+                        {change.field}: {String(change.after ?? "Cleared")}
+                      </p>
+                    ))}
+                    {lastChange.addedMeasurements.map((measurement) => (
+                      <p key={measurement.id}>
+                        Added {measurement.type}: {measurement.value} {measurement.unit}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </CardContent>
@@ -118,29 +208,58 @@ export function BodyDashboard({
           </Card>
         </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Measurements</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {measurements.length ? (
-              measurements.map((measurement) => (
-                <div key={measurement.id} className="rounded-lg border border-stone-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-stone-900">{measurement.type}</p>
-                    <p className="text-sm text-stone-500">{new Date(measurement.measured_at).toLocaleDateString()}</p>
+        <div className="min-w-0 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Measurements</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {measurements.length ? (
+                measurements.map((measurement) => (
+                  <div key={measurement.id} className="rounded-lg border border-stone-200 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium capitalize text-stone-900">{measurement.type.replace(/_/g, " ")}</p>
+                      <p className="text-sm text-stone-500">{new Date(measurement.measured_at).toLocaleDateString()}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-stone-700">
+                      {measurement.value} {measurement.unit}
+                    </p>
+                    {measurement.remarks ? <p className="mt-1 text-xs text-stone-500">{measurement.remarks}</p> : null}
                   </div>
-                  <p className="mt-2 text-sm text-stone-700">
-                    {measurement.value} {measurement.unit}
-                  </p>
-                  {measurement.remarks ? <p className="mt-1 text-xs text-stone-500">{measurement.remarks}</p> : null}
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-stone-500">No measurements yet.</p>
-            )}
-          </CardContent>
-        </Card>
+                ))
+              ) : (
+                <p className="text-sm text-stone-500">No measurements yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Recent notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {notes.length ? (
+                notes.map((bodyNote) => (
+                  <div key={bodyNote.id} className="rounded-lg border border-stone-200 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-stone-900">{bodyNote.raw_note}</p>
+                        <p className="mt-1 text-xs text-stone-500">{new Date(bodyNote.created_at).toLocaleString()}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <BodyNoteBadge status={bodyNote.parse_status} />
+                        <WarningDot warnings={bodyNote.warnings} label="Body note warnings" />
+                      </div>
+                    </div>
+                    {bodyNote.parse_error ? <p className="mt-2 text-xs text-amber-700">{bodyNote.parse_error}</p> : null}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-stone-500">No body notes yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );
@@ -156,4 +275,17 @@ function ProfileTile({ icon, label, value }: { icon?: React.ReactNode; label: st
       <p className="mt-2 text-sm font-medium text-stone-900">{value}</p>
     </div>
   );
+}
+
+function BodyNoteBadge({ status }: { status: BodyNote["parse_status"] }) {
+  const styles =
+    status === "parsed"
+      ? "bg-emerald-50 text-emerald-700"
+      : status === "failed"
+        ? "bg-amber-100 text-amber-800"
+        : "bg-stone-100 text-stone-700";
+
+  const label = status === "parsed" ? "Parsed" : status === "failed" ? "Needs detail" : "Parsing";
+
+  return <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${styles}`}>{label}</span>;
 }
