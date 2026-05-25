@@ -156,6 +156,43 @@ function getDeficitLabel(summary: Summary) {
   return `${summary.estimated_deficit} kcal`;
 }
 
+function getDeficitDisplayTitle(summary: Summary) {
+  if (!summary) return "0 kcal";
+  if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
+    return "Profile needed";
+  }
+  if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
+    return "Incomplete data";
+  }
+  if (summary.estimated_deficit == null) {
+    return "Incomplete data";
+  }
+  if (summary.estimated_deficit < 0) {
+    return `${Math.abs(summary.estimated_deficit)} kcal Surplus`;
+  }
+  return `${summary.estimated_deficit} kcal Deficit`;
+}
+
+function getQuotaDisplaySub(summary: Summary) {
+  if (!summary) return "Intake and output balance";
+  if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
+    return "Setup age, height, and weight in the Body tab.";
+  }
+  if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
+    return "Some entries are still awaiting parsing.";
+  }
+  if (summary.estimated_deficit == null) {
+    return "Enter your daily logs to calculate deficit.";
+  }
+  if (summary.estimated_deficit < 0) {
+    return `Over spending limit by ${Math.abs(summary.estimated_deficit)} kcal`;
+  }
+  if (summary.estimated_deficit === 0) {
+    return "Perfect balance! No remaining budget.";
+  }
+  return `${summary.estimated_deficit} kcal remaining under TDEE limit`;
+}
+
 function getDeficitTone(summary: Summary) {
   if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50";
   return summary.estimated_deficit < 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50";
@@ -374,170 +411,203 @@ export function DailyDashboard({
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <section className="rounded-lg bg-stone-50 p-3">
-                <div className="flex items-start justify-between gap-2">
+              {/* 1. Master Energy Balance Card */}
+              <section className={`rounded-xl border p-4 ${getDeficitTone(summary)} transition-all duration-200 shadow-sm`}>
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-stone-900">Intake</p>
-                    <p className="mt-1 text-xs text-stone-500">Food and drink totals for the day.</p>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Energy Balance</span>
+                    <h3 className="mt-1 text-2xl font-bold tracking-tight text-stone-900">
+                      {getDeficitDisplayTitle(summary)}
+                    </h3>
+                    <p className="mt-1 text-xs font-medium text-stone-600/80">
+                      {getQuotaDisplaySub(summary)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <InfoButton
-                      title="How intake is calculated"
+                      title="How deficit is calculated"
                       description={
-                        <>
-                          <p>Intake calories come from the general Atwater system when macro grams are available.</p>
-                          <ul className="list-disc space-y-1 pl-4">
-                            <li>Protein: {atwaterFactors.protein} kcal per gram</li>
-                            <li>Fat: {atwaterFactors.fat} kcal per gram</li>
-                            <li>Carbs: {atwaterFactors.carbs} kcal per gram</li>
-                            <li>Alcohol: {atwaterFactors.alcohol} kcal per gram</li>
+                        <div className="space-y-2">
+                          <p>Your energy balance is calculated as **Total Out (TDEE)** minus **Total In (Intake)**.</p>
+                          <ul className="list-disc pl-4 space-y-1">
+                            <li><strong>Deficit (Green)</strong>: You spent more energy than you consumed. Aligns with weight loss.</li>
+                            <li><strong>Surplus (Amber)</strong>: You consumed more energy than you spent. Aligns with weight gain.</li>
                           </ul>
-                          <p>Water is counted from drinks and water entries that include liquid volume.</p>
-                        </>
+                        </div>
                       }
                     />
                   </div>
                 </div>
-                <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
-                  <MetricRow
-                    icon={<Flame size={16} />}
-                    label="Calories"
-                    value={`${summary?.calories ?? 0} kcal`}
-                    info="Intake calories are the known total from food and drinks."
-                    caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
-                  />
-                  <MetricRow
-                    icon={<Drumstick size={16} />}
-                    label="Protein"
-                    value={`${summary?.protein_g ?? 0} g`}
-                    info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
-                    detail={`${intakeBreakdown.proteinCalories} kcal`}
-                    percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Droplet size={16} />}
-                    label="Fat"
-                    value={`${summary?.fat_g ?? 0} g`}
-                    info="Fat contributes 9 kcal per gram and a smaller thermic effect."
-                    detail={`${intakeBreakdown.fatCalories} kcal`}
-                    percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Wheat size={16} />}
-                    label="Carbs"
-                    value={`${summary?.carbs_g ?? 0} g`}
-                    info="Carbohydrates contribute 4 kcal per gram."
-                    detail={`${intakeBreakdown.carbsCalories} kcal`}
-                    percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Martini size={16} />}
-                    label="Alcohol"
-                    value={`${summary?.alcohol_g ?? 0} g`}
-                    info="Alcohol contributes 7 kcal per gram when present."
-                    detail={`${intakeBreakdown.alcoholCalories} kcal`}
-                    percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Droplets size={16} />}
-                    label="Water"
-                    value={`${summary?.water_ml ?? 0} ml`}
-                    info="Water includes drinks and water entries with liquid volume."
-                  />
+
+                {/* In and Out side-by-side columns */}
+                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-stone-200/60 pt-3">
+                  <div className="text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
+                    <p className="mt-0.5 text-lg font-bold text-stone-800">
+                      {summary ? `${summary.calories}` : "0"}{" "}
+                      <span className="text-xs font-normal text-stone-500">kcal</span>
+                    </p>
+                  </div>
+                  <div className="border-l border-stone-200/60 pl-4 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Out (TDEE)</span>
+                    <p className="mt-0.5 text-lg font-bold text-stone-800">
+                      {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
+                      <span className="text-xs font-normal text-stone-500">kcal</span>
+                    </p>
+                  </div>
                 </div>
               </section>
 
-              <section className="rounded-lg bg-stone-50 p-3">
-                <div className="flex items-start justify-between gap-2">
+              {/* 2. Side-by-Side Details Cards */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Intake Details Card */}
+                <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 flex flex-col justify-between shadow-sm">
                   <div>
-                    <p className="text-sm font-medium text-stone-900">Output</p>
-                    <p className="mt-1 text-xs text-stone-500">Estimated daily energy expenditure.</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-900">Intake Details</p>
+                        <p className="mt-0.5 text-[11px] text-stone-500">Food and drink breakdown.</p>
+                      </div>
+                      <InfoButton
+                        title="How intake is calculated"
+                        description={
+                          <>
+                            <p>Intake calories come from the general Atwater system when macro grams are available.</p>
+                            <ul className="list-disc space-y-1 pl-4 mt-1">
+                              <li>Protein: {atwaterFactors.protein} kcal per gram</li>
+                              <li>Fat: {atwaterFactors.fat} kcal per gram</li>
+                              <li>Carbs: {atwaterFactors.carbs} kcal per gram</li>
+                              <li>Alcohol: {atwaterFactors.alcohol} kcal per gram</li>
+                            </ul>
+                            <p className="mt-1">Water is counted from drinks and water entries that include liquid volume.</p>
+                          </>
+                        }
+                      />
+                    </div>
+                    <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                      <MetricRow
+                        icon={<Flame size={16} />}
+                        label="Calories"
+                        value={`${summary?.calories ?? 0} kcal`}
+                        info="Intake calories are the known total from food and drinks."
+                        caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
+                      />
+                      <MetricRow
+                        icon={<Drumstick size={16} />}
+                        label="Protein"
+                        value={`${summary?.protein_g ?? 0} g`}
+                        info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
+                        detail={`${intakeBreakdown.proteinCalories} kcal`}
+                        percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Droplet size={16} />}
+                        label="Fat"
+                        value={`${summary?.fat_g ?? 0} g`}
+                        info="Fat contributes 9 kcal per gram and a smaller thermic effect."
+                        detail={`${intakeBreakdown.fatCalories} kcal`}
+                        percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Wheat size={16} />}
+                        label="Carbs"
+                        value={`${summary?.carbs_g ?? 0} g`}
+                        info="Carbohydrates contribute 4 kcal per gram."
+                        detail={`${intakeBreakdown.carbsCalories} kcal`}
+                        percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Martini size={16} />}
+                        label="Alcohol"
+                        value={`${summary?.alcohol_g ?? 0} g`}
+                        info="Alcohol contributes 7 kcal per gram when present."
+                        detail={`${intakeBreakdown.alcoholCalories} kcal`}
+                        percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Droplets size={16} />}
+                        label="Water"
+                        value={`${summary?.water_ml ?? 0} ml`}
+                        info="Water includes drinks and water entries with liquid volume."
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <InfoButton
-                      title="How output is calculated"
-                      description={
-                        <>
-                          <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
-                          <p>NEAT comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
-                          <p>TEF uses a macro-based estimate:</p>
-                          <ul className="list-disc space-y-1 pl-4">
-                            <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
-                            <li>Carbs: {Math.round(thermicEffectRates.carbs * 100)}%</li>
-                            <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
-                            <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
-                          </ul>
-                          <p>TDEE is calculated as BMR + NEAT + TEF + EAT.</p>
-                        </>
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
-                  <MetricRow
-                    icon={<Flame size={16} />}
-                    label="TDEE"
-                    value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
-                    info="Total Daily Energy Expenditure is the app&apos;s estimate of your daily energy out."
-                    strong
-                  />
-                  <MetricRow
-                    icon={<Flame size={16} />}
-                    label="BMR"
-                    value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
-                    info="Basal Metabolic Rate is the calories your body uses at rest."
-                    percent={getPercent(output.bmr, output.totalTdee)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Sparkles size={16} />}
-                    label="NEAT"
-                    value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
-                    info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
-                    percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<UtensilsCrossed size={16} />}
-                    label="TEF"
-                    value={`${output.tefCalories} kcal`}
-                    info="Thermic Effect of Food is estimated dynamically from today&apos;s protein, carbs, fat, and alcohol intake."
-                    percent={getPercent(output.tefCalories, output.totalTdee)}
-                    subordinate
-                  />
-                  <MetricRow
-                    icon={<Timer size={16} />}
-                    label="EAT"
-                    value={`${summary?.exercise_calories ?? 0} kcal`}
-                    info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
-                    percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
-                    subordinate
-                  />
-                </div>
-              </section>
+                </section>
 
-              <section className={`rounded-lg border p-3 ${getDeficitTone(summary)}`}>
-                <div className="flex items-start justify-between gap-2">
+                {/* Output Details Card */}
+                <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 flex flex-col justify-between shadow-sm">
                   <div>
-                    <p className="text-sm font-medium text-stone-900">Deficit</p>
-                    <p className="mt-1 text-xs text-stone-500">Out - in</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-900">Output Details</p>
+                        <p className="mt-0.5 text-[11px] text-stone-500">Expenditure and metabolic breakdown.</p>
+                      </div>
+                      <InfoButton
+                        title="How output is calculated"
+                        description={
+                          <>
+                            <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
+                            <p className="mt-1">NEAT comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
+                            <p className="mt-1">TEF uses a macro-based estimate:</p>
+                            <ul className="list-disc space-y-1 pl-4 mt-1">
+                              <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
+                              <li>Carbs: {Math.round(thermicEffectRates.carbs * 100)}%</li>
+                              <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
+                              <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
+                            </ul>
+                            <p className="mt-1">TDEE is calculated as BMR + NEAT + TEF + EAT.</p>
+                          </>
+                        }
+                      />
+                    </div>
+                    <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                      <MetricRow
+                        icon={<Flame size={16} />}
+                        label="TDEE"
+                        value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
+                        info="Total Daily Energy Expenditure is the app's estimate of your daily energy out."
+                        strong
+                      />
+                      <MetricRow
+                        icon={<Flame size={16} />}
+                        label="BMR"
+                        value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
+                        info="Basal Metabolic Rate is the calories your body uses at rest."
+                        percent={getPercent(output.bmr, output.totalTdee)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Sparkles size={16} />}
+                        label="NEAT"
+                        value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
+                        info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
+                        percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<UtensilsCrossed size={16} />}
+                        label="TEF"
+                        value={`${output.tefCalories} kcal`}
+                        info="Thermic Effect of Food is estimated dynamically from today's protein, carbs, fat, and alcohol intake."
+                        percent={getPercent(output.tefCalories, output.totalTdee)}
+                        subordinate
+                      />
+                      <MetricRow
+                        icon={<Timer size={16} />}
+                        label="EAT"
+                        value={`${summary?.exercise_calories ?? 0} kcal`}
+                        info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
+                        percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
+                        subordinate
+                      />
+                    </div>
                   </div>
-                  <InfoButton
-                    title="How deficit is calculated"
-                    description={<p>Deficit is Total TDEE minus intake calories. If the result is negative, the day is in surplus instead.</p>}
-                  />
-                </div>
-                <div className="mt-3 flex items-end justify-between gap-4">
-                  <p className="text-2xl font-semibold text-stone-900">{getDeficitLabel(summary)}</p>
-                  <p className="text-right text-sm text-stone-500">
-                    {summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"} - {summary ? `${summary.calories} kcal` : "0 kcal"}
-                  </p>
-                </div>
-              </section>
+                </section>
+              </div>
 
               <div className="space-y-2">
                 {breakdownSections.map((section) => (
