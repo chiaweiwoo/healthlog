@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import {
   ChevronDown,
   Droplets,
-  FileText,
   Flame,
   NotebookPen,
   Pencil,
@@ -16,6 +15,7 @@ import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
 import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
+import { EntryDetailDialog } from "@/components/app/entry-detail-dialog";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
@@ -642,11 +642,15 @@ export function DailyDashboard({
                     {/* Title + timestamp stacked — flex-1 so it gets all leftover space */}
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        <FullTextDialog
-                          title="Entry title"
-                          text={getEntryHeadline(entry)}
-                          className="min-w-0"
-                          previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
+                        <EntryDetailDialog
+                          entry={entry}
+                          trigger={
+                            <button type="button" className="min-w-0">
+                              <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-left text-sm font-bold text-stone-900">
+                                {getEntryHeadline(entry)}
+                              </span>
+                            </button>
+                          }
                         />
                         {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
                         <WarningDot warnings={entry.warnings} label="Entry warnings" />
@@ -655,23 +659,8 @@ export function DailyDashboard({
                         {entry.occurred_time ?? format(new Date(entry.created_at), "p")}
                       </p>
                     </div>
-                    {/* Action icons only on the right — no timestamp competing here */}
+                    {/* Action icons on the right */}
                     <div className="flex shrink-0 items-center gap-0.5">
-                      {entry.parse_status !== "failed" && (
-                        <FullTextDialog
-                          title="Raw Note"
-                          text={entry.raw_note}
-                          trigger={
-                            <button
-                              type="button"
-                              aria-label="View raw note"
-                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
-                            >
-                              <FileText size={14} />
-                            </button>
-                          }
-                        />
-                      )}
                       {entry.is_active ? (
                         <>
                           <Button
