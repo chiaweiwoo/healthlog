@@ -865,31 +865,26 @@ export function DailyDashboard({
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               <fieldset>
                 <legend className="sr-only">Entries 2 measurement selector</legend>
-                <div className="grid grid-cols-7 gap-1.5">
+                <div className="grid grid-cols-7 gap-1.5" role="radiogroup" aria-label="Entries 2 measurement selector">
                   {entries2Metrics.map((metric) => (
-                    <label key={metric.key} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        name="entries2-metric"
-                        value={metric.key}
-                        checked={entries2Metric === metric.key}
-                        onChange={() => setEntries2Metric(metric.key)}
-                        className="sr-only"
-                      />
-                      <span
+                    <button
+                      key={metric.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={entries2Metric === metric.key}
                         aria-label={metric.label}
-                        className={cn(
-                          "inline-flex h-8 w-full items-center justify-center rounded-md border transition",
-                          entries2Metric === metric.key
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
-                        )}
-                        title={metric.label}
+                      className={cn(
+                        "inline-flex h-8 w-full items-center justify-center rounded-md border transition cursor-pointer",
+                        entries2Metric === metric.key
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
+                      )}
+                      title={metric.label}
+                      onClick={() => setEntries2Metric(metric.key)}
                       >
                         <Entries2MetricIcon metric={metric.key} size={12} />
                         <span className="sr-only">{metric.label}</span>
-                      </span>
-                    </label>
+                    </button>
                   ))}
                 </div>
               </fieldset>
