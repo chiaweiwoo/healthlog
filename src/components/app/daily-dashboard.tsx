@@ -968,7 +968,7 @@ export function DailyDashboard({
                                 </div>
                               ) : null}
                               {sourceEntry ? (
-                                <div className="flex gap-2 border-t border-stone-200 pt-3">
+                                <div className="flex justify-end gap-2 border-t border-stone-200 pt-3">
                                   <DialogClose asChild>
                                     <Button
                                       type="button"
@@ -978,7 +978,7 @@ export function DailyDashboard({
                                       aria-label="Edit original note"
                                       title="Edit original note"
                                       onClick={() => beginEditEntry(sourceEntry)}
-                                      className="h-9 w-9 rounded-lg border-stone-200 text-stone-700 hover:bg-stone-50"
+                                      className="h-8 w-8 rounded-lg border-stone-200 text-stone-700 hover:bg-stone-50"
                                     >
                                       <Pencil size={13} />
                                     </Button>
@@ -992,7 +992,7 @@ export function DailyDashboard({
                                       aria-label="Delete original note"
                                       title="Delete original note"
                                       onClick={() => requestDeleteEntry(sourceEntry.id, sourceEntry.parsed_items.length)}
-                                      className="h-9 w-9 rounded-lg border-rose-100 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                      className="h-8 w-8 rounded-lg border-rose-100 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                                     >
                                       <Trash2 size={13} />
                                     </Button>
