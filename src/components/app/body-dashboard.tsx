@@ -225,6 +225,7 @@ export function BodyDashboard({
                 placeholder="Male, 31, 172cm, 78.4kg, light activity. Waist 34in this morning. Want slow fat loss."
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
+                disabled={isPending}
               />
               <Button className="w-full sm:w-auto" disabled={isPending || !note.trim()} onClick={() => startTransition(submitNote)}>
                 {isPending ? "Saving..." : "Update body profile"}
