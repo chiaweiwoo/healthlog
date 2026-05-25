@@ -414,7 +414,7 @@ export function DailyDashboard({
           </div>
 
           {/* Breakdown toggle */}
-          <div className="flex justify-end border-t border-stone-200/40 mt-4 pt-2">
+          <div className="flex justify-end mt-2">
             <button
               type="button"
               aria-label={caloriesDetailOpen ? "Hide breakdown" : "Show breakdown"}
