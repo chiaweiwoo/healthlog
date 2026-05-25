@@ -379,39 +379,39 @@ export function DailyDashboard({
                     <WarningDot warnings={summary?.warnings} label="Intake warnings" />
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <MetricTile
+                <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                  <MetricRow
                     icon={<Flame size={16} />}
                     label="Calories"
                     value={`${summary?.calories ?? 0} kcal`}
                     info="Intake calories are the known total from food and drinks."
                     caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Droplets size={16} />}
                     label="Water"
                     value={`${summary?.water_ml ?? 0} ml`}
                     info="Water includes drinks and water entries with liquid volume."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Drumstick size={16} />}
                     label="Protein"
                     value={`${summary?.protein_g ?? 0} g`}
                     info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Droplet size={16} />}
                     label="Fat"
                     value={`${summary?.fat_g ?? 0} g`}
                     info="Fat contributes 9 kcal per gram and a smaller thermic effect."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Wheat size={16} />}
                     label="Carbs"
                     value={`${summary?.carbs_g ?? 0} g`}
                     info="Carbohydrates contribute 4 kcal per gram."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Martini size={16} />}
                     label="Alcohol"
                     value={`${summary?.alcohol_g ?? 0} g`}
@@ -447,37 +447,36 @@ export function DailyDashboard({
                     <WarningDot warnings={summary?.warnings} label="Output warnings" />
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <MetricTile
+                <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                  <MetricRow
                     icon={<Flame size={16} />}
                     label="BMR"
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                     info="Basal Metabolic Rate is the calories your body uses at rest."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Sparkles size={16} />}
                     label="Activity"
                     value={output.physicalActivityCalories != null ? `${output.physicalActivityCalories} kcal` : "Profile needed"}
                     info="Physical activity is the non-resting part of your baseline daily expenditure."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<UtensilsCrossed size={16} />}
                     label="TEF"
                     value={`${output.tefCalories} kcal`}
                     info="Thermic Effect of Food is estimated from macro-specific digestion costs and shown as part of baseline output."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Timer size={16} />}
                     label="Exercise"
                     value={`${summary?.exercise_calories ?? 0} kcal`}
                     info="Exercise is added from your logged activity entries."
                   />
-                  <MetricTile
+                  <MetricRow
                     icon={<Flame size={16} />}
                     label="Total TDEE"
                     value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
                     info="Total TDEE is the app&apos;s estimate of daily energy out."
-                    className="sm:col-span-2"
                   />
                 </div>
               </section>
@@ -493,10 +492,12 @@ export function DailyDashboard({
                     description={<p>Deficit is Total TDEE minus intake calories. If the result is negative, the day is in surplus instead.</p>}
                   />
                 </div>
-                <p className="mt-3 text-2xl font-semibold text-stone-900">{getDeficitLabel(summary)}</p>
-                <p className="mt-1 text-sm text-stone-500">
-                  {summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"} - {summary ? `${summary.calories} kcal` : "0 kcal"}
-                </p>
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <p className="text-2xl font-semibold text-stone-900">{getDeficitLabel(summary)}</p>
+                  <p className="text-right text-sm text-stone-500">
+                    {summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"} - {summary ? `${summary.calories} kcal` : "0 kcal"}
+                  </p>
+                </div>
               </section>
 
               <div className="space-y-2">
@@ -690,30 +691,34 @@ export function DailyDashboard({
   );
 }
 
-function MetricTile({
+function MetricRow({
   icon,
   label,
   value,
   info,
   caption,
-  className,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   info: string;
   caption?: string;
-  className?: string;
 }) {
   return (
-    <div className={`rounded-md border border-stone-200 bg-white p-3 ${className ?? ""}`}>
-      <div className="flex items-center justify-between gap-2 text-stone-500">
-        <span>{icon}</span>
-        <InfoButton title={label} description={<p>{info}</p>} />
+    <div className="border-b border-stone-200 px-3 py-3 last:border-b-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="text-stone-500">{icon}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-stone-900">{label}</p>
+            {caption ? <p className="mt-0.5 text-xs text-stone-500">{caption}</p> : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="text-sm font-semibold text-stone-900">{value}</p>
+          <InfoButton title={label} description={<p>{info}</p>} />
+        </div>
       </div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-stone-900">{value}</p>
-      {caption ? <p className="mt-1 text-xs text-stone-500">{caption}</p> : null}
     </div>
   );
 }
