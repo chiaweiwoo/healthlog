@@ -426,7 +426,7 @@ export function DailyDashboard({
               className="flex w-full items-center justify-between text-xs font-semibold text-stone-500 hover:text-stone-700 transition-colors cursor-pointer"
               onClick={() => setCaloriesDetailOpen((v) => !v)}
             >
-              <span>Show breakdown</span>
+              <span>{caloriesDetailOpen ? "Hide breakdown" : "Show breakdown"}</span>
               <ChevronDown
                 size={14}
                 className={`transition-transform duration-200 ${caloriesDetailOpen ? "rotate-180" : ""}`}
@@ -804,7 +804,7 @@ export function DailyDashboard({
               </div>
               <p className="mt-3 text-sm font-bold text-stone-900 font-sans tracking-tight">No records yet today</p>
               <p className="mt-1 text-xs font-medium text-stone-500 max-w-[200px] font-sans">
-                Tap the ✎ button to log your meals, drinks, or workouts.
+                Use the floating button to log meals, drinks, or workouts.
               </p>
             </div>
           )}
@@ -817,7 +817,8 @@ export function DailyDashboard({
         type="button"
         aria-label="Add note"
         onClick={() => setQuickNoteOpen(true)}
-        className="fixed bottom-24 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition-all duration-150 sm:bottom-8 sm:right-6"
+        className="fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition-all duration-150 sm:right-6"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }}
       >
         <NotebookPen size={22} />
       </button>

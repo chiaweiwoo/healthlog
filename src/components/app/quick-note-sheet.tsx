@@ -1,5 +1,6 @@
 "use client";
 
+import { format } from "date-fns";
 import { NotebookPen } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -11,6 +12,9 @@ type Entry = {
   id: string;
   raw_note: string;
   occurred_time: string | null;
+  // Typed as unknown[] here; the consuming component (DailyDashboard) knows the
+  // concrete shape from the API and casts at the boundary. This avoids duplicating
+  // the full EntryItem/Warning type tree in this file.
   parsed_items: unknown[];
   confidence: number;
   warnings: unknown[];
@@ -20,6 +24,16 @@ type Entry = {
   is_active: boolean;
   created_at: string;
 };
+
+function getLocalDateString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
 
 export function QuickNoteSheet({
   open,
@@ -36,6 +50,9 @@ export function QuickNoteSheet({
 }) {
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const isToday = selectedDate === getLocalDateString();
+  const dateLabel = isToday ? null : format(parseDateOnly(selectedDate), "d MMM yyyy");
 
   async function submit() {
     const rawNote = note.trim();
@@ -86,7 +103,12 @@ export function QuickNoteSheet({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Log a note</DialogTitle>
+          <DialogTitle>
+            Log a note
+            {dateLabel && (
+              <span className="ml-2 text-xs font-normal text-stone-500">— {dateLabel}</span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <Textarea
@@ -97,6 +119,9 @@ export function QuickNoteSheet({
             className="bg-white/80 border-stone-200 rounded-lg resize-none h-28 placeholder:text-stone-400 text-sm"
             autoFocus
           />
+          <p className="text-[11px] text-stone-400 leading-relaxed">
+            Tips: mix English and Chinese, time is optional, you can include food, water, and exercise in one note.
+          </p>
           <div className="flex gap-2">
             <Button
               className="flex-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
