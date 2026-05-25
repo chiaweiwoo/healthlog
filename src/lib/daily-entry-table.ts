@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { getDisplayNutrition } from "@/lib/calculations";
-import { ParsedDailyItem } from "@/lib/schemas";
+import { ParsedDailyItem, Warning } from "@/lib/schemas";
 import { round } from "@/lib/utils";
 
 export type EntryTableMetric = "calories" | "water" | "protein" | "fat" | "carbs" | "alcohol" | "exercise";
@@ -24,6 +24,7 @@ export type EntryTableRow = {
   entryId: string;
   label: string;
   time: string;
+  warnings: Warning[];
   measurements: Record<EntryTableMetric, EntryTableMeasurement>;
 };
 
@@ -100,6 +101,7 @@ export function flattenEntriesForTable(entries: EntryTableEntry[]): EntryTableRo
         entryId: entry.id,
         label: item.label,
         time: normalizeTime(item.occurredTime) ?? normalizeTime(entry.occurred_time) ?? format(new Date(entry.created_at), "HH:mm"),
+        warnings: item.warnings ?? [],
         measurements: {
           calories: getMeasurement(item, "calories"),
           water: getMeasurement(item, "water"),

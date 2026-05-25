@@ -25,6 +25,7 @@ import { NutritionIcons } from "@/components/app/nutrition-icons";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
+import { DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
@@ -922,6 +923,7 @@ export function DailyDashboard({
                   </div>
                   {entries2Rows.map((row) => {
                     const measurement = row.measurements[entries2Metric];
+                    const sourceEntry = entries.find((entry) => entry.id === row.entryId);
                     return (
                       <div
                         key={row.id}
@@ -937,7 +939,54 @@ export function DailyDashboard({
                             text={row.label}
                             className="block min-w-0 max-w-full"
                             previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
-                          />
+                          >
+                            <div className="space-y-3">
+                              {row.warnings.length ? (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Warnings</p>
+                                  {row.warnings.map((warning, index) => (
+                                    <div key={`${warning.code}-${index}`} className="rounded-md border border-amber-200 bg-amber-50 p-2.5">
+                                      <p className="text-sm font-medium text-amber-950">{warning.message}</p>
+                                      {warning.improveWith ? <p className="mt-1 text-xs text-amber-800">{warning.improveWith}</p> : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {sourceEntry ? (
+                                <div className="flex gap-2 border-t border-stone-200 pt-3">
+                                  <DialogClose asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isPending}
+                                      onClick={() => {
+                                        setEditingId(sourceEntry.id);
+                                        setEditNote(sourceEntry.raw_note);
+                                      }}
+                                      className="flex-1 rounded-lg border-stone-200 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                                    >
+                                      <Pencil size={13} />
+                                      Edit entry
+                                    </Button>
+                                  </DialogClose>
+                                  <DialogClose asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isPending}
+                                      onClick={() => requestDeleteEntry(sourceEntry.id)}
+                                      className="flex-1 rounded-lg border-rose-100 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                    >
+                                      <Trash2 size={13} />
+                                      Delete entry
+                                    </Button>
+                                  </DialogClose>
+                                </div>
+                              ) : null}
+                            </div>
+                          </FullTextDialog>
                         </div>
                         <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
                           {formatEntryTableMetricValue(measurement.value, measurement.unit)}

@@ -19,6 +19,7 @@ export function FullTextDialog({
   description,
   label,
   trigger,
+  children,
 }: {
   title: string;
   text: string;
@@ -27,6 +28,7 @@ export function FullTextDialog({
   description?: string;
   label?: string;
   trigger?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <Dialog>
@@ -45,6 +47,7 @@ export function FullTextDialog({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         <p className="mt-2 break-words text-sm text-stone-700">{text}</p>
+        {children ? <div className="mt-4">{children}</div> : null}
       </DialogContent>
     </Dialog>
   );
