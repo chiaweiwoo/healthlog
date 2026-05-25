@@ -240,6 +240,7 @@ CI should run lint, typecheck, tests, and production build.
 - Treat unknown nutrition as incomplete, not zero
 - Keep mobile interactions tap-friendly; do not rely on hover-only affordances for important detail
 - Prefer compact, list-first mobile summaries over decorative metric cards when density matters
+- Compact mobile tables should bias width toward the middle content column. Time and numeric measurement columns can be kept tight because labels like `19:48` and `1000 kcal` are short; avoid truncating item names too aggressively just to preserve extra side-column whitespace.
 - Daily dashboard is a single-column mobile-first feed (Calories → Water → Entries, max-w-2xl). New entries use a floating action button (FAB) opening a dialog — do not reintroduce an inline textarea form at the bottom of the page.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story

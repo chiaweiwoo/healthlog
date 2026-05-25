@@ -871,9 +871,9 @@ export function DailyDashboard({
                   <table className="w-full table-fixed border-collapse text-sm">
                     <thead className="bg-stone-50/80">
                       <tr className="text-left text-[11px] uppercase tracking-wide text-stone-500">
-                        <th className="w-16 px-3 py-2 font-semibold">Time</th>
-                        <th className="px-3 py-2 font-semibold">Item</th>
-                        <th className="w-28 px-3 py-2 text-right font-semibold">Measurement</th>
+                        <th className="w-14 px-2 py-2 font-semibold">Time</th>
+                        <th className="px-2 py-2 font-semibold">Item</th>
+                        <th className="w-24 px-2 py-2 text-right font-semibold">Measurement</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -881,10 +881,10 @@ export function DailyDashboard({
                         const measurement = row.measurements[entries2Metric];
                         return (
                           <tr key={row.id} className="border-t border-stone-200 first:border-t-0">
-                            <td className="px-3 py-2 align-top text-xs font-semibold tabular-nums text-stone-500">
+                            <td className="px-2 py-2 align-top text-xs font-semibold tabular-nums text-stone-500">
                               {row.time}
                             </td>
-                            <td className="min-w-0 px-3 py-2 align-top">
+                            <td className="min-w-0 px-2 py-2 align-top">
                               <FullTextDialog
                                 title="Parsed item"
                                 text={row.label}
@@ -892,7 +892,7 @@ export function DailyDashboard({
                                 previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
                               />
                             </td>
-                            <td className="px-3 py-2 text-right align-top text-sm font-semibold tabular-nums text-stone-700">
+                            <td className="px-2 py-2 text-right align-top text-sm font-semibold tabular-nums text-stone-700">
                               {formatEntryTableMetricValue(measurement.value, measurement.unit)}
                             </td>
                           </tr>
