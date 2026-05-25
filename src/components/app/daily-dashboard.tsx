@@ -455,7 +455,6 @@ export function DailyDashboard({
                     label="TDEE"
                     value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
                     info="Total Daily Energy Expenditure is the app&apos;s estimate of your daily energy out."
-                    percent={output.totalTdee != null ? 100 : null}
                     strong
                   />
                   <MetricRow
