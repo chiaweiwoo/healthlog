@@ -402,7 +402,7 @@ export function DailyDashboard({
                     label="Protein"
                     value={`${summary?.protein_g ?? 0} g`}
                     info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
-                    caption={`${intakeBreakdown.proteinCalories} kcal`}
+                    detail={`${intakeBreakdown.proteinCalories} kcal`}
                     percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
                     subordinate
                   />
@@ -411,7 +411,7 @@ export function DailyDashboard({
                     label="Fat"
                     value={`${summary?.fat_g ?? 0} g`}
                     info="Fat contributes 9 kcal per gram and a smaller thermic effect."
-                    caption={`${intakeBreakdown.fatCalories} kcal`}
+                    detail={`${intakeBreakdown.fatCalories} kcal`}
                     percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
                     subordinate
                   />
@@ -420,7 +420,7 @@ export function DailyDashboard({
                     label="Carbs"
                     value={`${summary?.carbs_g ?? 0} g`}
                     info="Carbohydrates contribute 4 kcal per gram."
-                    caption={`${intakeBreakdown.carbsCalories} kcal`}
+                    detail={`${intakeBreakdown.carbsCalories} kcal`}
                     percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
                     subordinate
                   />
@@ -429,7 +429,7 @@ export function DailyDashboard({
                     label="Alcohol"
                     value={`${summary?.alcohol_g ?? 0} g`}
                     info="Alcohol contributes 7 kcal per gram when present."
-                    caption={`${intakeBreakdown.alcoholCalories} kcal`}
+                    detail={`${intakeBreakdown.alcoholCalories} kcal`}
                     percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
                     subordinate
                   />
@@ -748,6 +748,7 @@ function MetricRow({
   value,
   info,
   caption,
+  detail,
   percent,
   strong = false,
   subordinate = false,
@@ -757,6 +758,7 @@ function MetricRow({
   value: string;
   info: string;
   caption?: string;
+  detail?: string;
   percent?: number | null;
   strong?: boolean;
   subordinate?: boolean;
@@ -780,9 +782,9 @@ function MetricRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {percent != null ? (
+          {detail ? (
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${subordinate ? "bg-white text-stone-400" : "bg-stone-100 text-stone-500"}`}>
-              {percent}%
+              {detail}
             </span>
           ) : null}
           <p className={`text-sm ${subordinate ? "text-stone-700" : "text-stone-900"} ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
