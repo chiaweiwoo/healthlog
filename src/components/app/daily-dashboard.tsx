@@ -442,7 +442,7 @@ export function DailyDashboard({
                             <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
                             <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
                           </ul>
-                          <p>Total TDEE is calculated as BMR + baseline activity + TEF + EAT.</p>
+                          <p>TDEE is calculated as BMR + NEAT + TEF + EAT.</p>
                         </>
                       }
                     />
@@ -452,10 +452,19 @@ export function DailyDashboard({
                 <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
                   <MetricRow
                     icon={<Flame size={16} />}
+                    label="TDEE"
+                    value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
+                    info="Total Daily Energy Expenditure is the app&apos;s estimate of your daily energy out."
+                    percent={output.totalTdee != null ? 100 : null}
+                    strong
+                  />
+                  <MetricRow
+                    icon={<Flame size={16} />}
                     label="BMR"
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                     info="Basal Metabolic Rate is the calories your body uses at rest."
                     percent={getPercent(output.bmr, output.totalTdee)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<Sparkles size={16} />}
@@ -463,6 +472,7 @@ export function DailyDashboard({
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
                     info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<UtensilsCrossed size={16} />}
@@ -470,6 +480,7 @@ export function DailyDashboard({
                     value={`${output.tefCalories} kcal`}
                     info="Thermic Effect of Food is estimated dynamically from today&apos;s protein, carbs, fat, and alcohol intake."
                     percent={getPercent(output.tefCalories, output.totalTdee)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<Timer size={16} />}
@@ -477,14 +488,7 @@ export function DailyDashboard({
                     value={`${summary?.exercise_calories ?? 0} kcal`}
                     info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
-                  />
-                  <MetricRow
-                    icon={<Flame size={16} />}
-                    label="Total TDEE"
-                    value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
-                    info="Total TDEE is the app&apos;s estimate of daily energy out."
-                    percent={output.totalTdee != null ? 100 : null}
-                    strong
+                    subordinate
                   />
                 </div>
               </section>
@@ -727,6 +731,7 @@ function MetricRow({
   caption,
   percent,
   strong = false,
+  subordinate = false,
 }: {
   icon: ReactNode;
   label: string;
@@ -735,27 +740,41 @@ function MetricRow({
   caption?: string;
   percent?: number | null;
   strong?: boolean;
+  subordinate?: boolean;
 }) {
   return (
-    <div className="border-b border-stone-200 px-3 py-2.5 last:border-b-0">
+    <div className={`border-b border-stone-200 px-3 py-2.5 last:border-b-0 ${subordinate ? "bg-stone-50/55" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <InfoButton className="h-6 w-6 text-stone-500 hover:bg-stone-100 hover:text-stone-700" title={label} description={<p>{info}</p>}>
+          <InfoButton
+            className={`h-6 w-6 ${subordinate ? "text-stone-400 hover:bg-white hover:text-stone-700" : "text-stone-500 hover:bg-stone-100 hover:text-stone-700"}`}
+            title={label}
+            description={<p>{info}</p>}
+          >
             {icon}
           </InfoButton>
-          <div className="min-w-0">
-            <p className={`text-sm text-stone-900 ${strong ? "font-semibold" : "font-medium"}`}>{label}</p>
-            {caption ? <p className="mt-0.5 text-xs text-stone-500">{caption}</p> : null}
+          <div className={`min-w-0 ${subordinate ? "border-l border-stone-200 pl-3" : ""}`}>
+            <p className={`text-sm ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : subordinate ? "font-medium" : "font-medium"}`}>
+              {label}
+            </p>
+            {caption ? <p className={`mt-0.5 text-xs ${subordinate ? "text-stone-400" : "text-stone-500"}`}>{caption}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {percent != null ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-500">{percent}%</span> : null}
-          <p className={`text-sm text-stone-900 ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
+          {percent != null ? (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${subordinate ? "bg-white text-stone-400" : "bg-stone-100 text-stone-500"}`}>
+              {percent}%
+            </span>
+          ) : null}
+          <p className={`text-sm ${subordinate ? "text-stone-700" : "text-stone-900"} ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
         </div>
       </div>
       {percent != null ? (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
-          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }} />
+        <div className={`mt-2 h-1.5 overflow-hidden rounded-full ${subordinate ? "bg-stone-200/70" : "bg-stone-100"}`}>
+          <div
+            className={`h-full rounded-full ${subordinate ? "bg-stone-400" : "bg-emerald-500"}`}
+            style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
+          />
         </div>
       ) : null}
     </div>
