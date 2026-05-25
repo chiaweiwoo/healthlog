@@ -638,23 +638,25 @@ export function DailyDashboard({
               const isEditing = editingId === entry.id;
               return (
                 <article key={entry.id} className={`rounded-xl border p-4 ${getEntryStatusTone(entry)}`}>
-                  <div className="flex items-center gap-2">
-                    {/* Title + badges — truncates when right side is busy */}
-                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <FullTextDialog
-                        title="Entry title"
-                        text={getEntryHeadline(entry)}
-                        className="min-w-0"
-                        previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
-                      />
-                      {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
-                      <WarningDot warnings={entry.warnings} label="Entry warnings" />
-                    </div>
-                    {/* Timestamp + actions — always on the right */}
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <span className="mr-1 text-xs font-semibold text-stone-400 font-sans">
+                  <div className="flex items-start justify-between gap-2">
+                    {/* Title + timestamp stacked — flex-1 so it gets all leftover space */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <FullTextDialog
+                          title="Entry title"
+                          text={getEntryHeadline(entry)}
+                          className="min-w-0"
+                          previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
+                        />
+                        {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
+                        <WarningDot warnings={entry.warnings} label="Entry warnings" />
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-stone-400 font-sans">
                         {entry.occurred_time ?? format(new Date(entry.created_at), "p")}
-                      </span>
+                      </p>
+                    </div>
+                    {/* Action icons only on the right — no timestamp competing here */}
+                    <div className="flex shrink-0 items-center gap-0.5">
                       {entry.parse_status !== "failed" && (
                         <FullTextDialog
                           title="Raw Note"
