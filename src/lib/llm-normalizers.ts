@@ -143,6 +143,13 @@ export function normalizeDailyResult(raw: unknown) {
           proteinG: normalizeNumber(nutritionSource.proteinG ?? nutritionSource.protein ?? nutritionSource.protein_g),
           fatG: normalizeNumber(nutritionSource.fatG ?? nutritionSource.fat ?? nutritionSource.fat_g),
           carbsG: normalizeNumber(nutritionSource.carbsG ?? nutritionSource.carbs ?? nutritionSource.carbohydrates ?? nutritionSource.carbs_g),
+          alcoholG: normalizeNumber(
+            nutritionSource.alcoholG ??
+              nutritionSource.alcohol ??
+              nutritionSource.alcohol_g ??
+              nutritionSource.ethanol ??
+              nutritionSource.alcoholContentG,
+          ),
         },
         waterMl: normalizeNumber(source.waterMl ?? source.water ?? source.volumeMl),
         exerciseCalories: normalizeNumber(source.exerciseCalories ?? source.caloriesBurned ?? source.burnedCalories),

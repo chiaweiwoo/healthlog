@@ -246,13 +246,18 @@ Nutrition keys are:
 - proteinG
 - fatG
 - carbsG
+- alcoholG
 
 Water uses waterMl. For beverages/drinks (e.g., soy milk, milk, coffee, tea, soda, soup), even if their kind is classified as "food" (because they have calories), always estimate and include their liquid volume in "waterMl" (e.g., one cup = 250ml, one can = 330ml) so they count towards daily liquid/water intake.
 Exercise uses exerciseCalories.
 Use Singapore food context by default unless the note clearly says otherwise.
 For common Singapore foods, provide a reasonable estimate with confidence when possible.
 If uncertain, keep the item visible, lower confidence, and add warnings with improveWith.
-Before finalizing, self-check that actionType and item kinds use only the allowed enum values.
+Before finalizing, self-check that:
+- actionType and item kinds use only the allowed enum values
+- unknown nutrition remains null rather than 0
+- beverages with volume include waterMl
+- alcoholG is included when relevant, otherwise leave it null or 0 only when the note clearly implies no alcohol
 
 Example JSON:
 {
@@ -267,7 +272,8 @@ Example JSON:
         "calories": 500,
         "proteinG": 22,
         "fatG": 16,
-        "carbsG": 62
+        "carbsG": 62,
+        "alcoholG": 0
       },
       "confidence": 0.72,
       "warnings": [

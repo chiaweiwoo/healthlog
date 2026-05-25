@@ -15,6 +15,7 @@ export const nutritionSchema = z.object({
   proteinG: z.number().nonnegative().nullable(),
   fatG: z.number().nonnegative().nullable(),
   carbsG: z.number().nonnegative().nullable(),
+  alcoholG: z.number().nonnegative().nullable(),
 });
 
 export const parsedDailyItemSchema = z.object({

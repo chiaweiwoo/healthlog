@@ -1,6 +1,6 @@
 import "server-only";
 
-import { summarizeDailyItems } from "@/lib/calculations";
+import { SummaryDisplayItem, summarizeDailyItems } from "@/lib/calculations";
 import { BodyParseResult, DailyParseResult, ParsedDailyItem, ParseStatus, Profile, Warning, profileSchema } from "@/lib/schemas";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -20,6 +20,10 @@ export type DailyEntryRow = {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type DailyEntryDateRow = {
+  entry_date: string;
 };
 
 export type BodyMeasurementRow = {
@@ -168,6 +172,33 @@ export async function listDailyEntries(date: string) {
   return (data ?? []) as DailyEntryRow[];
 }
 
+export async function listDailyEntryDates(from: string, to: string) {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("daily_entries")
+    .select("entry_date")
+    .eq("is_active", true)
+    .gte("entry_date", from)
+    .lte("entry_date", to)
+    .order("entry_date", { ascending: true });
+
+  if (error) throw error;
+  const uniqueDates = [...new Set(((data ?? []) as DailyEntryDateRow[]).map((row) => row.entry_date))];
+  return uniqueDates;
+}
+
+export async function listActiveEntryDates() {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("daily_entries")
+    .select("entry_date")
+    .eq("is_active", true)
+    .order("entry_date", { ascending: true });
+
+  if (error) throw error;
+  return [...new Set(((data ?? []) as DailyEntryDateRow[]).map((row) => row.entry_date))];
+}
+
 export async function createPendingDailyEntry(date: string, rawNote: string) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -287,7 +318,15 @@ export async function recalculateDailySummary(date: string) {
   const profile = (await getProfile()) ?? { country: "Singapore", metadata: {} };
   const parsedEntries = entries.filter((entry) => entry.parse_status === "parsed");
   const failedEntries = entries.filter((entry) => entry.parse_status === "failed" || entry.parse_status === "pending");
-  const items = parsedEntries.flatMap((entry) => entry.parsed_items ?? []);
+  const items = parsedEntries.flatMap((entry) =>
+    (entry.parsed_items ?? []).map((item) => ({
+      ...item,
+      sourceCreatedAt: entry.created_at,
+      sourceEntryId: entry.id,
+      sourceOccurredTime: item.occurredTime ?? entry.occurred_time,
+      sourceRawNote: entry.raw_note,
+    } satisfies SummaryDisplayItem)),
+  );
   const summary = summarizeDailyItems(items, profile);
 
   const warnings = [...summary.warnings];
@@ -317,6 +356,7 @@ export async function recalculateDailySummary(date: string) {
       protein_g: summary.proteinG,
       fat_g: summary.fatG,
       carbs_g: summary.carbsG,
+      alcohol_g: summary.alcoholG,
       water_ml: summary.waterMl,
       exercise_calories: summary.exerciseCalories,
       bmr: summary.bmr,
@@ -333,6 +373,15 @@ export async function recalculateDailySummary(date: string) {
 
   if (error) throw error;
   return data;
+}
+
+export async function recalculateAllDailySummaries() {
+  const dates = await listActiveEntryDates();
+  const summaries = [];
+  for (const date of dates) {
+    summaries.push(await recalculateDailySummary(date));
+  }
+  return summaries;
 }
 
 export async function addBodyMeasurements(measurements: Array<Record<string, unknown>>) {

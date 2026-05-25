@@ -243,3 +243,13 @@ CI should run lint, typecheck, tests, and production build.
 ### 3. Soft Delete UX Client-Side Handling
 - **Problem**: Displaying soft-deleted items dimmed in the UI creates cluttered feeds, leading to a suboptimal user experience.
 - **Solution**: Maintained database soft delete invariants (`is_active = false`) for auditability, but completely filtered them out on the client side (`entries.filter(...)`) and standard API retrievals. This achieves the visual responsiveness of immediate deletion while respecting database history.
+
+### 4. Next.js Route Type Generation Can Lag Behind New App Routes
+- **Problem**: Adding a new App Router API route can leave `tsc --noEmit` in a broken state with transient `.next/types` validator errors until Next regenerates route types.
+- **Solution**: Run `next typegen` before plain TypeScript checks. The repo script now uses `next typegen && tsc --noEmit`.
+- **Lesson**: When new App Router pages or API routes are added, do not trust a raw `tsc` failure against `.next/types` until route types have been regenerated.
+
+### 5. Water-Bearing Beverages Must Count In Two Places
+- **Problem**: Drinks like barley tea can carry both calories and liquid volume. Treating them as only `food` or only `water` makes the daily screen inconsistent.
+- **Solution**: Keep calorie-bearing beverages classified as `food` when appropriate, but still include `waterMl` and surface them in both the Food and Water breakdown sections.
+- **Lesson**: Summary totals and breakdown sections must derive from the same normalized items, with water contribution determined by `waterMl`, not by item kind alone.

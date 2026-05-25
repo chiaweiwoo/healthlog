@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateBmr, calculateTdee, summarizeDailyItems } from "@/lib/calculations";
+import { atwaterFactors, calculateBmr, calculateTdee, deriveFoodNutrition, summarizeDailyItems } from "@/lib/calculations";
 
 describe("calculateBmr", () => {
   it("returns null with warning when profile is incomplete", () => {
@@ -46,8 +46,45 @@ describe("calculateTdee", () => {
   });
 });
 
+describe("deriveFoodNutrition", () => {
+  it("uses Atwater factors when breakdown grams are available", () => {
+    const derived = deriveFoodNutrition({
+      nutrition: {
+        calories: 999,
+        proteinG: 2,
+        fatG: 0,
+        carbsG: 12,
+        alcoholG: 14,
+      },
+    });
+
+    expect(derived.calories).toBe(
+      2 * atwaterFactors.protein + 0 * atwaterFactors.fat + 12 * atwaterFactors.carbs + 14 * atwaterFactors.alcohol,
+    );
+    expect(derived.caloriesSource).toBe("atwater");
+    expect(derived.caloriesIncomplete).toBe(false);
+  });
+
+  it("falls back to model calories when all components are missing", () => {
+    const derived = deriveFoodNutrition({
+      nutrition: {
+        calories: 210,
+        proteinG: null,
+        fatG: null,
+        carbsG: null,
+        alcoholG: null,
+      },
+    });
+
+    expect(derived.calories).toBe(210);
+    expect(derived.caloriesSource).toBe("model");
+    expect(derived.caloriesIncomplete).toBe(false);
+    expect(derived.macrosIncomplete).toBe(true);
+  });
+});
+
 describe("summarizeDailyItems", () => {
-  it("aggregates nutrition, water, and exercise", () => {
+  it("aggregates Atwater calories, water, exercise, and alcohol", () => {
     const summary = summarizeDailyItems(
       [
         {
@@ -61,15 +98,24 @@ describe("summarizeDailyItems", () => {
             proteinG: 35,
             fatG: 20,
             carbsG: 78,
+            alcoholG: 0,
           },
         },
         {
-          kind: "water",
-          label: "Water",
+          kind: "food",
+          label: "Barley tea",
           confidence: 1,
           warnings: [],
           metadata: {},
-          waterMl: 600,
+          waterMl: 500,
+          nutrition: {
+            calories: 5,
+            proteinG: 0,
+            fatG: 0,
+            carbsG: 1,
+            alcoholG: 0,
+          },
+          sourceCreatedAt: "2026-05-25T03:04:00.000Z",
         },
         {
           kind: "exercise",
@@ -91,11 +137,14 @@ describe("summarizeDailyItems", () => {
       },
     );
 
-    expect(summary.calories).toBe(650);
-    expect(summary.waterMl).toBe(600);
+    expect(summary.calories).toBe(636);
+    expect(summary.waterMl).toBe(500);
     expect(summary.exerciseCalories).toBe(250);
-    expect(summary.estimatedDeficit).toBe(1950);
-    expect(summary.breakdown.food).toHaveLength(1);
+    expect(summary.alcoholG).toBe(0);
+    expect(summary.estimatedDeficit).toBe(1964);
+    expect(summary.breakdown.food).toHaveLength(2);
+    expect(summary.breakdown.water).toHaveLength(1);
+    expect(summary.breakdown.water[0]?.label).toBe("Barley tea");
   });
 
   it("keeps incomplete calorie estimates out of deficit math", () => {
@@ -112,6 +161,7 @@ describe("summarizeDailyItems", () => {
             proteinG: 20,
             fatG: 15,
             carbsG: null,
+            alcoholG: null,
           },
         },
       ],
@@ -126,7 +176,7 @@ describe("summarizeDailyItems", () => {
       },
     );
 
-    expect(summary.calories).toBe(0);
+    expect(summary.calories).toBe(215);
     expect(summary.estimatedDeficit).toBeNull();
     expect(summary.breakdown.meta.caloriesIncomplete).toBe(true);
     expect(summary.warnings.some((warning) => warning.code === "calories_incomplete")).toBe(true);

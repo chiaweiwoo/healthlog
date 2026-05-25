@@ -41,7 +41,7 @@ describe("normalizeDailyResult", () => {
     expect(parsed.items[0]?.confidence).toBe(0.9);
   });
 
-  it("supports nutrients, macros, kcal, and partial unknown nutrition", () => {
+  it("supports nutrients, macros, kcal, alcohol, and partial unknown nutrition", () => {
     const normalized = normalizeDailyResult({
       actionType: "record",
       items: [
@@ -53,6 +53,7 @@ describe("normalizeDailyResult", () => {
             protein_g: "24",
             fat: "18",
             carbohydrates: null,
+            alcohol_g: "2",
           },
           confidence: 82,
           warnings: [{ warning: "Portion estimated" }],
@@ -71,8 +72,36 @@ describe("normalizeDailyResult", () => {
     expect(parsed.items[0]?.nutrition?.proteinG).toBe(24);
     expect(parsed.items[0]?.nutrition?.fatG).toBe(18);
     expect(parsed.items[0]?.nutrition?.carbsG).toBeNull();
+    expect(parsed.items[0]?.nutrition?.alcoholG).toBe(2);
     expect(parsed.items[0]?.confidence).toBe(0.82);
     expect(parsed.items[0]?.remarks).toBe("Morning; Hawker bowl");
+  });
+
+  it("keeps beverage calories and water volume together", () => {
+    const normalized = normalizeDailyResult({
+      actionType: "record",
+      items: [
+        {
+          kind: "food",
+          label: "Barley tea",
+          nutrition: {
+            kcal: "5",
+            carbs: "1",
+          },
+          waterMl: "500",
+          confidence: 0.95,
+        },
+      ],
+      confidence: 0.95,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.items[0]?.kind).toBe("food");
+    expect(parsed.items[0]?.waterMl).toBe(500);
+    expect(parsed.items[0]?.nutrition?.calories).toBe(5);
+    expect(parsed.items[0]?.nutrition?.carbsG).toBe(1);
   });
 });
 
