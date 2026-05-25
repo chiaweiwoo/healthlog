@@ -92,12 +92,12 @@ export function DatePickerDialog({
     >
       <DialogTrigger asChild>
         <button
-          className="flex w-full items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-left text-sm font-medium text-stone-900 sm:w-44 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           type="button"
           disabled={disabled}
         >
-          <span>{format(selectedDate, "dd/MM/yyyy")}</span>
-          <CalendarDays size={16} className="text-stone-500" />
+          <CalendarDays size={14} className="text-stone-500 animate-pulse" />
+          <span>Change Date</span>
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-sm p-0">

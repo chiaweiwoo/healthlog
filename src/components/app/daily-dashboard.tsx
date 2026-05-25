@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
+import type { Profile } from "@/lib/schemas";
 
 type Warning = { code: string; message: string; improveWith?: string };
 
@@ -139,23 +140,6 @@ function formatBreakdownTime(item: EntryItem) {
   return "";
 }
 
-function getDeficitLabel(summary: Summary) {
-  if (!summary) return "No data yet";
-  if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
-    return "Profile needed";
-  }
-  if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
-    return "Estimate incomplete";
-  }
-  if (summary.estimated_deficit == null) {
-    return "Estimate incomplete";
-  }
-  if (summary.estimated_deficit < 0) {
-    return `Surplus ${Math.abs(summary.estimated_deficit)} kcal`;
-  }
-  return `${summary.estimated_deficit} kcal`;
-}
-
 function getDeficitDisplayTitle(summary: Summary) {
   if (!summary) return "0 kcal";
   if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
@@ -230,10 +214,12 @@ export function DailyDashboard({
   initialDate,
   initialEntries,
   initialSummary,
+  profile,
 }: {
   initialDate: string;
   initialEntries: Entry[];
   initialSummary: Summary;
+  profile: Profile | null;
 }) {
   const browserToday = useSyncExternalStore(
     () => () => {},
@@ -386,6 +372,43 @@ export function DailyDashboard({
     totalCalories: summary?.calories ?? 0,
   };
 
+  const targetWaterMl = profile?.weightKg
+    ? Math.round(profile.weightKg * 35)
+    : (profile?.sex === "male" ? 3000 : profile?.sex === "female" ? 2200 : 2500);
+
+  const currentWaterMl = summary?.water_ml ?? 0;
+  const pct = targetWaterMl > 0 ? Math.round((currentWaterMl / targetWaterMl) * 100) : 0;
+
+  const hydrationStatus = pct >= 90 ? "optimal" : pct >= 50 ? "moderate" : "low";
+
+  const cardStyle =
+    hydrationStatus === "optimal"
+      ? "border-emerald-200 bg-emerald-50/40 text-emerald-950 shadow-sm"
+      : hydrationStatus === "moderate"
+        ? "border-sky-200 bg-sky-50/40 text-sky-950 shadow-sm"
+        : "border-rose-200/80 bg-rose-50/30 text-rose-950 shadow-sm";
+
+  const badgeStyle =
+    hydrationStatus === "optimal"
+      ? "bg-emerald-100/80 text-emerald-800 border-emerald-200/60"
+      : hydrationStatus === "moderate"
+        ? "bg-sky-100/80 text-sky-800 border-sky-200/60"
+        : "bg-rose-100/80 text-rose-800 border-rose-200/60";
+
+  const progressStyle =
+    hydrationStatus === "optimal"
+      ? "bg-gradient-to-r from-emerald-400 to-teal-500"
+      : hydrationStatus === "moderate"
+        ? "bg-gradient-to-r from-sky-400 to-blue-500"
+        : "bg-gradient-to-r from-amber-400 to-rose-500";
+
+  const statusLabel =
+    hydrationStatus === "optimal"
+      ? "Optimal Hydration"
+      : hydrationStatus === "moderate"
+        ? "Moderate Hydration"
+        : "Low Hydration / Dehydrated";
+
   const breakdownSections = [
     { key: "food", label: "Food & drinks", items: getFoodAndDrinkItems(summary) },
     { key: "exercise", label: "Exercise", items: summary?.breakdown?.exercise ?? [] },
@@ -527,12 +550,6 @@ export function DailyDashboard({
                         percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
                         subordinate
                       />
-                      <MetricRow
-                        icon={<Droplets size={16} />}
-                        label="Water"
-                        value={`${summary?.water_ml ?? 0} ml`}
-                        info="Water includes drinks and water entries with liquid volume."
-                      />
                     </div>
                   </div>
                 </section>
@@ -607,6 +624,62 @@ export function DailyDashboard({
                   </div>
                 </section>
               </div>
+
+              {/* 3. Daily Hydration Section */}
+              <section className={`rounded-xl border p-4 ${cardStyle} transition-all duration-300 shadow-sm space-y-3`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm border border-stone-200/20 text-sky-500">
+                      <Droplets size={18} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Hydration</span>
+                      <h4 className="text-sm font-bold text-stone-900 leading-tight">Water Intake</h4>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-sm ${badgeStyle}`}>
+                      {statusLabel} ({pct}%)
+                    </span>
+                    <InfoButton
+                      title="Daily Hydration Recommendations"
+                      description={
+                        <div className="space-y-2 text-stone-750">
+                          <p>Proper hydration is essential for cellular function, digestion, energy levels, and overall wellness.</p>
+                          <p><strong>Your recommendation:</strong></p>
+                          <ul className="list-disc pl-4 space-y-1 text-xs">
+                            {profile?.weightKg ? (
+                              <li>Based on your body profile weight of <strong>{profile.weightKg} kg</strong>, your recommended water target is scaled at 35 ml/kg: <strong>{targetWaterMl} ml</strong> per day.</li>
+                            ) : (
+                              <li>Set up your body profile details (weight, sex) in the <strong>Body</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
+                            )}
+                            <li>Standard fallback targets: 3,000 ml for men, 2,200 ml for women, and 2,500 ml general baseline.</li>
+                          </ul>
+                          <p className="text-xs text-stone-500 mt-1">Note: Water contribution is counted from pure water entries as well as the liquid volume of calorie-bearing drinks (e.g. teas, juice, milk).</p>
+                        </div>
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex justify-between items-baseline text-stone-850">
+                    <p className="text-sm font-semibold text-stone-850">
+                      {currentWaterMl.toLocaleString()} <span className="text-xs font-normal text-stone-500">ml logged</span>
+                    </p>
+                    <p className="text-xs font-medium text-stone-500">
+                      Target: {targetWaterMl.toLocaleString()} ml
+                    </p>
+                  </div>
+
+                  <div className="h-3 w-full rounded-full bg-white/60 overflow-hidden shadow-inner border border-stone-200/20">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${progressStyle}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </section>
 
               <div className="space-y-2">
                 {breakdownSections.map((section) => (
