@@ -219,16 +219,6 @@ function Entries2MetricIcon({ metric, size = 13 }: { metric: EntryTableMetric; s
   return <Activity size={size} />;
 }
 
-function getEntries2MetricShortLabel(metric: EntryTableMetric) {
-  if (metric === "calories") return "Kcal";
-  if (metric === "water") return "Water";
-  if (metric === "protein") return "Prot";
-  if (metric === "fat") return "Fat";
-  if (metric === "carbs") return "Carb";
-  if (metric === "alcohol") return "Alc";
-  return "Ex";
-}
-
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -875,7 +865,7 @@ export function DailyDashboard({
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               <fieldset>
                 <legend className="sr-only">Entries 2 measurement selector</legend>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-7 gap-1.5">
                   {entries2Metrics.map((metric) => (
                     <label key={metric.key} className="cursor-pointer">
                       <input
@@ -887,15 +877,17 @@ export function DailyDashboard({
                         className="sr-only"
                       />
                       <span
+                        aria-label={metric.label}
                         className={cn(
-                          "inline-flex min-h-7 w-full items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-semibold transition",
+                          "inline-flex h-8 w-full items-center justify-center rounded-md border transition",
                           entries2Metric === metric.key
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
                         )}
+                        title={metric.label}
                       >
                         <Entries2MetricIcon metric={metric.key} size={12} />
-                        {getEntries2MetricShortLabel(metric.key)}
+                        <span className="sr-only">{metric.label}</span>
                       </span>
                     </label>
                   ))}
