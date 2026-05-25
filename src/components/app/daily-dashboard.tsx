@@ -162,18 +162,18 @@ function getQuotaDisplaySub(summary: Summary) {
     return "Setup age, height, and weight in the Body tab.";
   }
   if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
-    return "Some entries are still awaiting parsing.";
+    return "Some entries are awaiting parsing.";
   }
   if (summary.estimated_deficit == null) {
     return "Enter your daily logs to calculate deficit.";
   }
   if (summary.estimated_deficit < 0) {
-    return `Over spending limit by ${Math.abs(summary.estimated_deficit)} kcal`;
+    return "Exceeded your daily TDEE budget limit.";
   }
   if (summary.estimated_deficit === 0) {
     return "Perfect balance! No remaining budget.";
   }
-  return `${summary.estimated_deficit} kcal remaining under TDEE limit`;
+  return "Remaining budget under TDEE limit.";
 }
 
 function getDeficitTone(summary: Summary) {
@@ -910,40 +910,64 @@ export function DailyDashboard({
                     ) : (
                       <>
                         {entry.parsed_items.length ? (
-                          <div className="mt-3 space-y-2">
-                            {entry.parsed_items.map((item, index) => (
-                              <div key={`${entry.id}-${index}`} className="rounded-lg bg-stone-50/60 border border-stone-200/40 px-3 py-2 shadow-xs transition hover:bg-stone-50 duration-150">
-                                <div className="flex items-start justify-between gap-2">
-                                  <FullTextDialog
-                                    title="Parsed item"
-                                    text={item.label}
-                                    className="min-w-0 flex-1"
-                                    previewClassName="break-words text-sm font-semibold text-stone-900"
-                                  />
-                                  <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
-                                </div>
-                                <p className="mt-1 text-xs text-stone-500 font-medium">
-                                  {item.kind === "exercise"
-                                    ? item.exerciseCalories != null
-                                      ? `${item.exerciseCalories} kcal burn`
-                                      : "Exercise recorded"
-                                    : formatFoodNutrition(item)}
+                          entry.parsed_items.length === 1 ? (
+                            <div className="mt-1">
+                              <p className="text-xs text-stone-500 font-medium leading-relaxed">
+                                {entry.parsed_items[0].kind === "exercise"
+                                  ? entry.parsed_items[0].exerciseCalories != null
+                                    ? `${entry.parsed_items[0].exerciseCalories} kcal burn`
+                                    : "Exercise recorded"
+                                  : formatFoodNutrition(entry.parsed_items[0])}
+                              </p>
+                              {entry.parsed_items[0].remarks && (
+                                <p className="mt-1 text-[11px] text-stone-400 italic font-medium">
+                                  Remarks: {entry.parsed_items[0].remarks}
                                 </p>
-                              </div>
-                            ))}
-                          </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-3 space-y-2">
+                              {entry.parsed_items.map((item, index) => (
+                                <div key={`${entry.id}-${index}`} className="rounded-lg bg-stone-50/60 border border-stone-200/40 px-3 py-2 shadow-xs transition hover:bg-stone-50 duration-150">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <FullTextDialog
+                                      title="Parsed item"
+                                      text={item.label}
+                                      className="min-w-0 flex-1"
+                                      previewClassName="break-words text-sm font-semibold text-stone-900"
+                                    />
+                                    <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
+                                  </div>
+                                  <p className="mt-1 text-xs text-stone-500 font-medium">
+                                    {item.kind === "exercise"
+                                      ? item.exerciseCalories != null
+                                        ? `${item.exerciseCalories} kcal burn`
+                                        : "Exercise recorded"
+                                      : formatFoodNutrition(item)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )
                         ) : (
                           <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed">
                             {entry.parse_status === "failed" ? "Saved, but this note still needs clarification before it can be structured." : "Awaiting structured result."}
                           </p>
                         )}
-                        <FullTextDialog
-                          title="Raw note"
-                          text={entry.raw_note}
-                          className="mt-3"
-                          previewClassName="break-words text-xs text-stone-400 font-medium"
-                          description="This is the original note that was saved before HealthLog structured it."
-                        />
+                        {entry.parse_status === "failed" ? (
+                          <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed break-words">
+                            {entry.raw_note}
+                          </p>
+                        ) : (
+                          <FullTextDialog
+                            title="Raw note"
+                            text={entry.raw_note}
+                            className="mt-2.5 text-[11px] text-stone-400 hover:text-stone-600 transition"
+                            previewClassName="font-medium underline underline-offset-2 cursor-pointer inline-block"
+                            description="This is the original note that was saved before HealthLog structured it."
+                            label="View original raw note"
+                          />
+                        )}
                       </>
                     )}
                   </article>
