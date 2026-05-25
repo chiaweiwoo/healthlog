@@ -103,6 +103,41 @@ describe("normalizeDailyResult", () => {
     expect(parsed.items[0]?.nutrition?.calories).toBe(5);
     expect(parsed.items[0]?.nutrition?.carbsG).toBe(1);
   });
+
+  it("normalizes invalid non-empty times before schema parsing", () => {
+    const normalized = normalizeDailyResult({
+      occurredTime: "25:99",
+      items: [
+        {
+          kind: "food",
+          label: "Tea",
+          occurredTime: "77:10",
+          confidence: 0.8,
+          warnings: [],
+          metadata: {},
+        },
+        {
+          kind: "food",
+          label: "Toast",
+          occurredTime: "oops",
+          confidence: 0.8,
+          warnings: [],
+          metadata: {},
+        },
+      ],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.occurredTime).toBe("23:59");
+    expect(parsed.warnings.some((warning) => warning.code === "time_normalized")).toBe(true);
+    expect(parsed.items[0]?.occurredTime).toBe("23:59");
+    expect(parsed.items[0]?.warnings.some((warning) => warning.code === "time_normalized")).toBe(true);
+    expect(parsed.items[1]?.occurredTime).toBe("23:59");
+    expect(parsed.items[1]?.warnings.some((warning) => warning.code === "time_normalized")).toBe(true);
+  });
 });
 
 describe("normalizeBodyResult", () => {

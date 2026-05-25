@@ -112,11 +112,12 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const id = String(body.id ?? "");
     if (!id) return Response.json({ error: "Entry id is required.", requestId }, { status: 400 });
+    const clientToday = typeof body.clientToday === "string" ? isoDateSchema.parse(body.clientToday) : null;
     let entry = await patchDailyEntry(id, {
       rawNote: typeof body.rawNote === "string" ? body.rawNote.trim() : undefined,
       isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
     });
-    const clientToday = typeof body.clientToday === "string" ? isoDateSchema.parse(body.clientToday) : entry.entry_date;
+    const effectiveClientToday = clientToday ?? entry.entry_date;
 
     if (typeof body.rawNote === "string" && body.rawNote.trim()) {
       const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(entry.entry_date)]);
@@ -127,9 +128,9 @@ export async function PATCH(request: NextRequest) {
           profile,
           activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
         });
-        entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: entry.entry_date, clientToday });
+        entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: entry.entry_date, clientToday: effectiveClientToday });
       } catch (parseError) {
-        entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: entry.entry_date, clientToday });
+        entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: entry.entry_date, clientToday: effectiveClientToday });
       }
     }
     const summary = await getDailySummary(entry.entry_date);
@@ -142,7 +143,7 @@ export async function PATCH(request: NextRequest) {
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
-      requestPayload: { id, clientToday, isActive: body.isActive, hasRawNote: typeof body.rawNote === "string" },
+      requestPayload: { id, clientToday: effectiveClientToday, isActive: body.isActive, hasRawNote: typeof body.rawNote === "string" },
       responsePayload: { requestId, entryId: entry.id, parseStatus: entry.parse_status, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });

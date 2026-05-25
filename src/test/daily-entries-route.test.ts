@@ -120,6 +120,21 @@ describe("/api/daily-entries", () => {
     });
   });
 
+  it("rejects invalid clientToday before mutating PATCH", async () => {
+    const { PATCH } = await import("@/app/api/daily-entries/route");
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/daily-entries", {
+        method: "PATCH",
+        body: JSON.stringify({ id: "entry-2", rawNote: "updated note", clientToday: "bad-date" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(mockPatchDailyEntry).not.toHaveBeenCalled();
+  });
+
   it("soft deletes entries through DELETE", async () => {
     const { DELETE } = await import("@/app/api/daily-entries/route");
     mockPatchDailyEntry.mockResolvedValue({

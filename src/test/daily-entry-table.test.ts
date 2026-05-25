@@ -123,4 +123,46 @@ describe("daily-entry-table helpers", () => {
 
     expect(rows).toHaveLength(0);
   });
+
+  it("falls back when item or entry time is invalid", () => {
+    const rows = flattenEntriesForTable([
+      {
+        id: "entry-1",
+        occurred_time: "09:40",
+        parse_status: "parsed",
+        is_active: true,
+        created_at: "2026-05-25T03:10:00.000Z",
+        parsed_items: [
+          {
+            kind: "food",
+            label: "Eggs",
+            occurredTime: "25:99",
+            confidence: 1,
+            warnings: [],
+            metadata: {},
+          },
+        ],
+      },
+      {
+        id: "entry-2",
+        occurred_time: "99:40",
+        parse_status: "parsed",
+        is_active: true,
+        created_at: "2026-05-25T11:04:00",
+        parsed_items: [
+          {
+            kind: "food",
+            label: "Toast",
+            occurredTime: undefined,
+            confidence: 1,
+            warnings: [],
+            metadata: {},
+          },
+        ],
+      },
+    ]);
+
+    expect(rows[0]?.time).toBe("09:40");
+    expect(rows[1]?.time).toBe("11:04");
+  });
 });

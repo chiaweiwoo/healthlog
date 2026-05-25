@@ -35,7 +35,14 @@ function isKnownNumber(value: number | null | undefined): value is number {
 function normalizeTime(value: string | null | undefined) {
   if (!value) return null;
   const hhmm = value.match(/^(\d{2}):(\d{2})/);
-  if (hhmm) return `${hhmm[1]}:${hhmm[2]}`;
+  if (hhmm) {
+    const hours = Number(hhmm[1]);
+    const minutes = Number(hhmm[2]);
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return `${hhmm[1]}:${hhmm[2]}`;
+    }
+    return null;
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return format(parsed, "HH:mm");

@@ -1,16 +1,54 @@
 import { parseISO } from "date-fns";
+import { Warning } from "@/lib/schemas";
+
+const INVALID_TIME_FALLBACK = "23:59";
+
+function isBoundedTime(value: string) {
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return false;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
 
 function normalizeOccurredTime(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return undefined;
   const trimmed = value.trim();
   const hhmm = trimmed.match(/^(\d{2}):(\d{2})/);
-  if (hhmm) return `${hhmm[1]}:${hhmm[2]}`;
+  if (hhmm) {
+    const candidate = `${hhmm[1]}:${hhmm[2]}`;
+    return isBoundedTime(candidate) ? candidate : INVALID_TIME_FALLBACK;
+  }
   const maybeDate = Date.parse(trimmed);
   if (!Number.isNaN(maybeDate)) {
     const parsed = parseISO(trimmed);
     return `${String(parsed.getUTCHours()).padStart(2, "0")}:${String(parsed.getUTCMinutes()).padStart(2, "0")}`;
   }
-  return undefined;
+  return INVALID_TIME_FALLBACK;
+}
+
+function includesInvalidTimeWarning(warnings: Array<{ code?: string }>) {
+  return warnings.some((warning) => warning.code === "time_normalized");
+}
+
+function withInvalidTimeWarning<T extends { warnings: Array<{ code: string; message: string; improveWith?: string }> }>(
+  target: T,
+  rawTime: unknown,
+) {
+  if (typeof rawTime !== "string" || !rawTime.trim()) return target;
+  const normalized = normalizeOccurredTime(rawTime);
+  if (normalized !== INVALID_TIME_FALLBACK || includesInvalidTimeWarning(target.warnings)) return target;
+  return {
+    ...target,
+    warnings: [
+      ...target.warnings,
+      {
+        code: "time_normalized",
+        message: `Recorded time was outside the day, so it was reset to ${INVALID_TIME_FALLBACK}.`,
+        improveWith: "Use a 24-hour time like 08:00 or 19:30 if you want to keep a specific recorded time.",
+      },
+    ],
+  };
 }
 
 function normalizeActionType(value: unknown) {
@@ -26,7 +64,7 @@ function normalizeActionType(value: unknown) {
 function normalizeWarnings(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
-    .map((warning) => {
+    .map((warning): Warning | null => {
       if (typeof warning === "string") {
         return { code: "model_warning", message: warning };
       }
@@ -42,7 +80,7 @@ function normalizeWarnings(value: unknown) {
       }
       return null;
     })
-    .filter(Boolean);
+    .filter((warning): warning is Warning => warning !== null);
 }
 
 function normalizeNumber(value: unknown) {
@@ -131,59 +169,65 @@ export function normalizeDailyResult(raw: unknown) {
   const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const rawItems = Array.isArray(record.items) ? record.items : [];
 
-  return {
+  const items = rawItems.map((item, index) => {
+    const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const nutritionSource = getNutritionSource(source);
+    const kindInput = typeof source.kind === "string" ? source.kind.toLowerCase() : typeof source.type === "string" ? source.type.toLowerCase() : "note";
+    const kind = kindInput === "meal" ? "food" : kindInput === "drink" ? "water" : kindInput;
+    const normalizedItem = {
+      id: typeof source.id === "string" ? source.id : `item-${index + 1}`,
+      kind: ["food", "water", "exercise", "note"].includes(kind) ? kind : "note",
+      label:
+        typeof source.label === "string"
+          ? source.label
+          : typeof source.food === "string"
+            ? source.food
+            : typeof source.name === "string"
+              ? source.name
+              : "Unlabeled item",
+      occurredTime: normalizeOccurredTime(source.occurredTime),
+      quantity:
+        typeof source.quantity === "string"
+          ? source.quantity
+          : typeof source.amount === "string"
+            ? source.amount
+            : typeof source.serving === "string"
+              ? source.serving
+              : null,
+      nutrition: {
+        calories: normalizeNumber(nutritionSource.calories ?? nutritionSource.kcal ?? nutritionSource.energyKcal ?? nutritionSource.energy),
+        proteinG: normalizeNumber(nutritionSource.proteinG ?? nutritionSource.protein ?? nutritionSource.protein_g),
+        fatG: normalizeNumber(nutritionSource.fatG ?? nutritionSource.fat ?? nutritionSource.fat_g),
+        carbsG: normalizeNumber(nutritionSource.carbsG ?? nutritionSource.carbs ?? nutritionSource.carbohydrates ?? nutritionSource.carbs_g),
+        alcoholG: normalizeNumber(
+          nutritionSource.alcoholG ??
+            nutritionSource.alcohol ??
+            nutritionSource.alcohol_g ??
+            nutritionSource.ethanol ??
+            nutritionSource.alcoholContentG,
+        ),
+      },
+      waterMl: normalizeNumber(source.waterMl ?? source.water ?? source.volumeMl),
+      exerciseCalories: normalizeNumber(source.exerciseCalories ?? source.caloriesBurned ?? source.burnedCalories),
+      confidence: normalizeConfidence(source.confidence, normalizeConfidence(record.confidence, 0.6)),
+      warnings: normalizeWarnings(source.warnings),
+      remarks: normalizeRemarks(source.remarks) ?? (typeof source.note === "string" ? source.note : null),
+      metadata: source,
+    };
+
+    return withInvalidTimeWarning(normalizedItem, source.occurredTime);
+  });
+
+  const normalized = {
     occurredTime: normalizeOccurredTime(record.occurredTime),
     actionType: normalizeActionType(record.actionType),
-    items: rawItems.map((item, index) => {
-      const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-      const nutritionSource = getNutritionSource(source);
-      const kindInput = typeof source.kind === "string" ? source.kind.toLowerCase() : typeof source.type === "string" ? source.type.toLowerCase() : "note";
-      const kind = kindInput === "meal" ? "food" : kindInput === "drink" ? "water" : kindInput;
-      return {
-        id: typeof source.id === "string" ? source.id : `item-${index + 1}`,
-        kind: ["food", "water", "exercise", "note"].includes(kind) ? kind : "note",
-        label:
-          typeof source.label === "string"
-            ? source.label
-            : typeof source.food === "string"
-              ? source.food
-              : typeof source.name === "string"
-                ? source.name
-                : "Unlabeled item",
-        occurredTime: normalizeOccurredTime(source.occurredTime),
-        quantity:
-          typeof source.quantity === "string"
-            ? source.quantity
-            : typeof source.amount === "string"
-              ? source.amount
-              : typeof source.serving === "string"
-                ? source.serving
-                : null,
-        nutrition: {
-          calories: normalizeNumber(nutritionSource.calories ?? nutritionSource.kcal ?? nutritionSource.energyKcal ?? nutritionSource.energy),
-          proteinG: normalizeNumber(nutritionSource.proteinG ?? nutritionSource.protein ?? nutritionSource.protein_g),
-          fatG: normalizeNumber(nutritionSource.fatG ?? nutritionSource.fat ?? nutritionSource.fat_g),
-          carbsG: normalizeNumber(nutritionSource.carbsG ?? nutritionSource.carbs ?? nutritionSource.carbohydrates ?? nutritionSource.carbs_g),
-          alcoholG: normalizeNumber(
-            nutritionSource.alcoholG ??
-              nutritionSource.alcohol ??
-              nutritionSource.alcohol_g ??
-              nutritionSource.ethanol ??
-              nutritionSource.alcoholContentG,
-          ),
-        },
-        waterMl: normalizeNumber(source.waterMl ?? source.water ?? source.volumeMl),
-        exerciseCalories: normalizeNumber(source.exerciseCalories ?? source.caloriesBurned ?? source.burnedCalories),
-        confidence: normalizeConfidence(source.confidence, normalizeConfidence(record.confidence, 0.6)),
-        warnings: normalizeWarnings(source.warnings),
-        remarks: normalizeRemarks(source.remarks) ?? (typeof source.note === "string" ? source.note : null),
-        metadata: source,
-      };
-    }),
+    items,
     confidence: normalizeConfidence(record.confidence, 0.6),
     warnings: normalizeWarnings(record.warnings),
     remarks: normalizeRemarks(record.remarks),
   };
+
+  return withInvalidTimeWarning(normalized, record.occurredTime);
 }
 
 export function normalizeBodyResult(raw: unknown) {
