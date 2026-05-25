@@ -240,6 +240,7 @@ CI should run lint, typecheck, tests, and production build.
 - Treat unknown nutrition as incomplete, not zero
 - Keep mobile interactions tap-friendly; do not rely on hover-only affordances for important detail
 - Prefer compact, list-first mobile summaries over decorative metric cards when density matters
+- Daily dashboard is a single-column mobile-first feed (Calories → Water → Entries, max-w-2xl). New entries use a floating action button (FAB) opening a dialog — do not reintroduce an inline textarea form at the bottom of the page.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass

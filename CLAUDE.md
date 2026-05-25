@@ -23,6 +23,7 @@ any other repository from this thread.
 - Keep service role, Gemini, Langfuse secret, password hash, and session secret server-side only.
 - The session authentication cookie must strictly use `sameSite: "strict"` to eliminate CSRF risks.
 - Keep important mobile interactions tap-friendly and prefer dense list summaries over decorative card grids.
+- Daily dashboard uses a single-column mobile-first layout (max-w-2xl, no grid): Calories → Water → Entries. New entries are added via a floating action button (FAB), not an inline form.
 
 ## Commands
 
