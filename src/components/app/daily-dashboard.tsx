@@ -24,7 +24,6 @@ import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
 import type { Profile } from "@/lib/schemas";
@@ -178,8 +177,10 @@ function getQuotaDisplaySub(summary: Summary) {
 }
 
 function getDeficitTone(summary: Summary) {
-  if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50";
-  return summary.estimated_deficit < 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50";
+  if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50/40 text-stone-900";
+  return summary.estimated_deficit < 0
+    ? "border-amber-200 bg-amber-50/40 text-amber-950"
+    : "border-emerald-200 bg-emerald-50/40 text-emerald-950";
 }
 
 function getEntryHeadline(entry: Entry) {
@@ -192,10 +193,10 @@ function getEntryHeadline(entry: Entry) {
 }
 
 function getEntryStatusTone(entry: Entry) {
-  if (!entry.is_active) return "border-stone-100 bg-stone-50 opacity-70";
-  if (entry.parse_status === "failed") return "border-amber-200 bg-amber-50/50";
-  if (entry.parse_status === "pending") return "border-stone-200 bg-stone-50";
-  return "border-stone-200 bg-white";
+  if (!entry.is_active) return "border-stone-200 bg-stone-50/30 opacity-60 shadow-xs";
+  if (entry.parse_status === "failed") return "border-amber-200 bg-amber-50/20 text-amber-950 shadow-xs";
+  if (entry.parse_status === "pending") return "border-stone-200 bg-stone-50/30 text-stone-900 shadow-xs animate-pulse";
+  return "border-stone-200/80 bg-white/95 text-stone-900 shadow-xs hover:shadow-md hover:border-stone-300 transition-all duration-200";
 }
 
 function getFoodAndDrinkItems(summary: Summary) {
@@ -409,6 +410,17 @@ export function DailyDashboard({
         ? "Moderate Hydration"
         : "Low Hydration / Dehydrated";
 
+  const energyStatus = summary && summary.estimated_deficit !== null
+    ? (summary.estimated_deficit < 0 ? "surplus" : "deficit")
+    : "empty";
+
+  const energyIconColor =
+    energyStatus === "deficit"
+      ? "text-emerald-500"
+      : energyStatus === "surplus"
+        ? "text-amber-500 animate-pulse"
+        : "text-stone-400";
+
   const breakdownSections = [
     { key: "food", label: "Food & drinks", items: getFoodAndDrinkItems(summary) },
     { key: "exercise", label: "Exercise", items: summary?.breakdown?.exercise ?? [] },
@@ -418,77 +430,95 @@ export function DailyDashboard({
     <main className="mx-auto max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
       <div className="grid min-w-0 gap-4 lg:grid-cols-[1.12fr_0.88fr]">
         <section className="min-w-0 space-y-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="py-4">
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle className="text-lg font-bold text-stone-900 font-sans">
-                  {format(parseDateOnly(selectedDate), "EEEE, d MMM yyyy")}
-                </CardTitle>
-                <DatePickerDialog
-                  value={selectedDate}
-                  onChange={(value) => setSelectedDateOverride(value)}
-                  refreshKey={recordDatesVersion}
-                  disabled={isPending}
+          {/* Date Picker & Standalone Header */}
+          <div className="flex items-center justify-between gap-3 py-1.5 md:py-2">
+            <h2 className="text-xl font-bold tracking-tight text-stone-900 font-sans">
+              {format(parseDateOnly(selectedDate), "EEEE, d MMM yyyy")}
+            </h2>
+            <DatePickerDialog
+              value={selectedDate}
+              onChange={(value) => setSelectedDateOverride(value)}
+              refreshKey={recordDatesVersion}
+              disabled={isPending}
+            />
+          </div>
+
+          {/* 1. Master Energy Balance Card */}
+          <section className={`rounded-xl border p-5 ${getDeficitTone(summary)} transition-all duration-300 shadow-sm space-y-4`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-xs border border-stone-200/20">
+                  <Flame size={18} className={energyIconColor} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Energy Balance</span>
+                  <h3 className="text-xl font-bold tracking-tight text-stone-900 mt-0.5">
+                    {getDeficitDisplayTitle(summary)}
+                  </h3>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {summary && summary.estimated_deficit !== null && (
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-xs ${
+                    energyStatus === "deficit"
+                      ? "bg-emerald-100/80 text-emerald-800 border-emerald-200/60"
+                      : "bg-amber-100/80 text-amber-800 border-amber-200/60"
+                  }`}>
+                    {energyStatus === "deficit" ? "On Track" : "Surplus Limit"}
+                  </span>
+                )}
+                <InfoButton
+                  title="How deficit is calculated"
+                  description={
+                    <div className="space-y-2">
+                      <p>Your energy balance is calculated as **Quota (TDEE)** minus **In (Intake)**.</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li><strong>Deficit (Green)</strong>: You spent more energy than you consumed. Aligns with weight loss.</li>
+                        <li><strong>Surplus (Amber)</strong>: You consumed more energy than you spent. Aligns with weight gain.</li>
+                      </ul>
+                    </div>
+                  }
                 />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* 1. Master Energy Balance Card */}
-              <section className={`rounded-xl border p-4 ${getDeficitTone(summary)} transition-all duration-200 shadow-sm`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Energy Balance</span>
-                    <h3 className="mt-1 text-2xl font-bold tracking-tight text-stone-900">
-                      {getDeficitDisplayTitle(summary)}
-                    </h3>
-                    <p className="mt-1 text-xs font-medium text-stone-600/80">
-                      {getQuotaDisplaySub(summary)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <InfoButton
-                      title="How deficit is calculated"
-                      description={
-                        <div className="space-y-2">
-                          <p>Your energy balance is calculated as **Quota (TDEE)** minus **In (Intake)**.</p>
-                          <ul className="list-disc pl-4 space-y-1">
-                            <li><strong>Deficit (Green)</strong>: You spent more energy than you consumed. Aligns with weight loss.</li>
-                            <li><strong>Surplus (Amber)</strong>: You consumed more energy than you spent. Aligns with weight gain.</li>
-                          </ul>
-                        </div>
-                      }
-                    />
-                  </div>
-                </div>
+            </div>
 
-                {/* In and Out side-by-side columns */}
-                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-stone-200/60 pt-3">
-                  <div className="text-left">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
-                    <p className="mt-0.5 text-lg font-bold text-stone-800">
-                      {summary ? `${summary.calories}` : "0"}{" "}
-                      <span className="text-xs font-normal text-stone-500">kcal</span>
-                    </p>
-                  </div>
-                  <div className="border-l border-stone-200/60 pl-4 text-left">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
-                    <p className="mt-0.5 text-lg font-bold text-stone-800">
-                      {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
-                      <span className="text-xs font-normal text-stone-500">kcal</span>
-                    </p>
-                  </div>
-                </div>
-              </section>
+            <div className="space-y-1.5 pt-0.5">
+              <p className="text-xs font-medium text-stone-600 leading-relaxed max-w-[92%]">
+                {getQuotaDisplaySub(summary)}
+              </p>
+            </div>
 
-              {/* 2. Side-by-Side Details Cards */}
+            {/* In and Out side-by-side columns */}
+            <div className="grid grid-cols-2 gap-4 border-t border-stone-200/40 pt-4 mt-1">
+              <div className="text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
+                <p className="mt-0.5 text-lg font-bold text-stone-800">
+                  {summary ? `${summary.calories}` : "0"}{" "}
+                  <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
+                </p>
+              </div>
+              <div className="border-l border-stone-200/40 pl-4 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
+                <p className="mt-0.5 text-lg font-bold text-stone-800">
+                  {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
+                  <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
+                </p>
+              </div>
+            </div>
+          </section>              {/* 2. Side-by-Side Details Cards */}
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Intake Details Card */}
-                <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 flex flex-col justify-between shadow-sm">
+                <section className="rounded-xl border border-stone-200 bg-stone-50/35 p-4 flex flex-col justify-between shadow-xs transition-all duration-300">
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-900">Intake Details</p>
-                        <p className="mt-0.5 text-[11px] text-stone-500">Food and drink breakdown.</p>
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs border border-stone-200/20 text-emerald-600">
+                          <UtensilsCrossed size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-stone-900 leading-tight">Intake Details</p>
+                          <p className="text-[10px] font-medium text-stone-500">Food & drink breakdown</p>
+                        </div>
                       </div>
                       <InfoButton
                         title="How intake is calculated"
@@ -506,7 +536,7 @@ export function DailyDashboard({
                         }
                       />
                     </div>
-                    <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                    <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                       <MetricRow
                         icon={<Flame size={16} />}
                         label="Calories"
@@ -521,6 +551,7 @@ export function DailyDashboard({
                         info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
                         detail={`${intakeBreakdown.proteinCalories} kcal`}
                         percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
+                        progressStyle="bg-gradient-to-r from-orange-400 to-amber-500"
                         subordinate
                       />
                       <MetricRow
@@ -530,6 +561,7 @@ export function DailyDashboard({
                         info="Fat contributes 9 kcal per gram and a smaller thermic effect."
                         detail={`${intakeBreakdown.fatCalories} kcal`}
                         percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
+                        progressStyle="bg-gradient-to-r from-yellow-400 to-amber-500"
                         subordinate
                       />
                       <MetricRow
@@ -539,6 +571,7 @@ export function DailyDashboard({
                         info="Carbohydrates contribute 4 kcal per gram."
                         detail={`${intakeBreakdown.carbsCalories} kcal`}
                         percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
+                        progressStyle="bg-gradient-to-r from-cyan-400 to-sky-500"
                         subordinate
                       />
                       <MetricRow
@@ -548,6 +581,7 @@ export function DailyDashboard({
                         info="Alcohol contributes 7 kcal per gram when present."
                         detail={`${intakeBreakdown.alcoholCalories} kcal`}
                         percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
+                        progressStyle="bg-gradient-to-r from-purple-400 to-violet-500"
                         subordinate
                       />
                     </div>
@@ -555,12 +589,17 @@ export function DailyDashboard({
                 </section>
 
                 {/* Quota Details Card */}
-                <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 flex flex-col justify-between shadow-sm">
+                <section className="rounded-xl border border-stone-200 bg-stone-50/35 p-4 flex flex-col justify-between shadow-xs transition-all duration-300">
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-stone-900">Quota Details</p>
-                        <p className="mt-0.5 text-[11px] text-stone-500">Expenditure and metabolic breakdown.</p>
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs border border-stone-200/20 text-indigo-600">
+                          <Timer size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-stone-900 leading-tight">Quota Details</p>
+                          <p className="text-[10px] font-medium text-stone-500 font-sans">Expenditure & TDEE breakdown</p>
+                        </div>
                       </div>
                       <InfoButton
                         title="How quota is calculated"
@@ -580,7 +619,7 @@ export function DailyDashboard({
                         }
                       />
                     </div>
-                    <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                    <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                       <MetricRow
                         icon={<Flame size={16} />}
                         label="TDEE"
@@ -594,6 +633,7 @@ export function DailyDashboard({
                         value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                         info="Basal Metabolic Rate is the calories your body uses at rest."
                         percent={getPercent(output.bmr, output.totalTdee)}
+                        progressStyle="bg-gradient-to-r from-blue-400 to-indigo-500"
                         subordinate
                       />
                       <MetricRow
@@ -602,6 +642,7 @@ export function DailyDashboard({
                         value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
                         info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                         percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
+                        progressStyle="bg-gradient-to-r from-violet-400 to-fuchsia-500"
                         subordinate
                       />
                       <MetricRow
@@ -610,6 +651,7 @@ export function DailyDashboard({
                         value={`${output.tefCalories} kcal`}
                         info="Thermic Effect of Food is estimated dynamically from today's protein, carbs, fat, and alcohol intake."
                         percent={getPercent(output.tefCalories, output.totalTdee)}
+                        progressStyle="bg-gradient-to-r from-emerald-400 to-teal-500"
                         subordinate
                       />
                       <MetricRow
@@ -618,6 +660,7 @@ export function DailyDashboard({
                         value={`${summary?.exercise_calories ?? 0} kcal`}
                         info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
                         percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
+                        progressStyle="bg-gradient-to-r from-rose-500 to-orange-500"
                         subordinate
                       />
                     </div>
@@ -681,98 +724,115 @@ export function DailyDashboard({
                 </div>
               </section>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {breakdownSections.map((section) => (
-                  <div key={section.key} className="rounded-md border border-stone-200">
+                  <div key={section.key} className="rounded-xl border border-stone-200 bg-stone-50/30 overflow-hidden shadow-xs transition-all duration-300">
                     <button
-                      className="flex w-full items-center justify-between px-3 py-3 text-left text-sm font-medium text-stone-800 hover:bg-stone-100/60 rounded-md transition-colors duration-150"
+                      className="flex w-full items-center justify-between px-4 py-3.5 text-left text-sm font-bold text-stone-850 hover:bg-stone-100/50 transition-colors duration-150 cursor-pointer"
                       onClick={() => setExpanded((current) => (current === section.key ? null : section.key))}
                       type="button"
                     >
-                      <span>{section.label}</span>
+                      <span className="font-sans font-bold">{section.label}</span>
                       <ChevronDown
                         size={16}
-                        className={`transition-transform ${expanded === section.key ? "rotate-180" : ""}`}
+                        className={`transition-transform duration-200 ${expanded === section.key ? "rotate-180 text-stone-700" : "text-stone-400"}`}
                       />
                     </button>
                     {expanded === section.key ? (
-                      <div className="border-t border-stone-200 px-3 py-2 text-sm text-stone-600">
+                      <div className="border-t border-stone-200/80 bg-white/40 px-4 py-3 text-sm text-stone-600 space-y-2.5">
                         {section.items.length ? (
                           <div className="space-y-2">
                             {section.items.map((item, index) => (
-                              <div key={`${section.key}-${item.sourceEntryId ?? "summary"}-${index}`} className="rounded-md bg-stone-50 px-3 py-2">
+                              <div key={`${section.key}-${item.sourceEntryId ?? "summary"}-${index}`} className="rounded-xl bg-white/80 border border-stone-200/35 px-4 py-3 shadow-xs">
                                 <div className="flex items-start justify-between gap-2">
                                   <FullTextDialog
                                     title={section.label}
                                     text={item.label}
                                     className="min-w-0 flex-1"
-                                    previewClassName="text-sm font-medium text-stone-900 break-words"
+                                    previewClassName="text-sm font-semibold text-stone-900 break-words"
                                   />
                                   {formatBreakdownTime(item) ? (
-                                    <span className="mt-0.5 shrink-0 text-xs font-medium text-stone-400 font-sans">
+                                    <span className="mt-0.5 shrink-0 text-xs font-semibold text-stone-400 font-sans">
                                       {formatBreakdownTime(item)}
                                     </span>
                                   ) : null}
                                 </div>
-                                <p className="mt-1 text-xs text-stone-500">{formatBreakdownDetail(item, section.key)}</p>
+                                <p className="mt-1.5 text-xs text-stone-500 font-medium">{formatBreakdownDetail(item, section.key)}</p>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p>No {section.label.toLowerCase()} logged.</p>
+                          <p className="py-2 text-xs font-medium text-stone-450 italic">No {section.label.toLowerCase()} logged.</p>
                         )}
                       </div>
                     ) : null}
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">Quick note</CardTitle>
-                <InfoButton
-                  title="Quick note tips"
-                  description={
-                    <>
-                      <p>Use one messy note if that feels natural. HealthLog will keep the raw text and try to structure it for the day.</p>
-                      <ul className="list-disc space-y-1 pl-4">
-                        <li>Food and drink names can mix English and Chinese.</li>
-                        <li>Time is optional, but useful when you know it.</li>
-                        <li>You can include exercise, water, and short remarks in the same note.</li>
-                      </ul>
-                    </>
-                  }
-                />
+          {/* Quick Note Card */}
+          <section className="rounded-xl border border-stone-200 bg-stone-50/35 p-4 flex flex-col justify-between shadow-xs transition-all duration-300">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs border border-stone-200/20 text-emerald-600">
+                  <NotebookPen size={16} className="animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-900 leading-tight">Quick Note</p>
+                  <p className="text-[10px] font-medium text-stone-500">Free-text log entry</p>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={isPending} />
+              <InfoButton
+                title="Quick note tips"
+                description={
+                  <div className="space-y-2 text-stone-750">
+                    <p>Use one messy note if that feels natural. HealthLog will keep the raw text and try to structure it for the day.</p>
+                    <ul className="list-disc space-y-1 pl-4 text-xs">
+                      <li>Food and drink names can mix English and Chinese.</li>
+                      <li>Time is optional, but useful when you know it.</li>
+                      <li>You can include exercise, water, and short remarks in the same note.</li>
+                    </ul>
+                  </div>
+                }
+              />
+            </div>
+
+            <div className="mt-3 space-y-3">
+              <Textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                disabled={isPending}
+                placeholder="e.g. 8am: 2 boiled eggs, a cup of coffee. 12pm: chicken rice, 300ml water. 6pm: ran 5km in 30 mins."
+                className="bg-white/80 border-stone-200 focus:bg-white rounded-lg transition-all duration-200 resize-none h-24 placeholder:text-stone-400 text-sm"
+              />
               <Button
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto rounded-lg px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-all duration-200 shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isPending || !note.trim()}
                 onClick={() => startTransition(submitNote)}
                 type="button"
               >
-                <NotebookPen size={16} />
-                {isPending ? "Saving..." : "Add note"}
+                <NotebookPen size={14} />
+                <span>{isPending ? "Saving..." : "Add Note"}</span>
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </section>
 
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle className="text-lg">Entries</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <section className="min-w-0 space-y-4">
+          <div className="flex items-center gap-2.5 px-1 py-1.5 md:py-2">
+            <h3 className="text-lg font-bold text-stone-900 font-sans tracking-tight">Today&apos;s Entries</h3>
+            {entries.length > 0 && (
+              <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50 shadow-xs">
+                {entries.length}
+              </span>
+            )}
+          </div>
+          <div className="space-y-3">
             {entries.length ? (
               entries.map((entry) => {
                 const isEditing = editingId === entry.id;
                 return (
-                  <article key={entry.id} className={`rounded-lg border p-3 ${getEntryStatusTone(entry)}`}>
+                  <article key={entry.id} className={`rounded-xl border p-4 ${getEntryStatusTone(entry)}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -780,12 +840,12 @@ export function DailyDashboard({
                             title="Entry title"
                             text={getEntryHeadline(entry)}
                             className="min-w-0 flex-1"
-                            previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
+                            previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
                           />
                           {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
                           <WarningDot warnings={entry.warnings} label="Entry warnings" />
                         </div>
-                        <p className="mt-1 text-xs text-stone-500">
+                        <p className="mt-1.5 text-xs font-semibold text-stone-400 font-sans">
                           {entry.occurred_time ? `${entry.occurred_time} / ` : ""}
                           {format(new Date(entry.created_at), "p")}
                         </p>
@@ -801,8 +861,9 @@ export function DailyDashboard({
                               setEditingId(entry.id);
                               setEditNote(entry.raw_note);
                             }}
+                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
                           >
-                            <Pencil size={15} />
+                            <Pencil size={14} />
                           </Button>
                           <Button
                             size="icon"
@@ -810,21 +871,38 @@ export function DailyDashboard({
                             aria-label="Delete note"
                             disabled={isPending}
                             onClick={() => requestDeleteEntry(entry.id)}
+                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </Button>
                         </div>
                       ) : null}
                     </div>
 
                     {isEditing ? (
-                      <div className="mt-3 space-y-2">
-                        <Textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} disabled={isPending} />
+                      <div className="mt-3 space-y-2.5">
+                        <Textarea
+                          value={editNote}
+                          onChange={(event) => setEditNote(event.target.value)}
+                          disabled={isPending}
+                          className="bg-white border-stone-200 rounded-lg text-sm resize-none h-20"
+                        />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => startTransition(() => saveEdit(entry.id))} disabled={isPending || !editNote.trim()}>
+                          <Button
+                            size="sm"
+                            onClick={() => startTransition(() => saveEdit(entry.id))}
+                            disabled={isPending || !editNote.trim()}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold px-3 py-1.5 cursor-pointer disabled:opacity-50"
+                          >
                             Save
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={isPending}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingId(null)}
+                            disabled={isPending}
+                            className="border-stone-200 text-stone-700 hover:bg-stone-50 rounded-lg text-xs font-semibold px-3 py-1.5 cursor-pointer"
+                          >
                             Cancel
                           </Button>
                         </div>
@@ -834,17 +912,17 @@ export function DailyDashboard({
                         {entry.parsed_items.length ? (
                           <div className="mt-3 space-y-2">
                             {entry.parsed_items.map((item, index) => (
-                              <div key={`${entry.id}-${index}`} className="rounded-md bg-stone-50 px-3 py-2">
-                                <div className="flex items-start gap-2">
+                              <div key={`${entry.id}-${index}`} className="rounded-lg bg-stone-50/60 border border-stone-200/40 px-3 py-2 shadow-xs transition hover:bg-stone-50 duration-150">
+                                <div className="flex items-start justify-between gap-2">
                                   <FullTextDialog
                                     title="Parsed item"
                                     text={item.label}
                                     className="min-w-0 flex-1"
-                                    previewClassName="break-words text-sm font-medium text-stone-900"
+                                    previewClassName="break-words text-sm font-semibold text-stone-900"
                                   />
-                                  <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-1 shrink-0" />
+                                  <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
                                 </div>
-                                <p className="mt-1 text-xs text-stone-500">
+                                <p className="mt-1 text-xs text-stone-500 font-medium">
                                   {item.kind === "exercise"
                                     ? item.exerciseCalories != null
                                       ? `${item.exerciseCalories} kcal burn`
@@ -855,7 +933,7 @@ export function DailyDashboard({
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-3 rounded-md bg-stone-50 px-3 py-2 text-sm text-stone-600">
+                          <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed">
                             {entry.parse_status === "failed" ? "Saved, but this note still needs clarification before it can be structured." : "Awaiting structured result."}
                           </p>
                         )}
@@ -863,7 +941,7 @@ export function DailyDashboard({
                           title="Raw note"
                           text={entry.raw_note}
                           className="mt-3"
-                          previewClassName="break-words text-sm text-stone-500"
+                          previewClassName="break-words text-xs text-stone-400 font-medium"
                           description="This is the original note that was saved before HealthLog structured it."
                         />
                       </>
@@ -872,8 +950,8 @@ export function DailyDashboard({
                 );
               })
             ) : (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/50 p-8 text-center transition-all duration-200">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/30 p-8 text-center transition-all duration-200 shadow-xs">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-stone-200/20 text-stone-400">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -889,14 +967,14 @@ export function DailyDashboard({
                     />
                   </svg>
                 </div>
-                <p className="mt-3 text-sm font-medium text-stone-900 font-sans">Your health log is empty today</p>
-                <p className="mt-1 text-xs text-stone-500 max-w-[240px] font-sans">
-                  Type a quick note below to log your meals, drinks, or workouts.
+                <p className="mt-3 text-sm font-bold text-stone-900 font-sans tracking-tight">Your health log is empty today</p>
+                <p className="mt-1 text-xs font-medium text-stone-500 max-w-[240px] font-sans">
+                  Type a quick note on the left to log your meals, drinks, or workouts.
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </main>
   );
@@ -912,6 +990,7 @@ function MetricRow({
   percent,
   strong = false,
   subordinate = false,
+  progressStyle,
 }: {
   icon: ReactNode;
   label: string;
@@ -922,6 +1001,7 @@ function MetricRow({
   percent?: number | null;
   strong?: boolean;
   subordinate?: boolean;
+  progressStyle?: string;
 }) {
   return (
     <div className={`border-b border-stone-200 px-3 py-2.5 last:border-b-0 ${subordinate ? "bg-stone-50/55" : ""}`}>
@@ -953,7 +1033,7 @@ function MetricRow({
       {percent != null ? (
         <div className={`mt-2 h-1.5 overflow-hidden rounded-full ${subordinate ? "bg-stone-200/70" : "bg-stone-100"}`}>
           <div
-            className={`h-full rounded-full ${subordinate ? "bg-stone-400" : "bg-emerald-500"}`}
+            className={`h-full rounded-full transition-all duration-350 ${progressStyle || (subordinate ? "bg-stone-400" : "bg-emerald-500")}`}
             style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
           />
         </div>
