@@ -462,7 +462,7 @@ export function DailyDashboard({
                     info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
                     detail={`${intakeBreakdown.proteinCalories} kcal`}
                     percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-amber-400"
                     subordinate
                   />
                   <MetricRow
@@ -471,7 +471,7 @@ export function DailyDashboard({
                     info="Fat contributes 9 kcal per gram and a smaller thermic effect."
                     detail={`${intakeBreakdown.fatCalories} kcal`}
                     percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-amber-400"
                     subordinate
                   />
                   <MetricRow
@@ -480,7 +480,7 @@ export function DailyDashboard({
                     info="Carbohydrates contribute 4 kcal per gram."
                     detail={`${intakeBreakdown.carbsCalories} kcal`}
                     percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-amber-400"
                     subordinate
                   />
                   <MetricRow
@@ -489,7 +489,7 @@ export function DailyDashboard({
                     info="Alcohol contributes 7 kcal per gram when present."
                     detail={`${intakeBreakdown.alcoholCalories} kcal`}
                     percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-amber-400"
                     subordinate
                   />
                 </div>
@@ -533,7 +533,7 @@ export function DailyDashboard({
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                     info="Basal Metabolic Rate is the calories your body uses at rest."
                     percent={getPercent(output.bmr, output.totalTdee)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-indigo-400"
                     subordinate
                   />
                   <MetricRow
@@ -541,7 +541,7 @@ export function DailyDashboard({
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
                     info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-indigo-400"
                     subordinate
                   />
                   <MetricRow
@@ -549,7 +549,7 @@ export function DailyDashboard({
                     value={`${output.tefCalories} kcal`}
                     info="Thermic Effect of Food is estimated dynamically from today's protein, carbs, fat, and alcohol intake."
                     percent={getPercent(output.tefCalories, output.totalTdee)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-indigo-400"
                     subordinate
                   />
                   <MetricRow
@@ -557,7 +557,7 @@ export function DailyDashboard({
                     value={`${summary?.exercise_calories ?? 0} kcal`}
                     info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
-                    progressStyle="bg-stone-300"
+                    progressStyle="bg-indigo-400"
                     subordinate
                   />
                 </div>
