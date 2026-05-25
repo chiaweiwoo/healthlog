@@ -37,10 +37,12 @@ export function DatePickerDialog({
   value,
   onChange,
   refreshKey = 0,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   refreshKey?: number;
+  disabled?: boolean;
 }) {
   const selectedDate = useMemo(() => parseDateOnly(value), [value]);
   const [open, setOpen] = useState(false);
@@ -90,8 +92,9 @@ export function DatePickerDialog({
     >
       <DialogTrigger asChild>
         <button
-          className="flex w-full items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-left text-sm font-medium text-stone-900 sm:w-44"
+          className="flex w-full items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-left text-sm font-medium text-stone-900 sm:w-44 disabled:opacity-50 disabled:cursor-not-allowed"
           type="button"
+          disabled={disabled}
         >
           <span>{format(selectedDate, "dd/MM/yyyy")}</span>
           <CalendarDays size={16} className="text-stone-500" />

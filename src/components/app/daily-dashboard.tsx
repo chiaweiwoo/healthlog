@@ -322,6 +322,16 @@ export function DailyDashboard({
     }
   }
 
+  function requestDeleteEntry(id: string) {
+    toast("Are you sure you want to delete this entry?", {
+      action: {
+        label: "Confirm",
+        onClick: () => startTransition(() => removeEntry(id)),
+      },
+      duration: 8000,
+    });
+  }
+
   const output = getOutputBreakdown({
     bmr: summary?.bmr ?? null,
     baseTdee: summary?.base_tdee ?? null,
@@ -360,6 +370,7 @@ export function DailyDashboard({
                   value={selectedDate}
                   onChange={(value) => setSelectedDateOverride(value)}
                   refreshKey={recordDatesVersion}
+                  disabled={isPending}
                 />
               </div>
             </CardHeader>
@@ -594,7 +605,7 @@ export function DailyDashboard({
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
+              <Textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={isPending} />
               <Button
                 className="w-full sm:w-auto"
                 disabled={isPending || !note.trim()}
@@ -641,6 +652,7 @@ export function DailyDashboard({
                             size="icon"
                             variant="ghost"
                             aria-label="Edit note"
+                            disabled={isPending}
                             onClick={() => {
                               setEditingId(entry.id);
                               setEditNote(entry.raw_note);
@@ -648,7 +660,13 @@ export function DailyDashboard({
                           >
                             <Pencil size={15} />
                           </Button>
-                          <Button size="icon" variant="ghost" aria-label="Delete note" onClick={() => startTransition(() => removeEntry(entry.id))}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Delete note"
+                            disabled={isPending}
+                            onClick={() => requestDeleteEntry(entry.id)}
+                          >
                             <Trash2 size={15} />
                           </Button>
                         </div>
@@ -657,12 +675,12 @@ export function DailyDashboard({
 
                     {isEditing ? (
                       <div className="mt-3 space-y-2">
-                        <Textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} />
+                        <Textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} disabled={isPending} />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => startTransition(() => saveEdit(entry.id))} disabled={!editNote.trim()}>
+                          <Button size="sm" onClick={() => startTransition(() => saveEdit(entry.id))} disabled={isPending || !editNote.trim()}>
                             Save
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={isPending}>
                             Cancel
                           </Button>
                         </div>
