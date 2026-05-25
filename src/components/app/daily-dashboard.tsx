@@ -386,7 +386,6 @@ export function DailyDashboard({
                         </>
                       }
                     />
-                    <WarningDot warnings={summary?.warnings} label="Intake warnings" />
                   </div>
                 </div>
                 <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
@@ -466,7 +465,6 @@ export function DailyDashboard({
                         </>
                       }
                     />
-                    <WarningDot warnings={summary?.warnings} label="Output warnings" />
                   </div>
                 </div>
                 <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
