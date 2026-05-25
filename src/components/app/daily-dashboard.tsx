@@ -3,20 +3,12 @@
 import { format } from "date-fns";
 import {
   ChevronDown,
-  Drumstick,
-  Droplet,
   Droplets,
   Flame,
-  Martini,
   NotebookPen,
   Pencil,
-  Sparkles,
-  Timer,
   Trash2,
-  UtensilsCrossed,
-  Wheat,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
@@ -156,25 +148,7 @@ function getDeficitDisplayTitle(summary: Summary) {
   return `${summary.estimated_deficit} kcal Deficit`;
 }
 
-function getQuotaDisplaySub(summary: Summary) {
-  if (!summary) return "Intake and output balance";
-  if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
-    return "Setup age, height, and weight in the Body tab.";
-  }
-  if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
-    return "Some entries are awaiting parsing.";
-  }
-  if (summary.estimated_deficit == null) {
-    return "Enter your daily logs to calculate deficit.";
-  }
-  if (summary.estimated_deficit < 0) {
-    return "Exceeded your daily TDEE budget limit.";
-  }
-  if (summary.estimated_deficit === 0) {
-    return "Perfect balance! No remaining budget.";
-  }
-  return "Remaining budget under TDEE limit.";
-}
+
 
 function getDeficitTone(summary: Summary) {
   if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50/40 text-stone-900";
@@ -389,12 +363,6 @@ export function DailyDashboard({
         ? "border-sky-200 bg-sky-50/40 text-sky-950 shadow-sm"
         : "border-rose-200/80 bg-rose-50/30 text-rose-950 shadow-sm";
 
-  const badgeStyle =
-    hydrationStatus === "optimal"
-      ? "bg-emerald-100/80 text-emerald-800 border-emerald-200/60"
-      : hydrationStatus === "moderate"
-        ? "bg-sky-100/80 text-sky-800 border-sky-200/60"
-        : "bg-rose-100/80 text-rose-800 border-rose-200/60";
 
   const progressStyle =
     hydrationStatus === "optimal"
@@ -482,11 +450,7 @@ export function DailyDashboard({
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-0.5">
-              <p className="text-xs font-medium text-stone-600 leading-relaxed max-w-[92%]">
-                {getQuotaDisplaySub(summary)}
-              </p>
-            </div>
+
 
             {/* In and Out side-by-side columns */}
             <div className="grid grid-cols-2 gap-4 border-t border-stone-200/40 pt-4 mt-1">
@@ -510,17 +474,9 @@ export function DailyDashboard({
                 {/* Intake Details Card */}
                 <section className="rounded-xl border border-stone-200 bg-stone-50/35 p-4 flex flex-col justify-between shadow-xs transition-all duration-300">
                   <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs border border-stone-200/20 text-emerald-600">
-                          <UtensilsCrossed size={16} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-stone-900 leading-tight">Intake Details</p>
-                          <p className="text-[10px] font-medium text-stone-500">Food & drink breakdown</p>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between gap-2">
                       <InfoButton
+                        className="inline-flex h-auto w-auto items-center bg-transparent p-0 text-left hover:bg-transparent justify-start rounded-none"
                         title="How intake is calculated"
                         description={
                           <>
@@ -534,18 +490,20 @@ export function DailyDashboard({
                             <p className="mt-1">Water is counted from drinks and water entries that include liquid volume.</p>
                           </>
                         }
-                      />
+                      >
+                        <span className="text-sm font-bold text-stone-900 border-b border-dashed border-stone-300 hover:border-stone-500 cursor-pointer select-none">
+                          Calories Intake
+                        </span>
+                      </InfoButton>
                     </div>
                     <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                       <MetricRow
-                        icon={<Flame size={16} />}
                         label="Calories"
                         value={`${summary?.calories ?? 0} kcal`}
                         info="Intake calories are the known total from food and drinks."
                         caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
                       />
                       <MetricRow
-                        icon={<Drumstick size={16} />}
                         label="Protein"
                         value={`${summary?.protein_g ?? 0} g`}
                         info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
@@ -555,7 +513,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<Droplet size={16} />}
                         label="Fat"
                         value={`${summary?.fat_g ?? 0} g`}
                         info="Fat contributes 9 kcal per gram and a smaller thermic effect."
@@ -565,7 +522,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<Wheat size={16} />}
                         label="Carbs"
                         value={`${summary?.carbs_g ?? 0} g`}
                         info="Carbohydrates contribute 4 kcal per gram."
@@ -575,7 +531,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<Martini size={16} />}
                         label="Alcohol"
                         value={`${summary?.alcohol_g ?? 0} g`}
                         info="Alcohol contributes 7 kcal per gram when present."
@@ -591,17 +546,9 @@ export function DailyDashboard({
                 {/* Quota Details Card */}
                 <section className="rounded-xl border border-stone-200 bg-stone-50/35 p-4 flex flex-col justify-between shadow-xs transition-all duration-300">
                   <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-xs border border-stone-200/20 text-indigo-600">
-                          <Timer size={16} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-stone-900 leading-tight">Quota Details</p>
-                          <p className="text-[10px] font-medium text-stone-500 font-sans">Expenditure & TDEE breakdown</p>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between gap-2">
                       <InfoButton
+                        className="inline-flex h-auto w-auto items-center bg-transparent p-0 text-left hover:bg-transparent justify-start rounded-none"
                         title="How quota is calculated"
                         description={
                           <>
@@ -617,18 +564,20 @@ export function DailyDashboard({
                             <p className="mt-1">TDEE is calculated as BMR + NEAT + TEF + EAT.</p>
                           </>
                         }
-                      />
+                      >
+                        <span className="text-sm font-bold text-stone-900 border-b border-dashed border-stone-300 hover:border-stone-500 cursor-pointer select-none">
+                          Calories Quota
+                        </span>
+                      </InfoButton>
                     </div>
                     <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                       <MetricRow
-                        icon={<Flame size={16} />}
                         label="TDEE"
                         value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
                         info="Total Daily Energy Expenditure is the app's estimate of your daily energy out."
                         strong
                       />
                       <MetricRow
-                        icon={<Flame size={16} />}
                         label="BMR"
                         value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                         info="Basal Metabolic Rate is the calories your body uses at rest."
@@ -637,7 +586,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<Sparkles size={16} />}
                         label="NEAT"
                         value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
                         info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
@@ -646,7 +594,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<UtensilsCrossed size={16} />}
                         label="TEF"
                         value={`${output.tefCalories} kcal`}
                         info="Thermic Effect of Food is estimated dynamically from today's protein, carbs, fat, and alcohol intake."
@@ -655,7 +602,6 @@ export function DailyDashboard({
                         subordinate
                       />
                       <MetricRow
-                        icon={<Timer size={16} />}
                         label="EAT"
                         value={`${summary?.exercise_calories ?? 0} kcal`}
                         info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
@@ -681,9 +627,6 @@ export function DailyDashboard({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-sm ${badgeStyle}`}>
-                      {statusLabel} ({pct}%)
-                    </span>
                     <InfoButton
                       title="Daily Hydration Recommendations"
                       description={
@@ -708,10 +651,10 @@ export function DailyDashboard({
                 <div className="space-y-2 pt-1">
                   <div className="flex justify-between items-baseline text-stone-850">
                     <p className="text-sm font-semibold text-stone-850">
-                      {currentWaterMl.toLocaleString()} <span className="text-xs font-normal text-stone-500">ml logged</span>
+                      {currentWaterMl.toLocaleString()} <span className="text-xs font-normal text-stone-500">ml logged ({pct}%)</span>
                     </p>
                     <p className="text-xs font-medium text-stone-500">
-                      Target: {targetWaterMl.toLocaleString()} ml
+                      {statusLabel} • Target: {targetWaterMl.toLocaleString()} ml
                     </p>
                   </div>
 
@@ -1005,7 +948,6 @@ export function DailyDashboard({
 }
 
 function MetricRow({
-  icon,
   label,
   value,
   info,
@@ -1016,7 +958,6 @@ function MetricRow({
   subordinate = false,
   progressStyle,
 }: {
-  icon: ReactNode;
   label: string;
   value: string;
   info: string;
@@ -1031,17 +972,16 @@ function MetricRow({
     <div className={`border-b border-stone-200 px-3 py-2.5 last:border-b-0 ${subordinate ? "bg-stone-50/55" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <InfoButton
-            className={`h-6 w-6 ${subordinate ? "text-stone-400 hover:bg-white hover:text-stone-700" : "text-stone-500 hover:bg-stone-100 hover:text-stone-700"}`}
-            title={label}
-            description={<p>{info}</p>}
-          >
-            {icon}
-          </InfoButton>
-          <div className={`min-w-0 ${subordinate ? "border-l border-stone-200 pl-3" : ""}`}>
-            <p className={`text-sm ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : subordinate ? "font-medium" : "font-medium"}`}>
-              {label}
-            </p>
+          <div className={`min-w-0 ${subordinate ? "pl-3" : ""}`}>
+            <InfoButton
+              className="inline-flex h-auto w-auto items-center bg-transparent p-0 text-left hover:bg-transparent justify-start rounded-none"
+              title={label}
+              description={<p>{info}</p>}
+            >
+              <span className={`text-sm select-none border-b border-dashed border-stone-300 hover:border-stone-500 cursor-pointer ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : subordinate ? "font-medium" : "font-medium"}`}>
+                {label}
+              </span>
+            </InfoButton>
             {caption ? <p className={`mt-0.5 text-xs ${subordinate ? "text-stone-400" : "text-stone-500"}`}>{caption}</p> : null}
           </div>
         </div>
