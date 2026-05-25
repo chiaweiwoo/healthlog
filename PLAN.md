@@ -10,7 +10,7 @@ HealthLog is a private single-user web app for recording a healthier journey thr
 - `/app/analysis`: placeholder for future weekly analysis.
 - Daily summary stays compact and mobile-first.
 - Intake should read as one grouped story: calories, water, protein, fat, carbs, and alcohol from food/drinks.
-- Output should read as a TDEE breakdown: BMR, baseline activity, TEF, exercise, and total TDEE.
+- Output should read as a TDEE breakdown: BMR, baseline activity, TEF, EAT, and total TDEE.
 - Deficit/surplus should be shown as `TDEE - intake calories`.
 - Detailed food/drink and exercise breakdowns are expandable so the daily screen stays focused.
 - Low-confidence items remain visible and show warnings explaining uncertainty and what would improve the estimate.
@@ -27,7 +27,8 @@ HealthLog is a private single-user web app for recording a healthier journey thr
   - `baseTdee = BMR * baselineLifestyleMultiplier`
   - `baselineActivity = baseTdee - BMR`
   - `TEF` is dynamic from today's macros and alcohol
-  - `TDEE = baseTdee + TEF + loggedExercise`
+  - `EAT` is explicit logged exercise
+  - `TDEE = baseTdee + TEF + EAT`
 - Baseline lifestyle is conservative non-exercise daily living only. Logged exercise, runs, gym, sports, and deliberate step sessions must stay separate.
 - Water-bearing beverages should contribute to both intake totals and water breakdowns when `waterMl` is known.
 

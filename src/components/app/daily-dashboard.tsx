@@ -212,7 +212,6 @@ export function DailyDashboard({
   const [editNote, setEditNote] = useState("");
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<string | null>("food");
-  const [error, setError] = useState<string | null>(null);
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
   const selectedDate = selectedDateOverride ?? browserToday;
 
@@ -234,7 +233,6 @@ export function DailyDashboard({
   }, [initialDate, selectedDate, selectedDateOverride]);
 
   async function submitNote() {
-    setError(null);
     const rawNote = note.trim();
     if (!rawNote) return;
     const toastId = toast.loading("Saving note...");
@@ -249,7 +247,6 @@ export function DailyDashboard({
         | null;
       if (!response.ok) {
         const errorMsg = body?.requestId ? `${body.error ?? "Could not save note."} (${body.requestId})` : (body?.error ?? "Could not save note.");
-        setError(errorMsg);
         toast.error(errorMsg, { id: toastId });
         return;
       }
@@ -275,7 +272,6 @@ export function DailyDashboard({
   async function saveEdit(id: string) {
     const rawNote = editNote.trim();
     if (!rawNote) return;
-    setError(null);
     const toastId = toast.loading("Saving edit...");
     try {
       const response = await fetch("/api/daily-entries", {
@@ -288,7 +284,6 @@ export function DailyDashboard({
         | null;
       if (!response.ok || !body?.entry) {
         const errorMsg = body?.requestId ? `${body.error ?? "Could not update note."} (${body.requestId})` : (body?.error ?? "Could not update note.");
-        setError(errorMsg);
         toast.error(errorMsg, { id: toastId });
         return;
       }
@@ -447,7 +442,7 @@ export function DailyDashboard({
                             <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
                             <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
                           </ul>
-                          <p>Total TDEE is calculated as BMR + baseline activity + TEF + logged exercise.</p>
+                          <p>Total TDEE is calculated as BMR + baseline activity + TEF + EAT.</p>
                         </>
                       }
                     />
@@ -478,9 +473,9 @@ export function DailyDashboard({
                   />
                   <MetricRow
                     icon={<Timer size={16} />}
-                    label="Exercise"
+                    label="EAT"
                     value={`${summary?.exercise_calories ?? 0} kcal`}
-                    info="Exercise is added from your logged activity entries."
+                    info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
                   />
                   <MetricRow
@@ -517,7 +512,7 @@ export function DailyDashboard({
                 {breakdownSections.map((section) => (
                   <div key={section.key} className="rounded-md border border-stone-200">
                     <button
-                      className="flex w-full items-center justify-between px-3 py-3 text-left text-sm font-medium text-stone-800"
+                      className="flex w-full items-center justify-between px-3 py-3 text-left text-sm font-medium text-stone-800 hover:bg-stone-100/60 rounded-md transition-colors duration-150"
                       onClick={() => setExpanded((current) => (current === section.key ? null : section.key))}
                       type="button"
                     >
@@ -579,7 +574,6 @@ export function DailyDashboard({
             </CardHeader>
             <CardContent className="space-y-3">
               <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
               <Button
                 className="w-full sm:w-auto"
                 disabled={isPending || !note.trim()}
@@ -695,7 +689,28 @@ export function DailyDashboard({
                 );
               })
             ) : (
-              <p className="text-sm text-stone-500">No entries for this date yet.</p>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/50 p-8 text-center transition-all duration-200">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="h-5 w-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z"
+                    />
+                  </svg>
+                </div>
+                <p className="mt-3 text-sm font-medium text-stone-900 font-sans">Your health log is empty today</p>
+                <p className="mt-1 text-xs text-stone-500 max-w-[240px] font-sans">
+                  Type a quick note below to log your meals, drinks, or workouts.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

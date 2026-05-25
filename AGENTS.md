@@ -84,7 +84,8 @@ Current component model:
 - `baseTdee = BMR * baselineLifestyleMultiplier`
 - `baselineActivity = baseTdee - BMR`
 - `TEF` is dynamic from today's macros and alcohol
-- `TDEE = baseTdee + TEF + loggedExercise`
+- `EAT` is explicit logged exercise
+- `TDEE = baseTdee + TEF + EAT`
 - `Deficit = TDEE - intakeCalories`
 
 Baseline activity means conservative non-exercise daily living only. Runs, gym,
@@ -108,6 +109,7 @@ Keep these server-side only:
 - Langfuse secret key
 
 Do not expose them via client components or public env vars.
+The session authentication cookie (`healthlog_session`) must strictly use `sameSite: "strict"` to protect the private single-user app from CSRF vulnerabilities.
 
 ### 8. User actions must leave a server-side trace
 
@@ -272,8 +274,8 @@ CI should run lint, typecheck, tests, and production build.
 
 ### 6. Baseline Activity Must Stay Separate From Logged Exercise
 - **Problem**: Treating "physical activity" as a leftover after subtracting BMR and TEF from baseline TDEE makes the model hard to understand and can blur the line between default daily movement and explicitly logged exercise.
-- **Solution**: Use a conservative `baselineLifestyleMultiplier` instead of standard broad TDEE activity multipliers, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, and compute `TDEE = baseTdee + TEF + loggedExercise`.
-- **Lesson**: Baseline lifestyle represents ordinary non-exercise living only, not workouts and not assumed average exercise. Logged exercise is always additive and must never be implicitly folded back into the lifestyle component.
+- **Solution**: Use a conservative `baselineLifestyleMultiplier` instead of standard broad TDEE activity multipliers, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, map explicit exercise into `EAT`, and compute `TDEE = baseTdee + TEF + EAT`.
+- **Lesson**: Baseline lifestyle represents ordinary non-exercise living only, not workouts and not assumed average exercise. Explicit exercise belongs in `EAT` and must never be implicitly folded back into the lifestyle component.
 
 ### 7. Intake And Output Need Different Presentation Logic
 - **Problem**: Reusing the same card-heavy visual treatment for both intake and output wastes vertical space on mobile and blurs the conceptual difference between intake nutrients and TDEE components.

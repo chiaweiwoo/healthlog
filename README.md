@@ -64,7 +64,8 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
   - `baseTdee = BMR * baselineLifestyleMultiplier`
   - `baselineActivity = baseTdee - BMR`
   - `TEF` from today's protein, carbs, fat, and alcohol
-  - `TDEE = baseTdee + TEF + logged exercise`
+  - `EAT` from explicitly logged exercise
+  - `TDEE = baseTdee + TEF + EAT`
 - Deficit is calculated as `TDEE - intake calories`
 - Mobile warning details open in a tap-friendly dialog
 - Baseline lifestyle can be set from the body page without typing a full body note
