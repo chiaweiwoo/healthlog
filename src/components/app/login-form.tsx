@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ type LoginValues = {
 export function LoginForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginValues>({
     defaultValues: { username: "", password: "" },
   });
@@ -34,7 +33,6 @@ export function LoginForm() {
   }, []);
 
   const onSubmit = form.handleSubmit((values) => {
-    setError(null);
     const toastId = toast.loading("Signing in...");
     startTransition(async () => {
       try {
@@ -48,7 +46,6 @@ export function LoginForm() {
 
         if (!response.ok) {
           const errorMsg = body?.requestId ? `${body.error ?? "Sign in failed."} (${body.requestId})` : (body?.error ?? "Sign in failed.");
-          setError(errorMsg);
           toast.error(errorMsg, { id: toastId });
           return;
         }
@@ -78,7 +75,6 @@ export function LoginForm() {
             </label>
             <Input id="password" type="password" autoComplete="current-password" {...form.register("password")} />
           </div>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <Button className="w-full" disabled={isPending} type="submit">
             {isPending ? "Signing in..." : "Sign in"}
           </Button>

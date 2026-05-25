@@ -302,7 +302,21 @@ Current active entries: ${JSON.stringify(
     input.activeEntries.map((entry) => ({
       id: entry.id,
       rawNote: entry.raw_note,
-      parsedItems: entry.parsed_items,
+      parsedItems: Array.isArray(entry.parsed_items)
+        ? (entry.parsed_items as Array<{
+            kind?: string;
+            label?: string;
+            occurredTime?: string;
+            nutrition?: Record<string, unknown> | null;
+            waterMl?: number | null;
+          }>).map((item) => ({
+            kind: item?.kind,
+            label: item?.label,
+            occurredTime: item?.occurredTime,
+            nutrition: item?.nutrition,
+            waterMl: item?.waterMl,
+          }))
+        : [],
       parseStatus: entry.parse_status ?? "parsed",
     })),
   )}

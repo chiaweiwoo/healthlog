@@ -72,7 +72,6 @@ export function BodyDashboard({
   const [notes, setNotes] = useState<BodyNote[]>(initialNotes);
   const [note, setNote] = useState("");
   const [lastChange, setLastChange] = useState<ChangeSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const missingFields = [
@@ -84,7 +83,6 @@ export function BodyDashboard({
   ].filter(Boolean) as string[];
 
   async function saveBodyNote(rawNote: string, messages?: { loading: string; success: string }) {
-    setError(null);
     const loadingMsg = messages?.loading ?? "Updating body profile...";
     const successMsg = messages?.success ?? "Body profile updated successfully.";
     const toastId = toast.loading(loadingMsg);
@@ -107,7 +105,6 @@ export function BodyDashboard({
         | null;
       if (!response.ok) {
         const errorMsg = body?.requestId ? `${body.error ?? "Could not save body note."} (${body.requestId})` : (body?.error ?? "Could not save body note.");
-        setError(errorMsg);
         toast.error(errorMsg, { id: toastId });
         return;
       }
@@ -229,7 +226,6 @@ export function BodyDashboard({
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
               <Button className="w-full sm:w-auto" disabled={isPending || !note.trim()} onClick={() => startTransition(submitNote)}>
                 {isPending ? "Saving..." : "Update body profile"}
               </Button>

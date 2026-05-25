@@ -53,8 +53,12 @@ export async function verifySessionToken(token?: string | null) {
   const expected = await sign(body);
   const actualBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expected);
-  if (actualBuffer.length !== expectedBuffer.length) return null;
-  if (!timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+
+  const lengthsMatch = actualBuffer.length === expectedBuffer.length;
+  const compareBuffer = lengthsMatch ? actualBuffer : expectedBuffer;
+  const equal = timingSafeEqual(compareBuffer, expectedBuffer);
+
+  if (!lengthsMatch || !equal) return null;
 
   const payload = JSON.parse(fromBase64url(body)) as SessionPayload;
   if (payload.exp < Math.floor(Date.now() / 1000)) return null;
@@ -72,7 +76,7 @@ export async function setSessionCookie(username: string) {
   const cookieStore = await cookies();
   cookieStore.set(cookieName, await createSessionToken(username), {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: sessionTtlSeconds,
