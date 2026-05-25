@@ -875,8 +875,7 @@ export function DailyDashboard({
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               <fieldset>
                 <legend className="sr-only">Entries 2 measurement selector</legend>
-                <div className="-mx-1 overflow-x-auto pb-1">
-                  <div className="flex min-w-max gap-1.5 px-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   {entries2Metrics.map((metric) => (
                     <label key={metric.key} className="cursor-pointer">
                       <input
@@ -889,7 +888,7 @@ export function DailyDashboard({
                       />
                       <span
                         className={cn(
-                          "inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold transition",
+                          "inline-flex min-h-7 w-full items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-semibold transition",
                           entries2Metric === metric.key
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
@@ -900,7 +899,6 @@ export function DailyDashboard({
                       </span>
                     </label>
                   ))}
-                  </div>
                 </div>
               </fieldset>
 
