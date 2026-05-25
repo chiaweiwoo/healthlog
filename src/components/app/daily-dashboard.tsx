@@ -900,7 +900,7 @@ export function DailyDashboard({
                 <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white text-sm">
                   <div
                     className="grid items-center gap-x-2 bg-stone-50/80 px-2 py-2 text-[11px] uppercase tracking-wide text-stone-500"
-                    style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) fit-content(5rem)" }}
+                    style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) 4.75rem" }}
                   >
                     <div className="font-semibold">Time</div>
                     <div className="font-semibold">Item</div>
@@ -916,16 +916,16 @@ export function DailyDashboard({
                       <div
                         key={row.id}
                         className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
-                        style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) fit-content(5rem)" }}
+                        style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) 4.75rem" }}
                       >
                         <div className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
                           {row.time}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <FullTextDialog
                             title="Parsed item"
                             text={row.label}
-                            className="block min-w-0"
+                            className="block min-w-0 max-w-full"
                             previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
                           />
                         </div>
