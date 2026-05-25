@@ -249,6 +249,7 @@ CI should run lint, typecheck, tests, and production build.
 - **Nutrition display**: use `NutritionIcons` component (Flame/Dumbbell/custom-fat-SVG/Wheat/Wine/Droplets) instead of pipe-separated text strings. Zero and null values are hidden.
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass
+- When the user is iterating on shipped UI tweaks and asks for changes in this repo, default to committing and pushing at the end of each completed pass unless they explicitly ask to keep it local. Do not repeatedly stop at "not pushed yet" for these small follow-up refinements.
 
 ---
 
