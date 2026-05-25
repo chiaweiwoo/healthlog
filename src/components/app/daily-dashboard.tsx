@@ -308,13 +308,6 @@ export function DailyDashboard({
         ? "text-sky-500"
         : "text-rose-500";
 
-  const statusLabel =
-    hydrationStatus === "optimal"
-      ? "Optimal Hydration"
-      : hydrationStatus === "moderate"
-        ? "Moderate Hydration"
-        : "Low Hydration / Dehydrated";
-
   const energyStatus = summary && summary.estimated_deficit !== null
     ? (summary.estimated_deficit < 0 ? "surplus" : "deficit")
     : "empty";
@@ -383,31 +376,29 @@ export function DailyDashboard({
             {getDeficitDisplayTitle(summary)}
           </p>
 
-          {/* In / Quota row */}
-          <div className="grid grid-cols-2 gap-4 border-t border-stone-200/40 pt-4 mt-4">
-            <div className="text-left">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
-              <p className="mt-0.5 text-lg font-bold text-stone-800">
-                {summary ? `${summary.calories}` : "0"}{" "}
-                <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
-              </p>
+          {/* In / Quota row + expand toggle inline */}
+          <div className="mt-4 flex items-end gap-4 border-t border-stone-200/40 pt-4">
+            <div className="flex flex-1 gap-4">
+              <div className="text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
+                <p className="mt-0.5 text-lg font-bold text-stone-800">
+                  {summary ? `${summary.calories}` : "0"}{" "}
+                  <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
+                </p>
+              </div>
+              <div className="border-l border-stone-200/40 pl-4 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
+                <p className="mt-0.5 text-lg font-bold text-stone-800">
+                  {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
+                  <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
+                </p>
+              </div>
             </div>
-            <div className="border-l border-stone-200/40 pl-4 text-left">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
-              <p className="mt-0.5 text-lg font-bold text-stone-800">
-                {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
-                <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Breakdown toggle */}
-          <div className="flex justify-end mt-2">
             <button
               type="button"
               aria-label={caloriesDetailOpen ? "Hide breakdown" : "Show breakdown"}
               onClick={() => setCaloriesDetailOpen((v) => !v)}
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-stone-400 transition hover:bg-stone-100/60 hover:text-stone-600"
+              className="mb-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-stone-400 transition hover:bg-stone-100/60 hover:text-stone-600"
             >
               <ChevronDown
                 size={14}
@@ -591,11 +582,11 @@ export function DailyDashboard({
 
           <div className="space-y-2 pt-1">
             <div className="flex justify-between items-baseline">
-              <p className="text-sm font-semibold text-stone-850">
-                {currentWaterMl.toLocaleString()} <span className="text-xs font-normal text-stone-500">ml logged ({pct}%)</span>
+              <p className="text-sm font-semibold text-stone-800">
+                {currentWaterMl.toLocaleString()} <span className="text-xs font-normal text-stone-500">ml</span>
               </p>
-              <p className="text-xs font-medium text-stone-500">
-                {statusLabel} • Target: {targetWaterMl.toLocaleString()} ml
+              <p className="text-xs font-medium text-stone-400">
+                {pct}% of {targetWaterMl.toLocaleString()} ml
               </p>
             </div>
             <div className="h-3 w-full rounded-full bg-white/60 overflow-hidden shadow-inner border border-stone-200/20">
