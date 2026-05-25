@@ -258,6 +258,7 @@ export function DailyDashboard({
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
   const selectedDate = selectedDateOverride ?? browserToday;
   const isMountRef = useRef(true);
+  const entryRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     if (isMountRef.current && selectedDate === initialDate && selectedDateOverride === null) {
@@ -333,8 +334,20 @@ export function DailyDashboard({
     }
   }
 
-  function requestDeleteEntry(id: string) {
-    toast("Are you sure you want to delete this entry?", {
+  function beginEditEntry(entry: Entry) {
+    setEditingId(entry.id);
+    setEditNote(entry.raw_note);
+    requestAnimationFrame(() => {
+      entryRefs.current[entry.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  function requestDeleteEntry(id: string, itemCount = 1) {
+    const message =
+      itemCount > 1
+        ? `This original note contains ${itemCount} items. Deleting this removes the whole entry.`
+        : "Are you sure you want to delete this entry?";
+    toast(message, {
       action: {
         label: "Confirm",
         onClick: () => startTransition(() => removeEntry(id)),
@@ -700,7 +713,13 @@ export function DailyDashboard({
             {entries.map((entry) => {
               const isEditing = editingId === entry.id;
               return (
-                <article key={entry.id} className={`rounded-lg border p-3 ${getEntryStatusTone(entry)}`}>
+                <article
+                  key={entry.id}
+                  ref={(node) => {
+                    entryRefs.current[entry.id] = node;
+                  }}
+                  className={`rounded-lg border p-3 ${getEntryStatusTone(entry)}`}
+                >
                   <div className="flex items-start justify-between gap-2">
                     {/* Title + timestamp stacked — flex-1 so it gets all leftover space */}
                     <div className="min-w-0 flex-1">
@@ -731,10 +750,7 @@ export function DailyDashboard({
                             variant="ghost"
                             aria-label="Edit note"
                             disabled={isPending}
-                            onClick={() => {
-                              setEditingId(entry.id);
-                              setEditNote(entry.raw_note);
-                            }}
+                            onClick={() => beginEditEntry(entry)}
                             className="h-7 w-7 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
                           >
                             <Pencil size={14} />
@@ -808,7 +824,7 @@ export function DailyDashboard({
                               <div key={`${entry.id}-${index}`} className="rounded-lg bg-stone-50/60 border border-stone-200/40 px-3 py-2 shadow-xs transition hover:bg-stone-50 duration-150">
                                 <div className="flex items-start justify-between gap-2">
                                   <FullTextDialog
-                                    title="Parsed item"
+                                    title="Item"
                                     text={item.label}
                                     className="min-w-0 flex-1"
                                     previewClassName="break-words text-sm font-semibold text-stone-900"
@@ -935,7 +951,7 @@ export function DailyDashboard({
                         </div>
                         <div className="min-w-0 overflow-hidden">
                           <FullTextDialog
-                            title="Parsed item"
+                            title="Item"
                             text={row.label}
                             className="block min-w-0 max-w-full"
                             previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
@@ -943,7 +959,6 @@ export function DailyDashboard({
                             <div className="space-y-3">
                               {row.warnings.length ? (
                                 <div className="space-y-2">
-                                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Warnings</p>
                                   {row.warnings.map((warning, index) => (
                                     <div key={`${warning.code}-${index}`} className="rounded-md border border-amber-200 bg-amber-50 p-2.5">
                                       <p className="text-sm font-medium text-amber-950">{warning.message}</p>
@@ -958,29 +973,28 @@ export function DailyDashboard({
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      size="sm"
+                                      size="icon"
                                       disabled={isPending}
-                                      onClick={() => {
-                                        setEditingId(sourceEntry.id);
-                                        setEditNote(sourceEntry.raw_note);
-                                      }}
-                                      className="flex-1 rounded-lg border-stone-200 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                                      aria-label="Edit original note"
+                                      title="Edit original note"
+                                      onClick={() => beginEditEntry(sourceEntry)}
+                                      className="h-9 w-9 rounded-lg border-stone-200 text-stone-700 hover:bg-stone-50"
                                     >
                                       <Pencil size={13} />
-                                      Edit entry
                                     </Button>
                                   </DialogClose>
                                   <DialogClose asChild>
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      size="sm"
+                                      size="icon"
                                       disabled={isPending}
-                                      onClick={() => requestDeleteEntry(sourceEntry.id)}
-                                      className="flex-1 rounded-lg border-rose-100 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                      aria-label="Delete original note"
+                                      title="Delete original note"
+                                      onClick={() => requestDeleteEntry(sourceEntry.id, sourceEntry.parsed_items.length)}
+                                      className="h-9 w-9 rounded-lg border-rose-100 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                                     >
                                       <Trash2 size={13} />
-                                      Delete entry
                                     </Button>
                                   </DialogClose>
                                 </div>
