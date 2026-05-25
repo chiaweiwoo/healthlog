@@ -24,10 +24,11 @@ HealthLog is a private single-user web app for recording a healthier journey thr
 - Singapore is the default food context unless the user says otherwise.
 - TDEE uses Mifflin-St Jeor by default and warns instead of faking precision when profile fields are missing.
 - Current TDEE model:
-  - `baseTdee = BMR * activityMultiplier`
+  - `baseTdee = BMR * baselineLifestyleMultiplier`
   - `baselineActivity = baseTdee - BMR`
   - `TEF` is dynamic from today's macros and alcohol
   - `TDEE = baseTdee + TEF + loggedExercise`
+- Baseline lifestyle is conservative non-exercise daily living only. Logged exercise, runs, gym, sports, and deliberate step sessions must stay separate.
 - Water-bearing beverages should contribute to both intake totals and water breakdowns when `waterMl` is known.
 
 ## User Setup

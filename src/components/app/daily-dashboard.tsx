@@ -439,7 +439,7 @@ export function DailyDashboard({
                       description={
                         <>
                           <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
-                          <p>Baseline activity comes from your chosen activity level and represents ordinary daily movement before logged exercise.</p>
+                          <p>Baseline activity comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
                           <p>TEF uses a macro-based estimate:</p>
                           <ul className="list-disc space-y-1 pl-4">
                             <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
@@ -466,7 +466,7 @@ export function DailyDashboard({
                     icon={<Sparkles size={16} />}
                     label="Baseline activity"
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
-                    info="Baseline activity is estimated from your chosen activity level and excludes explicitly logged exercise."
+                    info="Baseline activity is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
                   />
                   <MetricRow

@@ -14,7 +14,8 @@ any other repository from this thread.
 - Use JSONB for evolving structures and scalar columns for stable query fields.
 - Keep low-confidence items visible with warnings.
 - TDEE must return incomplete warnings instead of fake precision.
-- TDEE uses a component model: `BMR`, `baseline activity`, `TEF`, and `logged exercise` are separate, and `TDEE = baseTdee + TEF + loggedExercise`.
+- TDEE uses a component model: `BMR`, conservative `baseline activity`, `TEF`, and `logged exercise` are separate, and `TDEE = baseTdee + TEF + loggedExercise`.
+- Baseline activity means non-exercise lifestyle only, not traditional PAL/TDEE activity assumptions.
 - Treat intake as one story: food, calorie-bearing drinks, and water belong together in daily intake summaries.
 - Parse LLM JSON defensively and validate with Zod.
 - Mutating and auth-related API routes should write request traces to `app_request_logs`.

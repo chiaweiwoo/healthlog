@@ -333,6 +333,14 @@ Return JSON only. No markdown. No prose.
 The note may mix English and Chinese. Preserve original wording where useful.
 
 Allowed activityLevel values: sedentary, light, moderate, active, very_active.
+Interpret activityLevel as conservative non-exercise baseline lifestyle only.
+Do not include gym, running, sports, workouts, or deliberate step sessions in activityLevel.
+Examples:
+- sedentary: minimal independent living
+- light: white-collar office work, mostly sitting, low movement, watching drama at home
+- moderate: desk life plus regular errands, commute, and chores
+- active: often on feet for work or daily life, but not because of logged workouts
+- very_active: physically demanding non-workout daily life
 Do not invent profile fields that are not supported by the note.
 Only create measurement rows when the note implies a real measurement event.
 Use weight measurements when a body weight is stated. Height should normally update the profile only.

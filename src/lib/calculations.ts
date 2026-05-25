@@ -1,12 +1,12 @@
 import { ParsedDailyItem, Profile, Warning, activityLevelSchema } from "@/lib/schemas";
 import { round } from "@/lib/utils";
 
-const activityMultipliers: Record<ReturnType<typeof activityLevelSchema.parse>, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  very_active: 1.9,
+const baselineLifestyleMultipliers: Record<ReturnType<typeof activityLevelSchema.parse>, number> = {
+  sedentary: 1.05,
+  light: 1.1,
+  moderate: 1.16,
+  active: 1.25,
+  very_active: 1.35,
 };
 
 export const atwaterFactors = {
@@ -86,14 +86,14 @@ export function calculateTdee(profile: Profile, input?: { exerciseCalories?: num
           ? []
           : [{
               code: "activity_missing",
-              message: "Activity level is needed for TDEE.",
-              improveWith: "Set an activity level on the body page.",
+              message: "Baseline lifestyle is needed for TDEE.",
+              improveWith: "Set your baseline lifestyle on the body page.",
             } satisfies Warning]),
       ],
     };
   }
 
-  const baseTdee = round(bmr * activityMultipliers[profile.activityLevel]);
+  const baseTdee = round(bmr * baselineLifestyleMultipliers[profile.activityLevel]);
   const baselineActivityCalories = round(Math.max(baseTdee - bmr, 0));
   return {
     bmr,

@@ -61,13 +61,13 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 - Water-bearing beverages can appear in both food/drink and water breakdowns when `waterMl` is known
 - Output uses a component model:
   - `BMR` from Mifflin-St Jeor
-  - `baseTdee = BMR * activityMultiplier`
+  - `baseTdee = BMR * baselineLifestyleMultiplier`
   - `baselineActivity = baseTdee - BMR`
   - `TEF` from today's protein, carbs, fat, and alcohol
   - `TDEE = baseTdee + TEF + logged exercise`
 - Deficit is calculated as `TDEE - intake calories`
 - Mobile warning details open in a tap-friendly dialog
-- Activity level can be set from the body page without typing a full body note
+- Baseline lifestyle can be set from the body page without typing a full body note
 - The mobile dashboard prefers dense list rows over decorative metric cards
 
 ## Good Practices

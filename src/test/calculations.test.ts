@@ -35,7 +35,7 @@ describe("calculateBmr", () => {
 });
 
 describe("calculateTdee", () => {
-  it("adds tef and exercise on top of the activity-level baseline", () => {
+  it("adds tef and exercise on top of a conservative baseline lifestyle", () => {
     const result = calculateTdee(
       {
         age: 31,
@@ -49,9 +49,9 @@ describe("calculateTdee", () => {
       { exerciseCalories: 320, tefCalories: 55 },
     );
 
-    expect(result.baseTdee).toBe(2350);
-    expect(result.baselineActivityCalories).toBe(641);
-    expect(result.tdee).toBe(2725);
+    expect(result.baseTdee).toBe(1880);
+    expect(result.baselineActivityCalories).toBe(171);
+    expect(result.tdee).toBe(2255);
   });
 });
 
@@ -164,8 +164,8 @@ describe("summarizeDailyItems", () => {
     expect(summary.exerciseCalories).toBe(250);
     expect(summary.alcoholG).toBe(0);
     expect(summary.tefCalories).toBe(66);
-    expect(summary.baselineActivityCalories).toBe(641);
-    expect(summary.estimatedDeficit).toBe(2030);
+    expect(summary.baselineActivityCalories).toBe(171);
+    expect(summary.estimatedDeficit).toBe(1560);
     expect(summary.breakdown.food).toHaveLength(2);
     expect(summary.breakdown.water).toHaveLength(1);
     expect(summary.breakdown.water[0]?.label).toBe("Barley tea");
@@ -208,10 +208,10 @@ describe("summarizeDailyItems", () => {
 });
 
 describe("getOutputBreakdown", () => {
-  it("splits output into bmr, baseline activity, tef, exercise, and total tdee", () => {
+  it("splits output into bmr, conservative baseline activity, tef, exercise, and total tdee", () => {
     const output = getOutputBreakdown({
       bmr: 1709,
-      baseTdee: 2350,
+      baseTdee: 1880,
       exerciseCalories: 250,
       proteinG: 39,
       fatG: 28,
@@ -220,8 +220,8 @@ describe("getOutputBreakdown", () => {
     });
 
     expect(output.tefCalories).toBe(72);
-    expect(output.baselineActivityCalories).toBe(641);
-    expect(output.totalTdee).toBe(2672);
+    expect(output.baselineActivityCalories).toBe(171);
+    expect(output.totalTdee).toBe(2202);
   });
 
   it("returns null output totals when profile is incomplete", () => {

@@ -47,12 +47,16 @@ type ChangeSummary = {
 };
 
 const activityOptions = [
-  { value: "sedentary", label: "Sedentary" },
-  { value: "light", label: "Light" },
-  { value: "moderate", label: "Moderate" },
-  { value: "active", label: "Active" },
-  { value: "very_active", label: "Very active" },
+  { value: "sedentary", label: "Minimal" },
+  { value: "light", label: "Desk / low movement" },
+  { value: "moderate", label: "Desk + errands" },
+  { value: "active", label: "On feet often" },
+  { value: "very_active", label: "Physical day" },
 ] as const;
+
+function getActivityOptionLabel(value?: string | null) {
+  return activityOptions.find((option) => option.value === value)?.label ?? value ?? "Missing";
+}
 
 export function BodyDashboard({
   initialProfile,
@@ -76,7 +80,7 @@ export function BodyDashboard({
     !profile?.sex ? "Sex" : null,
     !profile?.heightCm ? "Height" : null,
     !profile?.weightKg ? "Weight" : null,
-    !profile?.activityLevel ? "Activity level" : null,
+    !profile?.activityLevel ? "Baseline lifestyle" : null,
   ].filter(Boolean) as string[];
 
   async function saveBodyNote(rawNote: string, messages?: { loading: string; success: string }) {
@@ -133,9 +137,9 @@ export function BodyDashboard({
 
   async function setActivityLevel(value: string) {
     const label = activityOptions.find((opt) => opt.value === value)?.label ?? value;
-    await saveBodyNote(`Activity level: ${value}`, {
-      loading: `Updating activity level to ${label}...`,
-      success: "Activity level updated.",
+    await saveBodyNote(`Baseline lifestyle: ${value}`, {
+      loading: `Updating baseline lifestyle to ${label}...`,
+      success: "Baseline lifestyle updated.",
     });
   }
 
@@ -153,12 +157,15 @@ export function BodyDashboard({
                 <ProfileTile icon={<Ruler size={16} />} label="Height" value={profile?.heightCm ? `${profile.heightCm} cm` : "Missing"} />
                 <ProfileTile icon={<Weight size={16} />} label="Weight" value={profile?.weightKg ? `${profile.weightKg} kg` : "Missing"} />
                 <ProfileTile label="Sex" value={profile?.sex ?? "Missing"} />
-                <ProfileTile label="Activity" value={profile?.activityLevel ?? "Missing"} />
+                <ProfileTile label="Lifestyle" value={getActivityOptionLabel(profile?.activityLevel)} />
                 <ProfileTile label="Goal" value={profile?.goal ?? "Not set"} />
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-stone-900">Activity level</p>
+                <p className="text-sm font-medium text-stone-900">Baseline lifestyle</p>
+                <p className="text-xs text-stone-500">
+                  This covers ordinary non-exercise living only, like desk work, commute, chores, and how much you are on your feet. Runs, gym, and deliberate step sessions should stay logged separately.
+                </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   {activityOptions.map((option) => (
                     <button

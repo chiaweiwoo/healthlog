@@ -81,14 +81,17 @@ up defaults.
 
 Current component model:
 - `BMR` comes from Mifflin-St Jeor
-- `baseTdee = BMR * activityMultiplier`
+- `baseTdee = BMR * baselineLifestyleMultiplier`
 - `baselineActivity = baseTdee - BMR`
 - `TEF` is dynamic from today's macros and alcohol
 - `TDEE = baseTdee + TEF + loggedExercise`
 - `Deficit = TDEE - intakeCalories`
 
+Baseline activity means conservative non-exercise daily living only. Runs, gym,
+sports, deliberate step sessions, and other explicit exercise must stay separate.
 Do not reintroduce a remainder-style "physical activity" component that subtracts
-TEF back out of baseline TDEE.
+TEF back out of baseline TDEE, and do not reuse traditional broad PAL-style
+activity multipliers that silently include assumed exercise.
 
 ### 6. JSON reliability comes from prompt contract + tolerant parsing
 
@@ -269,8 +272,8 @@ CI should run lint, typecheck, tests, and production build.
 
 ### 6. Baseline Activity Must Stay Separate From Logged Exercise
 - **Problem**: Treating "physical activity" as a leftover after subtracting BMR and TEF from baseline TDEE makes the model hard to understand and can blur the line between default daily movement and explicitly logged exercise.
-- **Solution**: Use `baseTdee = BMR * activityMultiplier` as the activity-level baseline, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, and compute `TDEE = baseTdee + TEF + loggedExercise`.
-- **Lesson**: Activity level represents ordinary daily movement baseline, not workouts. Logged exercise is always additive and must never be implicitly folded back into the activity-level component.
+- **Solution**: Use a conservative `baselineLifestyleMultiplier` instead of standard broad TDEE activity multipliers, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, and compute `TDEE = baseTdee + TEF + loggedExercise`.
+- **Lesson**: Baseline lifestyle represents ordinary non-exercise living only, not workouts and not assumed average exercise. Logged exercise is always additive and must never be implicitly folded back into the lifestyle component.
 
 ### 7. Intake And Output Need Different Presentation Logic
 - **Problem**: Reusing the same card-heavy visual treatment for both intake and output wastes vertical space on mobile and blurs the conceptual difference between intake nutrients and TDEE components.
