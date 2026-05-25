@@ -24,6 +24,9 @@ any other repository from this thread.
 - The session authentication cookie must strictly use `sameSite: "strict"` to eliminate CSRF risks.
 - Keep important mobile interactions tap-friendly and prefer dense list summaries over decorative card grids.
 - Daily dashboard uses a single-column mobile-first layout (max-w-2xl, no grid): Calories → Water → Entries. New entries are added via a floating action button (FAB), not an inline form.
+- All three dashboard sections use a shared `SectionHeader` (icon box + uppercase caption + title). Cards use `bg-stone-50/60`. Icon boxes have a subtle section tint: orange-50 for energy, sky-50 for hydration, stone-50 for entries.
+- Progress bars use single semantic colors only. Sub-level breakdown bars are `bg-stone-300`. Water bar is always `bg-sky-500`. Energy intake bar is `bg-emerald-500` (deficit) or `bg-amber-400` (surplus). No decorative per-row color gradients.
+- Nutrition item display uses `NutritionIcons` (Flame/Dumbbell/fat-SVG/Wheat/Wine/Droplets) — not pipe-separated text. Zero/null values hidden.
 
 ## Commands
 

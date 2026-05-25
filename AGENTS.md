@@ -243,6 +243,9 @@ CI should run lint, typecheck, tests, and production build.
 - Daily dashboard is a single-column mobile-first feed (Calories → Water → Entries, max-w-2xl). New entries use a floating action button (FAB) opening a dialog — do not reintroduce an inline textarea form at the bottom of the page.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
+- **Section card pattern**: all major dashboard sections use a shared `SectionHeader` component (icon box + 10px uppercase caption + `text-base font-bold` title + optional right action). Cards use `bg-stone-50/60` with `border-stone-200` and a neutral shadow. Icon boxes get a subtle section-themed tint (orange-50 for energy, sky-50 for hydration, stone-50 for entries).
+- **Progress bar rules**: use single semantic colors — not decorative per-row gradients. Sub-level breakdown bars (macro rows, TDEE components) are always `bg-stone-300`. Top-level status bars use one meaningful color: water is always `bg-sky-500`; energy intake bar is `bg-emerald-500` (deficit) or `bg-amber-400` (surplus). Never use multi-colored gradients just for visual variety.
+- **Nutrition display**: use `NutritionIcons` component (Flame/Dumbbell/custom-fat-SVG/Wheat/Wine/Droplets) instead of pipe-separated text strings. Zero and null values are hidden.
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass
 
