@@ -18,17 +18,14 @@ import {
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
-import { EntryDetailDialog } from "@/components/app/entry-detail-dialog";
 import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
-import { NutritionIcons } from "@/components/app/nutrition-icons";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
-import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
-import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
+import { atwaterFactors, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
 import {
   type EntryTableMetric,
   flattenEntriesForTable,
@@ -127,18 +124,6 @@ function hasWarningCode(warnings: Warning[] | undefined, code: string) {
   return warnings?.some((warning) => warning.code === code) ?? false;
 }
 
-function getItemNutritionData(item: EntryItem) {
-  const derived = getDisplayNutrition(item);
-  return {
-    calories: derived.calories,
-    proteinG: derived.proteinG,
-    fatG: derived.fatG,
-    carbsG: derived.carbsG,
-    alcoholG: derived.alcoholG,
-    waterMl: item.waterMl,
-  };
-}
-
 function getDeficitDisplayTitle(summary: Summary) {
   if (!summary) return "0 kcal";
   if (hasWarningCode(summary.warnings, "profile_incomplete") || hasWarningCode(summary.warnings, "activity_missing")) {
@@ -159,22 +144,6 @@ function getDeficitDisplayTitle(summary: Summary) {
 function getDeficitTextColor(summary: Summary) {
   if (!summary || summary.estimated_deficit === null) return "text-stone-900";
   return summary.estimated_deficit < 0 ? "text-amber-600" : "text-emerald-600";
-}
-
-function getEntryHeadline(entry: Entry) {
-  if (entry.parsed_items.length) {
-    return entry.parsed_items.map((item) => item.label).join(" | ");
-  }
-  if (entry.parse_status === "pending") return "Parsing note";
-  if (entry.parse_status === "failed") return "Needs clarification";
-  return "Recorded note";
-}
-
-function getEntryStatusTone(entry: Entry) {
-  if (!entry.is_active) return "border-stone-200 bg-stone-50/30 opacity-60";
-  if (entry.parse_status === "failed") return "border-amber-200 bg-amber-50/20 text-amber-950";
-  if (entry.parse_status === "pending") return "border-stone-200 bg-stone-50/30 text-stone-900 animate-pulse";
-  return "border-stone-200/60 bg-white text-stone-900 hover:border-stone-300 transition-colors duration-150";
 }
 
 function getPercent(value: number | null | undefined, total: number | null | undefined) {
@@ -258,7 +227,7 @@ export function DailyDashboard({
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
   const selectedDate = selectedDateOverride ?? browserToday;
   const isMountRef = useRef(true);
-  const entryRefs = useRef<Record<string, HTMLElement | null>>({});
+  const entriesSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isMountRef.current && selectedDate === initialDate && selectedDateOverride === null) {
@@ -338,7 +307,7 @@ export function DailyDashboard({
     setEditingId(entry.id);
     setEditNote(entry.raw_note);
     requestAnimationFrame(() => {
-      entryRefs.current[entry.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      entriesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
@@ -401,6 +370,8 @@ export function DailyDashboard({
   const selectedEntries2Metric = entries2Metrics.find((metric) => metric.key === entries2Metric) ?? entries2Metrics[0];
   const entries2Unit = entries2Rows[0]?.measurements[entries2Metric].unit ?? (entries2Metric === "water" ? "ml" : entries2Metric === "exercise" || entries2Metric === "calories" ? "kcal" : "g");
   const entries2Total = sumEntryTableMetric(entries2Rows, entries2Metric);
+  const editingEntry = entries.find((entry) => entry.id === editingId) ?? null;
+  const unstructuredEntries = entries.filter((entry) => entry.parse_status !== "parsed" || entry.parsed_items.length === 0);
 
   return (
     <main className="mx-auto max-w-2xl px-3 py-4 pb-28 sm:px-4 sm:py-6">
@@ -692,7 +663,7 @@ export function DailyDashboard({
         </section>
 
         {/* 3. ENTRIES */}
-        <section className="rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm">
+        <section ref={entriesSectionRef} className="rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm">
           <div className="p-4 pb-3">
             <SectionHeader
               icon={<BookOpen size={18} className="text-stone-400" />}
@@ -708,191 +679,45 @@ export function DailyDashboard({
             />
           </div>
 
-          {entries.length ? (
-            <div className="space-y-2 px-3 pb-3">
-            {entries.map((entry) => {
-              const isEditing = editingId === entry.id;
-              return (
-                <article
-                  key={entry.id}
-                  ref={(node) => {
-                    entryRefs.current[entry.id] = node;
-                  }}
-                  className={`rounded-lg border p-3 ${getEntryStatusTone(entry)}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    {/* Title + timestamp stacked — flex-1 so it gets all leftover space */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <EntryDetailDialog
-                          entry={entry}
-                          trigger={
-                            <button type="button" className="min-w-0">
-                              <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-left text-sm font-bold text-stone-900">
-                                {getEntryHeadline(entry)}
-                              </span>
-                            </button>
-                          }
-                        />
-                        {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
-                        <WarningDot warnings={entry.warnings} label="Entry warnings" />
-                      </div>
-                      <p className="mt-1 text-xs font-semibold text-stone-400 font-sans">
-                        {entry.occurred_time ?? format(new Date(entry.created_at), "p")}
-                      </p>
-                    </div>
-                    {/* Action icons on the right */}
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      {entry.is_active ? (
-                        <>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Edit note"
-                            disabled={isPending}
-                            onClick={() => beginEditEntry(entry)}
-                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
-                          >
-                            <Pencil size={14} />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Delete note"
-                            disabled={isPending}
-                            onClick={() => requestDeleteEntry(entry.id)}
-                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {isEditing ? (
-                    <div className="mt-3 space-y-2.5">
-                      <Textarea
-                        value={editNote}
-                        onChange={(event) => setEditNote(event.target.value)}
-                        disabled={isPending}
-                        className="bg-white border-stone-200 rounded-lg text-sm resize-none h-20"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => startTransition(() => saveEdit(entry.id))}
-                          disabled={isPending || !editNote.trim()}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold px-3 py-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingId(null)}
-                          disabled={isPending}
-                          className="border-stone-200 text-stone-700 hover:bg-stone-50 rounded-lg text-xs font-semibold px-3 py-1.5 cursor-pointer"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {entry.parsed_items.length ? (
-                        entry.parsed_items.length === 1 ? (
-                          <div className="mt-1">
-                            {entry.parsed_items[0].kind === "exercise" ? (
-                              <p className="text-xs font-medium text-stone-500 leading-relaxed">
-                                {entry.parsed_items[0].exerciseCalories != null
-                                  ? `${entry.parsed_items[0].exerciseCalories} kcal burn`
-                                  : "Exercise recorded"}
-                              </p>
-                            ) : (
-                              <NutritionIcons data={getItemNutritionData(entry.parsed_items[0])} />
-                            )}
-                            {entry.parsed_items[0].remarks && (
-                              <p className="mt-1 text-[11px] text-stone-400 italic font-medium">
-                                Remarks: {entry.parsed_items[0].remarks}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mt-3 space-y-2">
-                            {entry.parsed_items.map((item, index) => (
-                              <div key={`${entry.id}-${index}`} className="rounded-lg bg-stone-50/60 border border-stone-200/40 px-3 py-2 shadow-xs transition hover:bg-stone-50 duration-150">
-                                <div className="flex items-start justify-between gap-2">
-                                  <FullTextDialog
-                                    title="Item"
-                                    text={item.label}
-                                    className="min-w-0 flex-1"
-                                    previewClassName="break-words text-sm font-semibold text-stone-900"
-                                  />
-                                  <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
-                                </div>
-                                <div className="mt-1">
-                                  {item.kind === "exercise" ? (
-                                    <p className="text-xs font-medium text-stone-500">
-                                      {item.exerciseCalories != null
-                                        ? `${item.exerciseCalories} kcal burn`
-                                        : "Exercise recorded"}
-                                    </p>
-                                  ) : (
-                                    <NutritionIcons data={getItemNutritionData(item)} />
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      ) : (
-                        <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed">
-                          {entry.parse_status === "failed" ? "Saved, but this note still needs clarification before it can be structured." : "Awaiting structured result."}
-                        </p>
-                      )}
-                      {entry.parse_status === "failed" && (
-                        <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed break-words">
-                          {entry.raw_note}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </article>
-              );
-            })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center border-t border-stone-100 p-8 text-center">
-              <p className="text-sm font-bold text-stone-900">No records yet today</p>
-              <p className="mt-1 text-xs font-medium text-stone-400 max-w-[200px]">
-                Use the floating button to log meals, drinks, or workouts.
-              </p>
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm">
-          <div className="p-4 pb-3">
-            <SectionHeader
-              icon={<BookOpen size={18} className="text-stone-400" />}
-              caption="EXPERIMENTAL VIEW"
-              title="Entries 2"
-              action={
-                entries2Rows.length > 0 ? (
-                  <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50">
-                    {entries2Rows.length}
-                  </span>
-                ) : null
-              }
-            />
-          </div>
-
           <div className="px-3 pb-3">
+            {editingEntry ? (
+              <div className="mb-3 rounded-lg border border-stone-200 bg-white/90 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Original note</p>
+                <Textarea
+                  value={editNote}
+                  onChange={(event) => setEditNote(event.target.value)}
+                  disabled={isPending}
+                  className="mt-2 h-20 resize-none rounded-lg border-stone-200 bg-white text-sm"
+                />
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => startTransition(() => saveEdit(editingEntry.id))}
+                    disabled={isPending || !editNote.trim()}
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingId(null);
+                      setEditNote("");
+                    }}
+                    disabled={isPending}
+                    className="rounded-lg border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3 pb-20">
               <fieldset>
-                <legend className="sr-only">Entries 2 measurement selector</legend>
-                <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Entries 2 measurement selector">
+                <legend className="sr-only">Entries measurement selector</legend>
+                <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Entries measurement selector">
                   {entries2Metrics.map((metric) => (
                     <button
                       key={metric.key}
@@ -1011,9 +836,57 @@ export function DailyDashboard({
                 </div>
               ) : (
                 <div className="mt-3 rounded-lg border border-dashed border-stone-200 bg-stone-50/40 px-3 py-4 text-sm text-stone-500">
-                  No parsed items to show yet.
+                  {entries.length ? "No item rows to show yet." : "No records yet today."}
                 </div>
               )}
+
+              {unstructuredEntries.length ? (
+                <div className="mt-3 space-y-2 border-t border-stone-200 pt-3">
+                  {unstructuredEntries.map((entry) => (
+                    <div key={entry.id} className="rounded-lg border border-amber-200 bg-amber-50/50 p-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                            {entry.parse_status === "pending" ? "Processing" : "Needs detail"}
+                          </p>
+                          <FullTextDialog
+                            title="Entry"
+                            text={entry.raw_note}
+                            className="mt-1 block min-w-0"
+                            previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
+                          />
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            disabled={isPending}
+                            aria-label="Edit original note"
+                            title="Edit original note"
+                            onClick={() => beginEditEntry(entry)}
+                            className="h-8 w-8 rounded-lg border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                          >
+                            <Pencil size={13} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            disabled={isPending}
+                            aria-label="Delete original note"
+                            title="Delete original note"
+                            onClick={() => requestDeleteEntry(entry.id, entry.parsed_items.length)}
+                            className="h-8 w-8 rounded-lg border-rose-100 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1135,15 +1008,3 @@ function SectionHeader({
   );
 }
 
-function StatusBadge({ status }: { status: Entry["parse_status"] }) {
-  const styles =
-    status === "parsed"
-      ? "bg-emerald-50 text-emerald-700"
-      : status === "failed"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-stone-100 text-stone-700";
-
-  const label = status === "parsed" ? "Parsed" : status === "failed" ? "Needs detail" : "Parsing";
-
-  return <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${styles}`}>{label}</span>;
-}
