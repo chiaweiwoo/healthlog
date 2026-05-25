@@ -118,7 +118,7 @@ export function sumEntryTableMetric(rows: EntryTableRow[], metric: EntryTableMet
 }
 
 export function formatEntryTableMetricValue(value: number | null, unit: string) {
-  if (value === null) return "-";
+  if (value === null || value === 0) return "";
   const display = Number.isInteger(value) ? String(value) : String(round(value, 1));
   return `${display} ${unit}`;
 }

@@ -89,7 +89,7 @@ describe("daily-entry-table helpers", () => {
     expect(sumEntryTableMetric(rows, "calories")).toBe(4);
     expect(sumEntryTableMetric(rows, "carbs")).toBe(1);
     expect(rows[1]?.measurements.calories.value).toBeNull();
-    expect(formatEntryTableMetricValue(rows[1]?.measurements.calories.value ?? null, "kcal")).toBe("-");
+    expect(formatEntryTableMetricValue(rows[1]?.measurements.calories.value ?? null, "kcal")).toBe("");
   });
 
   it("omits inactive and unparsed entries", () => {

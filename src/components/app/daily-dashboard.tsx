@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import {
+  Dumbbell,
   BookOpen,
   ChevronDown,
   Droplets,
@@ -10,6 +11,9 @@ import {
   Pencil,
   RotateCcw,
   Trash2,
+  Wheat,
+  Wine,
+  Activity,
 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
@@ -178,14 +182,42 @@ function getPercent(value: number | null | undefined, total: number | null | und
 }
 
 const entries2Metrics: Array<{ key: EntryTableMetric; label: string; totalLabel: string }> = [
-  { key: "calories", label: "Calories", totalLabel: "Total calories" },
-  { key: "water", label: "Water", totalLabel: "Total water" },
-  { key: "protein", label: "Protein", totalLabel: "Total protein" },
-  { key: "fat", label: "Fat", totalLabel: "Total fat" },
-  { key: "carbs", label: "Carbs", totalLabel: "Total carbs" },
-  { key: "alcohol", label: "Alcohol", totalLabel: "Total alcohol" },
-  { key: "exercise", label: "Exercise", totalLabel: "Total exercise" },
+  { key: "calories", label: "Calories", totalLabel: "Total Calories" },
+  { key: "water", label: "Water", totalLabel: "Total Water" },
+  { key: "protein", label: "Protein", totalLabel: "Total Protein" },
+  { key: "fat", label: "Fat", totalLabel: "Total Fat" },
+  { key: "carbs", label: "Carbs", totalLabel: "Total Carbs" },
+  { key: "alcohol", label: "Alcohol", totalLabel: "Total Alcohol" },
+  { key: "exercise", label: "Exercise", totalLabel: "Total Exercise" },
 ];
+
+function FatMetricIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2C12 2 6 9 6 14.5C6 17.985 8.686 21 12 21C15.314 21 18 17.985 18 14.5C18 9 12 2 12 2Z" />
+      <path d="M9 14C9.5 12.5 11 11 12.5 11" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function Entries2MetricIcon({ metric, size = 13 }: { metric: EntryTableMetric; size?: number }) {
+  if (metric === "calories") return <Flame size={size} />;
+  if (metric === "water") return <Droplets size={size} />;
+  if (metric === "protein") return <Dumbbell size={size} />;
+  if (metric === "fat") return <FatMetricIcon size={size} />;
+  if (metric === "carbs") return <Wheat size={size} />;
+  if (metric === "alcohol") return <Wine size={size} />;
+  return <Activity size={size} />;
+}
 
 export function DailyDashboard({
   initialDate,
@@ -846,12 +878,13 @@ export function DailyDashboard({
                       />
                       <span
                         className={cn(
-                          "inline-flex min-h-8 items-center rounded-md border px-2.5 text-[11px] font-semibold transition",
+                          "inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold transition",
                           entries2Metric === metric.key
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
                         )}
                       >
+                        <Entries2MetricIcon metric={metric.key} />
                         {metric.label}
                       </span>
                     </label>
@@ -867,39 +900,40 @@ export function DailyDashboard({
               </div>
 
               {entries2Rows.length ? (
-                <div className="mt-3 overflow-hidden rounded-lg border border-stone-200">
-                  <table className="w-full table-fixed border-collapse text-sm">
-                    <thead className="bg-stone-50/80">
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-stone-500">
-                        <th className="w-14 px-2 py-2 font-semibold">Time</th>
-                        <th className="px-2 py-2 font-semibold">Item</th>
-                        <th className="w-24 px-2 py-2 text-right font-semibold">Measurement</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                      {entries2Rows.map((row) => {
-                        const measurement = row.measurements[entries2Metric];
-                        return (
-                          <tr key={row.id} className="border-t border-stone-200 first:border-t-0">
-                            <td className="px-2 py-2 align-top text-xs font-semibold tabular-nums text-stone-500">
-                              {row.time}
-                            </td>
-                            <td className="min-w-0 px-2 py-2 align-top">
-                              <FullTextDialog
-                                title="Parsed item"
-                                text={row.label}
-                                className="block min-w-0"
-                                previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
-                              />
-                            </td>
-                            <td className="px-2 py-2 text-right align-top text-sm font-semibold tabular-nums text-stone-700">
-                              {formatEntryTableMetricValue(measurement.value, measurement.unit)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white text-sm">
+                  <div
+                    className="grid items-center gap-x-2 bg-stone-50/80 px-2 py-2 text-[11px] uppercase tracking-wide text-stone-500"
+                    style={{ gridTemplateColumns: "3rem minmax(0,1fr) fit-content(5.5rem)" }}
+                  >
+                    <div className="font-semibold">Time</div>
+                    <div className="font-semibold">Item</div>
+                    <div className="text-right font-semibold">{selectedEntries2Metric.label}</div>
+                  </div>
+                  {entries2Rows.map((row) => {
+                    const measurement = row.measurements[entries2Metric];
+                    return (
+                      <div
+                        key={row.id}
+                        className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
+                        style={{ gridTemplateColumns: "3rem minmax(0,1fr) fit-content(5.5rem)" }}
+                      >
+                        <div className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
+                          {row.time}
+                        </div>
+                        <div className="min-w-0">
+                          <FullTextDialog
+                            title="Parsed item"
+                            text={row.label}
+                            className="block min-w-0"
+                            previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
+                          />
+                        </div>
+                        <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
+                          {formatEntryTableMetricValue(measurement.value, measurement.unit)}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-3 rounded-lg border border-dashed border-stone-200 bg-stone-50/40 px-3 py-4 text-sm text-stone-500">
