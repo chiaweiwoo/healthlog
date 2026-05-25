@@ -183,6 +183,11 @@ function getFoodAndDrinkItems(summary: Summary) {
   return [...food, ...extraWater];
 }
 
+function getPercent(value: number | null | undefined, total: number | null | undefined) {
+  if (value == null || total == null || total <= 0) return null;
+  return Math.round((value / total) * 100);
+}
+
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -453,30 +458,36 @@ export function DailyDashboard({
                     label="BMR"
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
                     info="Basal Metabolic Rate is the calories your body uses at rest."
+                    percent={getPercent(output.bmr, output.totalTdee)}
                   />
                   <MetricRow
                     icon={<Sparkles size={16} />}
-                    label="Activity"
+                    label="Physical activity"
                     value={output.physicalActivityCalories != null ? `${output.physicalActivityCalories} kcal` : "Profile needed"}
-                    info="Physical activity is the non-resting part of your baseline daily expenditure."
+                    info="Physical activity is the baseline TDEE remainder after BMR and TEF are separated out."
+                    percent={getPercent(output.physicalActivityCalories, output.totalTdee)}
                   />
                   <MetricRow
                     icon={<UtensilsCrossed size={16} />}
                     label="TEF"
                     value={`${output.tefCalories} kcal`}
                     info="Thermic Effect of Food is estimated from macro-specific digestion costs and shown as part of baseline output."
+                    percent={getPercent(output.tefCalories, output.totalTdee)}
                   />
                   <MetricRow
                     icon={<Timer size={16} />}
                     label="Exercise"
                     value={`${summary?.exercise_calories ?? 0} kcal`}
                     info="Exercise is added from your logged activity entries."
+                    percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
                   />
                   <MetricRow
                     icon={<Flame size={16} />}
                     label="Total TDEE"
                     value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
                     info="Total TDEE is the app&apos;s estimate of daily energy out."
+                    percent={output.totalTdee != null ? 100 : null}
+                    strong
                   />
                 </div>
               </section>
@@ -697,28 +708,38 @@ function MetricRow({
   value,
   info,
   caption,
+  percent,
+  strong = false,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   info: string;
   caption?: string;
+  percent?: number | null;
+  strong?: boolean;
 }) {
   return (
-    <div className="border-b border-stone-200 px-3 py-3 last:border-b-0">
+    <div className="border-b border-stone-200 px-3 py-2.5 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="text-stone-500">{icon}</span>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-stone-900">{label}</p>
+            <p className={`text-sm text-stone-900 ${strong ? "font-semibold" : "font-medium"}`}>{label}</p>
             {caption ? <p className="mt-0.5 text-xs text-stone-500">{caption}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <p className="text-sm font-semibold text-stone-900">{value}</p>
+          {percent != null ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-500">{percent}%</span> : null}
+          <p className={`text-sm text-stone-900 ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
           <InfoButton title={label} description={<p>{info}</p>} />
         </div>
       </div>
+      {percent != null ? (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
+          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }} />
+        </div>
+      ) : null}
     </div>
   );
 }
