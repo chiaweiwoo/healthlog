@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import {
   ChevronDown,
   Droplets,
+  FileText,
   Flame,
   NotebookPen,
   Pencil,
@@ -644,50 +645,67 @@ export function DailyDashboard({
               const isEditing = editingId === entry.id;
               return (
                 <article key={entry.id} className={`rounded-xl border p-4 ${getEntryStatusTone(entry)}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <FullTextDialog
-                          title="Entry title"
-                          text={getEntryHeadline(entry)}
-                          className="min-w-0 flex-1"
-                          previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
-                        />
-                        {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
-                        <WarningDot warnings={entry.warnings} label="Entry warnings" />
-                      </div>
-                      <p className="mt-1.5 text-xs font-semibold text-stone-400 font-sans">
-                        {entry.occurred_time ? `${entry.occurred_time} / ` : ""}
-                        {format(new Date(entry.created_at), "p")}
-                      </p>
+                  <div className="flex items-center gap-2">
+                    {/* Title + badges — truncates when right side is busy */}
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <FullTextDialog
+                        title="Entry title"
+                        text={getEntryHeadline(entry)}
+                        className="min-w-0"
+                        previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-stone-900"
+                      />
+                      {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
+                      <WarningDot warnings={entry.warnings} label="Entry warnings" />
                     </div>
-                    {entry.is_active ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label="Edit note"
-                          disabled={isPending}
-                          onClick={() => {
-                            setEditingId(entry.id);
-                            setEditNote(entry.raw_note);
-                          }}
-                          className="h-7 w-7 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
-                        >
-                          <Pencil size={14} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label="Delete note"
-                          disabled={isPending}
-                          onClick={() => requestDeleteEntry(entry.id)}
-                          className="h-7 w-7 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    ) : null}
+                    {/* Timestamp + actions — always on the right */}
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <span className="mr-1 text-xs font-semibold text-stone-400 font-sans">
+                        {entry.occurred_time ?? format(new Date(entry.created_at), "p")}
+                      </span>
+                      {entry.parse_status !== "failed" && (
+                        <FullTextDialog
+                          title="Raw note"
+                          text={entry.raw_note}
+                          description="This is the original note that was saved before HealthLog structured it."
+                          trigger={
+                            <button
+                              type="button"
+                              aria-label="View raw note"
+                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+                            >
+                              <FileText size={14} />
+                            </button>
+                          }
+                        />
+                      )}
+                      {entry.is_active ? (
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Edit note"
+                            disabled={isPending}
+                            onClick={() => {
+                              setEditingId(entry.id);
+                              setEditNote(entry.raw_note);
+                            }}
+                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Delete note"
+                            disabled={isPending}
+                            onClick={() => requestDeleteEntry(entry.id)}
+                            className="h-7 w-7 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
 
                   {isEditing ? (
@@ -765,19 +783,10 @@ export function DailyDashboard({
                           {entry.parse_status === "failed" ? "Saved, but this note still needs clarification before it can be structured." : "Awaiting structured result."}
                         </p>
                       )}
-                      {entry.parse_status === "failed" ? (
+                      {entry.parse_status === "failed" && (
                         <p className="mt-3 rounded-lg bg-stone-50/40 border border-stone-200/30 px-3 py-2 text-xs font-medium text-stone-500 leading-relaxed break-words">
                           {entry.raw_note}
                         </p>
-                      ) : (
-                        <FullTextDialog
-                          title="Raw note"
-                          text={entry.raw_note}
-                          className="mt-2.5 text-[11px] text-stone-400 hover:text-stone-600 transition"
-                          previewClassName="font-medium underline underline-offset-2 cursor-pointer inline-block"
-                          description="This is the original note that was saved before HealthLog structured it."
-                          label="View original raw note"
-                        />
                       )}
                     </>
                   )}

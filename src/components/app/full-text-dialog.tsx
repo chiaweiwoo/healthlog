@@ -18,6 +18,7 @@ export function FullTextDialog({
   previewClassName,
   description,
   label,
+  trigger,
 }: {
   title: string;
   text: string;
@@ -25,14 +26,17 @@ export function FullTextDialog({
   previewClassName?: string;
   description?: string;
   label?: string;
+  trigger?: React.ReactNode;
 }) {
   return (
     <Dialog>
       <Tooltip content={<p className="max-w-56 break-words">{text}</p>}>
         <DialogTrigger asChild>
-          <button className={cn("w-full text-left", className)} type="button">
-            <span className={cn("block", previewClassName)}>{label || text}</span>
-          </button>
+          {trigger ?? (
+            <button className={cn("w-full text-left", className)} type="button">
+              <span className={cn("block", previewClassName)}>{label || text}</span>
+            </button>
+          )}
         </DialogTrigger>
       </Tooltip>
       <DialogContent>
