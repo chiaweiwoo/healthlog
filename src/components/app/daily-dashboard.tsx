@@ -134,10 +134,9 @@ function formatBreakdownDetail(item: EntryItem, section: "food" | "exercise") {
 }
 
 function formatBreakdownTime(item: EntryItem) {
-  const parts: string[] = [];
-  if (item.sourceOccurredTime) parts.push(`Occurred ${item.sourceOccurredTime}`);
-  if (item.sourceCreatedAt) parts.push(`Logged ${format(new Date(item.sourceCreatedAt), "p")}`);
-  return parts.join(" / ");
+  if (item.sourceOccurredTime) return item.sourceOccurredTime;
+  if (item.sourceCreatedAt) return format(new Date(item.sourceCreatedAt), "p");
+  return "";
 }
 
 function getDeficitLabel(summary: Summary) {
@@ -560,17 +559,20 @@ export function DailyDashboard({
                           <div className="space-y-2">
                             {section.items.map((item, index) => (
                               <div key={`${section.key}-${item.sourceEntryId ?? "summary"}-${index}`} className="rounded-md bg-stone-50 px-3 py-2">
-                                <div className="flex items-start gap-2">
+                                <div className="flex items-start justify-between gap-2">
                                   <FullTextDialog
                                     title={section.label}
                                     text={item.label}
                                     className="min-w-0 flex-1"
                                     previewClassName="text-sm font-medium text-stone-900 break-words"
                                   />
-                                  <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-1 shrink-0" />
+                                  {formatBreakdownTime(item) ? (
+                                    <span className="mt-0.5 shrink-0 text-xs font-medium text-stone-400 font-sans">
+                                      {formatBreakdownTime(item)}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 <p className="mt-1 text-xs text-stone-500">{formatBreakdownDetail(item, section.key)}</p>
-                                {formatBreakdownTime(item) ? <p className="mt-1 text-[11px] text-stone-400">{formatBreakdownTime(item)}</p> : null}
                               </div>
                             ))}
                           </div>
