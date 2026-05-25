@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import {
+  BookOpen,
   ChevronDown,
   Droplets,
   Flame,
@@ -141,11 +142,9 @@ function getDeficitDisplayTitle(summary: Summary) {
   return `${summary.estimated_deficit} kcal Deficit`;
 }
 
-function getDeficitTone(summary: Summary) {
-  if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50/40 text-stone-900";
-  return summary.estimated_deficit < 0
-    ? "border-amber-200 bg-amber-50/40 text-amber-950"
-    : "border-emerald-200 bg-emerald-50/40 text-emerald-950";
+function getDeficitTextColor(summary: Summary) {
+  if (!summary || summary.estimated_deficit === null) return "text-stone-900";
+  return summary.estimated_deficit < 0 ? "text-amber-600" : "text-emerald-600";
 }
 
 function getEntryHeadline(entry: Entry) {
@@ -158,10 +157,10 @@ function getEntryHeadline(entry: Entry) {
 }
 
 function getEntryStatusTone(entry: Entry) {
-  if (!entry.is_active) return "border-stone-200 bg-stone-50/30 opacity-60 shadow-xs";
-  if (entry.parse_status === "failed") return "border-amber-200 bg-amber-50/20 text-amber-950 shadow-xs";
-  if (entry.parse_status === "pending") return "border-stone-200 bg-stone-50/30 text-stone-900 shadow-xs animate-pulse";
-  return "border-stone-200/80 bg-white/95 text-stone-900 shadow-xs hover:shadow-md hover:border-stone-300 transition-all duration-200";
+  if (!entry.is_active) return "border-stone-200 bg-stone-50/30 opacity-60";
+  if (entry.parse_status === "failed") return "border-amber-200 bg-amber-50/20 text-amber-950";
+  if (entry.parse_status === "pending") return "border-stone-200 bg-stone-50/30 text-stone-900 animate-pulse";
+  return "border-stone-200/60 bg-white text-stone-900 hover:border-stone-300 transition-colors duration-150";
 }
 
 function getPercent(value: number | null | undefined, total: number | null | undefined) {
@@ -302,12 +301,12 @@ export function DailyDashboard({
   const pct = targetWaterMl > 0 ? Math.round((currentWaterMl / targetWaterMl) * 100) : 0;
   const hydrationStatus = pct >= 90 ? "optimal" : pct >= 50 ? "moderate" : "low";
 
-  const cardStyle =
+  const hydrationIconColor =
     hydrationStatus === "optimal"
-      ? "border-emerald-200 bg-emerald-50/40 text-emerald-950 shadow-sm"
+      ? "text-emerald-500"
       : hydrationStatus === "moderate"
-        ? "border-sky-200 bg-sky-50/40 text-sky-950 shadow-sm"
-        : "border-rose-200/80 bg-rose-50/30 text-rose-950 shadow-sm";
+        ? "text-sky-500"
+        : "text-rose-500";
 
   const progressStyle =
     hydrationStatus === "optimal"
@@ -365,21 +364,12 @@ export function DailyDashboard({
         </div>
 
         {/* 1. CALORIES */}
-        <section className={`rounded-xl border p-5 ${getDeficitTone(summary)} transition-all duration-300 shadow-sm`}>
-          {/* Headline row */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-xs border border-stone-200/20">
-                <Flame size={18} className={energyIconColor} />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Energy Balance</span>
-                <h3 className="text-xl font-bold tracking-tight text-stone-900 mt-0.5">
-                  {getDeficitDisplayTitle(summary)}
-                </h3>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
+        <section className="rounded-xl border border-stone-200 bg-white/95 p-5 shadow-sm transition-all duration-300">
+          <SectionHeader
+            icon={<Flame size={18} className={energyIconColor} />}
+            caption="DAILY ENERGY BALANCE"
+            title="Energy Balance"
+            action={
               <InfoButton
                 title="How deficit is calculated"
                 description={
@@ -392,8 +382,12 @@ export function DailyDashboard({
                   </div>
                 }
               />
-            </div>
-          </div>
+            }
+          />
+          {/* Prominent metric */}
+          <p className={`mt-3 text-xl font-bold tracking-tight ${getDeficitTextColor(summary)}`}>
+            {getDeficitDisplayTitle(summary)}
+          </p>
 
           {/* In / Quota row */}
           <div className="grid grid-cols-2 gap-4 border-t border-stone-200/40 pt-4 mt-4">
@@ -573,36 +567,32 @@ export function DailyDashboard({
         </section>
 
         {/* 2. WATER */}
-        <section className={`rounded-xl border p-4 ${cardStyle} transition-all duration-300 shadow-sm space-y-3`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/80 shadow-sm border border-stone-200/20 text-sky-500">
-                <Droplets size={18} className="animate-pulse" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500/70">Daily Hydration</span>
-                <h4 className="text-sm font-bold text-stone-900 leading-tight">Water Intake</h4>
-              </div>
-            </div>
-            <InfoButton
-              title="Daily Hydration Recommendations"
-              description={
-                <div className="space-y-2 text-stone-750">
-                  <p>Proper hydration is essential for cellular function, digestion, energy levels, and overall wellness.</p>
-                  <p><strong>Your recommendation:</strong></p>
-                  <ul className="list-disc pl-4 space-y-1 text-xs">
-                    {profile?.weightKg ? (
-                      <li>Based on your body profile weight of <strong>{profile.weightKg} kg</strong>, your recommended water target is scaled at 35 ml/kg: <strong>{targetWaterMl} ml</strong> per day.</li>
-                    ) : (
-                      <li>Set up your body profile details (weight, sex) in the <strong>Body</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
-                    )}
-                    <li>Standard fallback targets: 3,000 ml for men, 2,200 ml for women, and 2,500 ml general baseline.</li>
-                  </ul>
-                  <p className="text-xs text-stone-500 mt-1">Note: Water contribution is counted from pure water entries as well as the liquid volume of calorie-bearing drinks (e.g. teas, juice, milk).</p>
-                </div>
-              }
-            />
-          </div>
+        <section className="rounded-xl border border-stone-200 bg-white/95 p-4 shadow-sm space-y-3 transition-all duration-300">
+          <SectionHeader
+            icon={<Droplets size={18} className={hydrationIconColor} />}
+            caption="DAILY HYDRATION"
+            title="Water Intake"
+            action={
+              <InfoButton
+                title="Daily Hydration Recommendations"
+                description={
+                  <div className="space-y-2 text-stone-750">
+                    <p>Proper hydration is essential for cellular function, digestion, energy levels, and overall wellness.</p>
+                    <p><strong>Your recommendation:</strong></p>
+                    <ul className="list-disc pl-4 space-y-1 text-xs">
+                      {profile?.weightKg ? (
+                        <li>Based on your body profile weight of <strong>{profile.weightKg} kg</strong>, your recommended water target is scaled at 35 ml/kg: <strong>{targetWaterMl} ml</strong> per day.</li>
+                      ) : (
+                        <li>Set up your body profile details (weight, sex) in the <strong>Body</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
+                      )}
+                      <li>Standard fallback targets: 3,000 ml for men, 2,200 ml for women, and 2,500 ml general baseline.</li>
+                    </ul>
+                    <p className="text-xs text-stone-500 mt-1">Note: Water contribution is counted from pure water entries as well as the liquid volume of calorie-bearing drinks (e.g. teas, juice, milk).</p>
+                  </div>
+                }
+              />
+            }
+          />
 
           <div className="space-y-2 pt-1">
             <div className="flex justify-between items-baseline">
@@ -623,21 +613,28 @@ export function DailyDashboard({
         </section>
 
         {/* 3. ENTRIES */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-2.5 px-1 py-1.5">
-            <h3 className="text-lg font-bold text-stone-900 font-sans tracking-tight">Today&apos;s Entries</h3>
-            {entries.length > 0 && (
-              <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50 shadow-xs">
-                {entries.length}
-              </span>
-            )}
+        <section className="rounded-xl border border-stone-200 bg-white/95 shadow-sm">
+          <div className="p-4 pb-3">
+            <SectionHeader
+              icon={<BookOpen size={18} className="text-stone-400" />}
+              caption="TODAY'S LOG"
+              title="Entries"
+              action={
+                entries.length > 0 ? (
+                  <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50">
+                    {entries.length}
+                  </span>
+                ) : null
+              }
+            />
           </div>
 
           {entries.length ? (
-            entries.map((entry) => {
+            <div className="space-y-2 px-3 pb-3">
+            {entries.map((entry) => {
               const isEditing = editingId === entry.id;
               return (
-                <article key={entry.id} className={`rounded-xl border p-4 ${getEntryStatusTone(entry)}`}>
+                <article key={entry.id} className={`rounded-lg border p-3 ${getEntryStatusTone(entry)}`}>
                   <div className="flex items-start justify-between gap-2">
                     {/* Title + timestamp stacked — flex-1 so it gets all leftover space */}
                     <div className="min-w-0 flex-1">
@@ -781,27 +778,12 @@ export function DailyDashboard({
                   )}
                 </article>
               );
-            })
+            })}
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/30 p-8 text-center shadow-xs">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-stone-200/20 text-stone-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="h-5 w-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z"
-                  />
-                </svg>
-              </div>
-              <p className="mt-3 text-sm font-bold text-stone-900 font-sans tracking-tight">No records yet today</p>
-              <p className="mt-1 text-xs font-medium text-stone-500 max-w-[200px] font-sans">
+            <div className="flex flex-col items-center justify-center border-t border-stone-100 p-8 text-center">
+              <p className="text-sm font-bold text-stone-900">No records yet today</p>
+              <p className="mt-1 text-xs font-medium text-stone-400 max-w-[200px]">
                 Use the floating button to log meals, drinks, or workouts.
               </p>
             </div>
@@ -892,6 +874,33 @@ function MetricRow({
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon,
+  caption,
+  title,
+  action,
+}: {
+  icon: React.ReactNode;
+  caption: string;
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60 bg-stone-50">
+          {icon}
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{caption}</span>
+          <p className="text-base font-bold leading-tight text-stone-900">{title}</p>
+        </div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
