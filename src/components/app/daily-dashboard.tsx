@@ -22,7 +22,7 @@ import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { Button } from "@/components/ui/button";
-import { DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
@@ -106,6 +106,14 @@ type Summary = {
     };
   };
 } | null;
+
+type PendingConfirmation =
+  | {
+      action: "edit" | "delete";
+      entryId: string;
+      itemCount: number;
+    }
+  | null;
 
 function getLocalDateString() {
   const now = new Date();
@@ -215,6 +223,7 @@ export function DailyDashboard({
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const [entries2Metric, setEntries2Metric] = useState<EntryTableMetric>("calories");
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation>(null);
   const selectedDate = selectedDateOverride ?? browserToday;
   const isMountRef = useRef(true);
   const entriesSectionRef = useRef<HTMLElement | null>(null);
@@ -301,18 +310,45 @@ export function DailyDashboard({
     });
   }
 
+  function requestEditEntry(entry: Entry) {
+    if (entry.parsed_items.length > 1) {
+      setPendingConfirmation({
+        action: "edit",
+        entryId: entry.id,
+        itemCount: entry.parsed_items.length,
+      });
+      return;
+    }
+    beginEditEntry(entry);
+  }
+
   function requestDeleteEntry(id: string, itemCount = 1) {
-    const message =
-      itemCount > 1
-        ? `This original note contains ${itemCount} items. Deleting this removes the whole entry.`
-        : "Are you sure you want to delete this entry?";
-    toast(message, {
-      action: {
-        label: "Confirm",
-        onClick: () => startTransition(() => removeEntry(id)),
-      },
-      duration: 8000,
+    setPendingConfirmation({
+      action: "delete",
+      entryId: id,
+      itemCount,
     });
+  }
+
+  function handleConfirmationOpenChange(open: boolean) {
+    if (!open) {
+      setPendingConfirmation(null);
+    }
+  }
+
+  function handleConfirmAction() {
+    if (!pendingConfirmation) return;
+    if (pendingConfirmation.action === "edit") {
+      const entry = entries.find((candidate) => candidate.id === pendingConfirmation.entryId);
+      setPendingConfirmation(null);
+      if (entry) {
+        beginEditEntry(entry);
+      }
+      return;
+    }
+    const entryId = pendingConfirmation.entryId;
+    setPendingConfirmation(null);
+    startTransition(() => removeEntry(entryId));
   }
 
   const output = getOutputBreakdown({
@@ -791,7 +827,7 @@ export function DailyDashboard({
                                       disabled={isPending}
                                       aria-label="Edit original note"
                                       title="Edit original note"
-                                      onClick={() => beginEditEntry(sourceEntry)}
+                                      onClick={() => requestEditEntry(sourceEntry)}
                                       className="h-8 w-8 rounded-lg border-stone-200 text-stone-700 hover:bg-stone-50"
                                     >
                                       <Pencil size={13} />
@@ -853,7 +889,7 @@ export function DailyDashboard({
                             disabled={isPending}
                             aria-label="Edit original note"
                             title="Edit original note"
-                            onClick={() => beginEditEntry(entry)}
+                            onClick={() => requestEditEntry(entry)}
                             className="h-8 w-8 rounded-lg border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
                           >
                             <Pencil size={13} />
@@ -905,6 +941,42 @@ export function DailyDashboard({
           setRecordDatesVersion((v) => v + 1);
         }}
       />
+
+      <Dialog open={Boolean(pendingConfirmation)} onOpenChange={handleConfirmationOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingConfirmation?.action === "edit" ? "Edit entry?" : "Delete entry?"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingConfirmation?.action === "edit"
+                ? `This original note contains ${pendingConfirmation.itemCount} items. Editing it will reparse the whole note and may change all linked items.`
+                : pendingConfirmation?.itemCount && pendingConfirmation.itemCount > 1
+                  ? `This original note contains ${pendingConfirmation.itemCount} items. Deleting this removes the whole entry.`
+                  : "Are you sure you want to delete this entry?"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="border-stone-200 text-stone-700 hover:bg-stone-50">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              disabled={isPending}
+              onClick={handleConfirmAction}
+              className={
+                pendingConfirmation?.action === "delete"
+                  ? "bg-rose-600 text-white hover:bg-rose-700"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
+              }
+            >
+              {pendingConfirmation?.action === "edit" ? "Continue" : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
