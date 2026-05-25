@@ -24,7 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
+import {
+  type EntryTableMetric,
+  flattenEntriesForTable,
+  formatEntryTableMetricValue,
+  sumEntryTableMetric,
+} from "@/lib/daily-entry-table";
 import { deriveWaterTarget } from "@/lib/profile-memory";
+import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/schemas";
 
 type Warning = { code: string; message: string; improveWith?: string };
@@ -32,6 +39,7 @@ type Warning = { code: string; message: string; improveWith?: string };
 type EntryItem = {
   kind: "food" | "water" | "exercise" | "note";
   label: string;
+  occurredTime?: string | null;
   quantity?: string | null;
   confidence: number;
   waterMl?: number | null;
@@ -169,6 +177,16 @@ function getPercent(value: number | null | undefined, total: number | null | und
   return Math.round((value / total) * 100);
 }
 
+const entries2Metrics: Array<{ key: EntryTableMetric; label: string; totalLabel: string }> = [
+  { key: "calories", label: "Calories", totalLabel: "Total calories" },
+  { key: "water", label: "Water", totalLabel: "Total water" },
+  { key: "protein", label: "Protein", totalLabel: "Total protein" },
+  { key: "fat", label: "Fat", totalLabel: "Total fat" },
+  { key: "carbs", label: "Carbs", totalLabel: "Total carbs" },
+  { key: "alcohol", label: "Alcohol", totalLabel: "Total alcohol" },
+  { key: "exercise", label: "Exercise", totalLabel: "Total exercise" },
+];
+
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -193,6 +211,7 @@ export function DailyDashboard({
   const [isPending, startTransition] = useTransition();
   const [caloriesDetailOpen, setCaloriesDetailOpen] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
+  const [entries2Metric, setEntries2Metric] = useState<EntryTableMetric>("calories");
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
   const selectedDate = selectedDateOverride ?? browserToday;
   const isMountRef = useRef(true);
@@ -322,6 +341,10 @@ export function DailyDashboard({
       : energyStatus === "surplus"
         ? "text-amber-500 animate-pulse"
         : "text-stone-400";
+  const entries2Rows = flattenEntriesForTable(entries as never);
+  const selectedEntries2Metric = entries2Metrics.find((metric) => metric.key === entries2Metric) ?? entries2Metrics[0];
+  const entries2Unit = entries2Rows[0]?.measurements[entries2Metric].unit ?? (entries2Metric === "water" ? "ml" : entries2Metric === "exercise" || entries2Metric === "calories" ? "kcal" : "g");
+  const entries2Total = sumEntryTableMetric(entries2Rows, entries2Metric);
 
   return (
     <main className="mx-auto max-w-2xl px-3 py-4 pb-28 sm:px-4 sm:py-6">
@@ -788,6 +811,103 @@ export function DailyDashboard({
               </p>
             </div>
           )}
+        </section>
+
+        <section className="rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm">
+          <div className="p-4 pb-3">
+            <SectionHeader
+              icon={<BookOpen size={18} className="text-stone-400" />}
+              caption="EXPERIMENTAL VIEW"
+              title="Entries 2"
+              action={
+                entries2Rows.length > 0 ? (
+                  <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50">
+                    {entries2Rows.length}
+                  </span>
+                ) : null
+              }
+            />
+          </div>
+
+          <div className="px-3 pb-3">
+            <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
+              <fieldset>
+                <legend className="sr-only">Entries 2 measurement selector</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {entries2Metrics.map((metric) => (
+                    <label key={metric.key} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="entries2-metric"
+                        value={metric.key}
+                        checked={entries2Metric === metric.key}
+                        onChange={() => setEntries2Metric(metric.key)}
+                        className="sr-only"
+                      />
+                      <span
+                        className={cn(
+                          "inline-flex min-h-8 items-center rounded-md border px-2.5 text-[11px] font-semibold transition",
+                          entries2Metric === metric.key
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
+                        )}
+                      >
+                        {metric.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-stone-200 pt-3">
+                <p className="text-xs font-medium text-stone-500">{selectedEntries2Metric.totalLabel}</p>
+                <p className="text-sm font-bold tabular-nums text-stone-900">
+                  {formatEntryTableMetricValue(entries2Total, entries2Unit)}
+                </p>
+              </div>
+
+              {entries2Rows.length ? (
+                <div className="mt-3 overflow-hidden rounded-lg border border-stone-200">
+                  <table className="w-full table-fixed border-collapse text-sm">
+                    <thead className="bg-stone-50/80">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-stone-500">
+                        <th className="w-16 px-3 py-2 font-semibold">Time</th>
+                        <th className="px-3 py-2 font-semibold">Item</th>
+                        <th className="w-28 px-3 py-2 text-right font-semibold">Measurement</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {entries2Rows.map((row) => {
+                        const measurement = row.measurements[entries2Metric];
+                        return (
+                          <tr key={row.id} className="border-t border-stone-200 first:border-t-0">
+                            <td className="px-3 py-2 align-top text-xs font-semibold tabular-nums text-stone-500">
+                              {row.time}
+                            </td>
+                            <td className="min-w-0 px-3 py-2 align-top">
+                              <FullTextDialog
+                                title="Parsed item"
+                                text={row.label}
+                                className="block min-w-0"
+                                previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right align-top text-sm font-semibold tabular-nums text-stone-700">
+                              {formatEntryTableMetricValue(measurement.value, measurement.unit)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-3 rounded-lg border border-dashed border-stone-200 bg-stone-50/40 px-3 py-4 text-sm text-stone-500">
+                  No parsed items to show yet.
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
       </div>
