@@ -308,13 +308,6 @@ export function DailyDashboard({
         ? "text-sky-500"
         : "text-rose-500";
 
-  const progressStyle =
-    hydrationStatus === "optimal"
-      ? "bg-gradient-to-r from-emerald-400 to-teal-500"
-      : hydrationStatus === "moderate"
-        ? "bg-gradient-to-r from-sky-400 to-blue-500"
-        : "bg-gradient-to-r from-amber-400 to-rose-500";
-
   const statusLabel =
     hydrationStatus === "optimal"
       ? "Optimal Hydration"
@@ -364,9 +357,10 @@ export function DailyDashboard({
         </div>
 
         {/* 1. CALORIES */}
-        <section className="rounded-xl border border-stone-200 bg-white/95 p-5 shadow-sm transition-all duration-300">
+        <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-5 shadow-sm transition-all duration-300">
           <SectionHeader
             icon={<Flame size={18} className={energyIconColor} />}
+            iconBg="bg-orange-50/60"
             caption="DAILY ENERGY BALANCE"
             title="Energy Balance"
             action={
@@ -567,9 +561,10 @@ export function DailyDashboard({
         </section>
 
         {/* 2. WATER */}
-        <section className="rounded-xl border border-stone-200 bg-white/95 p-4 shadow-sm space-y-3 transition-all duration-300">
+        <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-3 transition-all duration-300">
           <SectionHeader
             icon={<Droplets size={18} className={hydrationIconColor} />}
+            iconBg="bg-sky-50/60"
             caption="DAILY HYDRATION"
             title="Water Intake"
             action={
@@ -605,7 +600,7 @@ export function DailyDashboard({
             </div>
             <div className="h-3 w-full rounded-full bg-white/60 overflow-hidden shadow-inner border border-stone-200/20">
               <div
-                className={`h-full rounded-full transition-all duration-500 ease-out ${progressStyle}`}
+                className="h-full rounded-full transition-all duration-500 ease-out bg-sky-500"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>
@@ -613,7 +608,7 @@ export function DailyDashboard({
         </section>
 
         {/* 3. ENTRIES */}
-        <section className="rounded-xl border border-stone-200 bg-white/95 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm">
           <div className="p-4 pb-3">
             <SectionHeader
               icon={<BookOpen size={18} className="text-stone-400" />}
@@ -883,16 +878,18 @@ function SectionHeader({
   caption,
   title,
   action,
+  iconBg = "bg-stone-50",
 }: {
   icon: React.ReactNode;
   caption: string;
   title: string;
   action?: React.ReactNode;
+  iconBg?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60 bg-stone-50">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60 ${iconBg}`}>
           {icon}
         </div>
         <div>
