@@ -454,7 +454,7 @@ export function DailyDashboard({
                     label="Calories"
                     value={`${summary?.calories ?? 0} kcal`}
                     info="Intake calories are the known total from food and drinks."
-                    caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
+                    caption={summary?.breakdown.meta?.caloriesIncomplete ? "Incomplete — more entries may change this" : undefined}
                   />
                   <MetricRow
                     label="Protein"
