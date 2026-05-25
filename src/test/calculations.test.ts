@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { atwaterFactors, calculateBmr, calculateTdee, deriveFoodNutrition, summarizeDailyItems } from "@/lib/calculations";
+import {
+  atwaterFactors,
+  calculateBmr,
+  calculateTdee,
+  calculateThermicEffectOfFood,
+  deriveFoodNutrition,
+  getOutputBreakdown,
+  summarizeDailyItems,
+} from "@/lib/calculations";
 
 describe("calculateBmr", () => {
   it("returns null with warning when profile is incomplete", () => {
@@ -43,6 +51,19 @@ describe("calculateTdee", () => {
 
     expect(result.baseTdee).toBe(2350);
     expect(result.tdee).toBe(2670);
+  });
+});
+
+describe("calculateThermicEffectOfFood", () => {
+  it("uses macro-specific thermic effect rates", () => {
+    const tef = calculateThermicEffectOfFood({
+      proteinG: 30,
+      fatG: 10,
+      carbsG: 20,
+      alcoholG: 5,
+    });
+
+    expect(tef).toBe(44);
   });
 });
 
@@ -180,5 +201,39 @@ describe("summarizeDailyItems", () => {
     expect(summary.estimatedDeficit).toBeNull();
     expect(summary.breakdown.meta.caloriesIncomplete).toBe(true);
     expect(summary.warnings.some((warning) => warning.code === "calories_incomplete")).toBe(true);
+  });
+});
+
+describe("getOutputBreakdown", () => {
+  it("splits output into bmr, activity, tef, exercise, and total tdee", () => {
+    const output = getOutputBreakdown({
+      bmr: 1709,
+      baseTdee: 2350,
+      exerciseCalories: 250,
+      proteinG: 39,
+      fatG: 28,
+      carbsG: 79,
+      alcoholG: 0,
+    });
+
+    expect(output.tefCalories).toBe(72);
+    expect(output.physicalActivityCalories).toBe(569);
+    expect(output.totalTdee).toBe(2600);
+  });
+
+  it("returns null output totals when profile is incomplete", () => {
+    const output = getOutputBreakdown({
+      bmr: null,
+      baseTdee: null,
+      exerciseCalories: 120,
+      proteinG: 10,
+      fatG: 5,
+      carbsG: 20,
+      alcoholG: 0,
+    });
+
+    expect(output.tefCalories).toBe(18);
+    expect(output.physicalActivityCalories).toBeNull();
+    expect(output.totalTdee).toBeNull();
   });
 });

@@ -13,6 +13,7 @@ import {
   Sparkles,
   Timer,
   Trash2,
+  UtensilsCrossed,
   Wheat,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,7 +26,7 @@ import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { atwaterFactors, getDisplayNutrition } from "@/lib/calculations";
+import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
 
 type Warning = { code: string; message: string; improveWith?: string };
 
@@ -73,6 +74,8 @@ type Summary = {
   alcohol_g: number;
   water_ml: number;
   exercise_calories: number;
+  bmr: number | null;
+  base_tdee: number | null;
   tdee: number | null;
   estimated_deficit: number | null;
   confidence: number;
@@ -118,12 +121,12 @@ function formatFoodNutrition(item: EntryItem) {
   if (derived.fatG != null) parts.push(`F ${derived.fatG}g`);
   if (derived.carbsG != null) parts.push(`C ${derived.carbsG}g`);
   if (derived.alcoholG != null) parts.push(`A ${derived.alcoholG}g`);
+  if (item.waterMl != null) parts.push(`Water ${item.waterMl} ml`);
   if (parts.length) return parts.join(" | ");
   return "Estimate unavailable";
 }
 
-function formatBreakdownDetail(item: EntryItem, section: "food" | "water" | "exercise") {
-  if (section === "water") return item.waterMl != null ? `${item.waterMl} ml` : "Water contribution recorded";
+function formatBreakdownDetail(item: EntryItem, section: "food" | "exercise") {
   if (section === "exercise") return item.exerciseCalories != null ? `${item.exerciseCalories} kcal burn` : "Exercise recorded";
   return formatFoodNutrition(item);
 }
@@ -152,6 +155,11 @@ function getDeficitLabel(summary: Summary) {
   return `${summary.estimated_deficit} kcal`;
 }
 
+function getDeficitTone(summary: Summary) {
+  if (!summary || summary.estimated_deficit === null) return "border-stone-200 bg-stone-50";
+  return summary.estimated_deficit < 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50";
+}
+
 function getEntryHeadline(entry: Entry) {
   if (entry.parsed_items.length) {
     return entry.parsed_items.map((item) => item.label).join(" | ");
@@ -168,12 +176,11 @@ function getEntryStatusTone(entry: Entry) {
   return "border-stone-200 bg-white";
 }
 
-function getCaloriesCaption(summary: Summary) {
-  if (!summary) return undefined;
-  if (summary.breakdown.meta?.caloriesIncomplete || (summary.breakdown.meta?.unparsedEntryCount ?? 0) > 0) {
-    return "Known total so far";
-  }
-  return "Atwater-based total";
+function getFoodAndDrinkItems(summary: Summary) {
+  if (!summary) return [];
+  const food = summary.breakdown.food ?? [];
+  const extraWater = (summary.breakdown.water ?? []).filter((item) => item.kind === "water");
+  return [...food, ...extraWater];
 }
 
 export function DailyDashboard({
@@ -313,9 +320,18 @@ export function DailyDashboard({
     }
   }
 
+  const output = getOutputBreakdown({
+    bmr: summary?.bmr ?? null,
+    baseTdee: summary?.base_tdee ?? null,
+    exerciseCalories: summary?.exercise_calories ?? 0,
+    proteinG: summary?.protein_g ?? 0,
+    fatG: summary?.fat_g ?? 0,
+    carbsG: summary?.carbs_g ?? 0,
+    alcoholG: summary?.alcohol_g ?? 0,
+  });
+
   const breakdownSections = [
-    { key: "food", label: "Food", items: summary?.breakdown?.food ?? [] },
-    { key: "water", label: "Water", items: summary?.breakdown?.water ?? [] },
+    { key: "food", label: "Food & drinks", items: getFoodAndDrinkItems(summary) },
     { key: "exercise", label: "Exercise", items: summary?.breakdown?.exercise ?? [] },
   ] as const;
 
@@ -336,81 +352,152 @@ export function DailyDashboard({
                   refreshKey={recordDatesVersion}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <SummaryTile
-                  icon={<Flame size={16} />}
-                  label="Calories"
-                  value={`${summary?.calories ?? 0} kcal`}
-                  caption={getCaloriesCaption(summary)}
-                />
-                <SummaryTile icon={<Droplets size={16} />} label="Water" value={`${summary?.water_ml ?? 0} ml`} />
-                <SummaryTile icon={<Sparkles size={16} />} label="Exercise" value={`${summary?.exercise_calories ?? 0} kcal`} />
-                <SummaryTile
-                  icon={<Timer size={16} />}
-                  label="Deficit"
-                  value={getDeficitLabel(summary)}
-                  caption="TDEE - intake"
-                  warning={<WarningDot warnings={summary?.warnings} label="Daily summary warnings" />}
-                />
-              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="rounded-lg bg-stone-50 p-3">
+              <section className="rounded-lg bg-stone-50 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-stone-900">Calorie breakdown</p>
-                    <p className="mt-1 text-xs text-stone-500">Known totals from protein, fat, carbs, and alcohol.</p>
+                    <p className="text-sm font-medium text-stone-900">Intake</p>
+                    <p className="mt-1 text-xs text-stone-500">Food and drink totals for the day.</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <InfoButton
-                      title="How calories are calculated"
+                      title="How intake is calculated"
                       description={
                         <>
-                          <p>Food calories use the general Atwater system when breakdown grams are available.</p>
+                          <p>Intake calories come from the general Atwater system when macro grams are available.</p>
                           <ul className="list-disc space-y-1 pl-4">
                             <li>Protein: {atwaterFactors.protein} kcal per gram</li>
                             <li>Fat: {atwaterFactors.fat} kcal per gram</li>
                             <li>Carbs: {atwaterFactors.carbs} kcal per gram</li>
                             <li>Alcohol: {atwaterFactors.alcohol} kcal per gram</li>
                           </ul>
-                          <p>If a food has only a calorie estimate and no macro breakdown yet, HealthLog keeps that calorie estimate and marks the breakdown as incomplete.</p>
+                          <p>Water is counted from drinks and water entries that include liquid volume.</p>
                         </>
                       }
                     />
-                    <WarningDot warnings={summary?.warnings} label="Calorie breakdown warnings" />
+                    <WarningDot warnings={summary?.warnings} label="Intake warnings" />
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <BreakdownStat
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <MetricTile
+                    icon={<Flame size={16} />}
+                    label="Calories"
+                    value={`${summary?.calories ?? 0} kcal`}
+                    info="Intake calories are the known total from food and drinks."
+                    caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
+                  />
+                  <MetricTile
+                    icon={<Droplets size={16} />}
+                    label="Water"
+                    value={`${summary?.water_ml ?? 0} ml`}
+                    info="Water includes drinks and water entries with liquid volume."
+                  />
+                  <MetricTile
                     icon={<Drumstick size={16} />}
                     label="Protein"
-                    grams={summary?.protein_g ?? 0}
-                    calories={Math.round((summary?.protein_g ?? 0) * atwaterFactors.protein)}
-                    info="Protein contributes 4 kcal per gram."
+                    value={`${summary?.protein_g ?? 0} g`}
+                    info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
                   />
-                  <BreakdownStat
+                  <MetricTile
                     icon={<Droplet size={16} />}
                     label="Fat"
-                    grams={summary?.fat_g ?? 0}
-                    calories={Math.round((summary?.fat_g ?? 0) * atwaterFactors.fat)}
-                    info="Fat contributes 9 kcal per gram."
+                    value={`${summary?.fat_g ?? 0} g`}
+                    info="Fat contributes 9 kcal per gram and a smaller thermic effect."
                   />
-                  <BreakdownStat
+                  <MetricTile
                     icon={<Wheat size={16} />}
                     label="Carbs"
-                    grams={summary?.carbs_g ?? 0}
-                    calories={Math.round((summary?.carbs_g ?? 0) * atwaterFactors.carbs)}
+                    value={`${summary?.carbs_g ?? 0} g`}
                     info="Carbohydrates contribute 4 kcal per gram."
                   />
-                  <BreakdownStat
+                  <MetricTile
                     icon={<Martini size={16} />}
                     label="Alcohol"
-                    grams={summary?.alcohol_g ?? 0}
-                    calories={Math.round((summary?.alcohol_g ?? 0) * atwaterFactors.alcohol)}
+                    value={`${summary?.alcohol_g ?? 0} g`}
                     info="Alcohol contributes 7 kcal per gram when present."
                   />
                 </div>
-              </div>
+              </section>
+
+              <section className="rounded-lg bg-stone-50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">Output</p>
+                    <p className="mt-1 text-xs text-stone-500">Estimated daily energy expenditure.</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <InfoButton
+                      title="How output is calculated"
+                      description={
+                        <>
+                          <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
+                          <p>Physical activity is the remaining part of your baseline TDEE after separating out BMR and the estimated thermic effect of food.</p>
+                          <p>TEF uses a macro-based estimate:</p>
+                          <ul className="list-disc space-y-1 pl-4">
+                            <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
+                            <li>Carbs: {Math.round(thermicEffectRates.carbs * 100)}%</li>
+                            <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
+                            <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
+                          </ul>
+                          <p>Total TDEE still follows the app&apos;s baseline TDEE plus logged exercise. TEF is shown here as an explanatory slice of that baseline, not an extra top-up.</p>
+                        </>
+                      }
+                    />
+                    <WarningDot warnings={summary?.warnings} label="Output warnings" />
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <MetricTile
+                    icon={<Flame size={16} />}
+                    label="BMR"
+                    value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
+                    info="Basal Metabolic Rate is the calories your body uses at rest."
+                  />
+                  <MetricTile
+                    icon={<Sparkles size={16} />}
+                    label="Activity"
+                    value={output.physicalActivityCalories != null ? `${output.physicalActivityCalories} kcal` : "Profile needed"}
+                    info="Physical activity is the non-resting part of your baseline daily expenditure."
+                  />
+                  <MetricTile
+                    icon={<UtensilsCrossed size={16} />}
+                    label="TEF"
+                    value={`${output.tefCalories} kcal`}
+                    info="Thermic Effect of Food is estimated from macro-specific digestion costs and shown as part of baseline output."
+                  />
+                  <MetricTile
+                    icon={<Timer size={16} />}
+                    label="Exercise"
+                    value={`${summary?.exercise_calories ?? 0} kcal`}
+                    info="Exercise is added from your logged activity entries."
+                  />
+                  <MetricTile
+                    icon={<Flame size={16} />}
+                    label="Total TDEE"
+                    value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
+                    info="Total TDEE is the app&apos;s estimate of daily energy out."
+                    className="sm:col-span-2"
+                  />
+                </div>
+              </section>
+
+              <section className={`rounded-lg border p-3 ${getDeficitTone(summary)}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">Deficit</p>
+                    <p className="mt-1 text-xs text-stone-500">Out - in</p>
+                  </div>
+                  <InfoButton
+                    title="How deficit is calculated"
+                    description={<p>Deficit is Total TDEE minus intake calories. If the result is negative, the day is in surplus instead.</p>}
+                  />
+                </div>
+                <p className="mt-3 text-2xl font-semibold text-stone-900">{getDeficitLabel(summary)}</p>
+                <p className="mt-1 text-sm text-stone-500">
+                  {summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"} - {summary ? `${summary.calories} kcal` : "0 kcal"}
+                </p>
+              </section>
 
               <div className="space-y-2">
                 {breakdownSections.map((section) => (
@@ -511,7 +598,7 @@ export function DailyDashboard({
                             className="min-w-0 flex-1"
                             previewClassName="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
                           />
-                          <StatusBadge status={entry.parse_status} />
+                          {entry.parse_status === "parsed" ? null : <StatusBadge status={entry.parse_status} />}
                           <WarningDot warnings={entry.warnings} label="Entry warnings" />
                         </div>
                         <p className="mt-1 text-xs text-stone-500">
@@ -567,15 +654,11 @@ export function DailyDashboard({
                                   <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-1 shrink-0" />
                                 </div>
                                 <p className="mt-1 text-xs text-stone-500">
-                                  {item.kind === "water"
-                                    ? item.waterMl != null
-                                      ? `${item.waterMl} ml`
-                                      : "Water recorded"
-                                    : item.kind === "exercise"
-                                      ? item.exerciseCalories != null
-                                        ? `${item.exerciseCalories} kcal burn`
-                                        : "Exercise recorded"
-                                      : formatFoodNutrition(item)}
+                                  {item.kind === "exercise"
+                                    ? item.exerciseCalories != null
+                                      ? `${item.exerciseCalories} kcal burn`
+                                      : "Exercise recorded"
+                                    : formatFoodNutrition(item)}
                                 </p>
                               </div>
                             ))}
@@ -592,7 +675,6 @@ export function DailyDashboard({
                           previewClassName="break-words text-sm text-stone-500"
                           description="This is the original note that was saved before HealthLog structured it."
                         />
-                        {entry.parse_error ? <p className="mt-2 text-xs text-amber-700">{entry.parse_error}</p> : null}
                       </>
                     )}
                   </article>
@@ -608,54 +690,30 @@ export function DailyDashboard({
   );
 }
 
-function SummaryTile({
+function MetricTile({
   icon,
   label,
   value,
-  warning,
+  info,
   caption,
+  className,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
-  warning?: ReactNode;
-  caption?: string;
-}) {
-  return (
-    <div className="min-w-0 rounded-md bg-stone-50 p-3">
-      <div className="flex items-center justify-between gap-2 text-stone-500">
-        <span>{icon}</span>
-        {warning}
-      </div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-stone-900">{value}</p>
-      {caption ? <p className="mt-1 text-xs text-stone-500">{caption}</p> : null}
-    </div>
-  );
-}
-
-function BreakdownStat({
-  icon,
-  label,
-  grams,
-  calories,
-  info,
-}: {
-  icon: ReactNode;
-  label: string;
-  grams: number;
-  calories: number;
   info: string;
+  caption?: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-md border border-stone-200 bg-white p-3">
+    <div className={`rounded-md border border-stone-200 bg-white p-3 ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2 text-stone-500">
         <span>{icon}</span>
         <InfoButton title={label} description={<p>{info}</p>} />
       </div>
       <p className="mt-3 text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-stone-900">{grams} g</p>
-      <p className="mt-1 text-xs text-stone-500">{calories} kcal</p>
+      <p className="mt-1 text-sm font-semibold text-stone-900">{value}</p>
+      {caption ? <p className="mt-1 text-xs text-stone-500">{caption}</p> : null}
     </div>
   );
 }

@@ -16,6 +16,13 @@ export const atwaterFactors = {
   alcohol: 7,
 } as const;
 
+export const thermicEffectRates = {
+  protein: 0.25,
+  carbs: 0.08,
+  fat: 0.03,
+  alcohol: 0.15,
+} as const;
+
 export type SummaryDisplayItem = ParsedDailyItem & {
   sourceCreatedAt?: string;
   sourceEntryId?: string;
@@ -163,6 +170,60 @@ export function getDisplayNutrition(item: FoodDisplaySource) {
     };
   }
   return deriveFoodNutrition(item);
+}
+
+export function calculateThermicEffectOfFood(input: {
+  proteinG?: number | null;
+  fatG?: number | null;
+  carbsG?: number | null;
+  alcoholG?: number | null;
+}) {
+  const proteinCalories = (input.proteinG ?? 0) * atwaterFactors.protein;
+  const fatCalories = (input.fatG ?? 0) * atwaterFactors.fat;
+  const carbsCalories = (input.carbsG ?? 0) * atwaterFactors.carbs;
+  const alcoholCalories = (input.alcoholG ?? 0) * atwaterFactors.alcohol;
+
+  return round(
+    proteinCalories * thermicEffectRates.protein +
+      fatCalories * thermicEffectRates.fat +
+      carbsCalories * thermicEffectRates.carbs +
+      alcoholCalories * thermicEffectRates.alcohol,
+  );
+}
+
+export function getOutputBreakdown(input: {
+  bmr: number | null;
+  baseTdee: number | null;
+  exerciseCalories: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  alcoholG: number;
+}) {
+  const tefCalories = calculateThermicEffectOfFood({
+    proteinG: input.proteinG,
+    fatG: input.fatG,
+    carbsG: input.carbsG,
+    alcoholG: input.alcoholG,
+  });
+
+  if (input.bmr === null || input.baseTdee === null) {
+    return {
+      bmr: input.bmr,
+      physicalActivityCalories: null,
+      tefCalories,
+      exerciseCalories: input.exerciseCalories,
+      totalTdee: null,
+    };
+  }
+
+  return {
+    bmr: input.bmr,
+    physicalActivityCalories: round(Math.max(input.baseTdee - input.bmr - tefCalories, 0)),
+    tefCalories,
+    exerciseCalories: input.exerciseCalories,
+    totalTdee: round(input.baseTdee + input.exerciseCalories),
+  };
 }
 
 export function summarizeDailyItems(items: SummaryDisplayItem[], profile: Profile) {
