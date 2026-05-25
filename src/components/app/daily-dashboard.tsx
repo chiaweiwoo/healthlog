@@ -8,6 +8,7 @@ import {
   Flame,
   NotebookPen,
   Pencil,
+  RotateCcw,
   Trash2,
 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
@@ -19,6 +20,7 @@ import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
 import type { Profile } from "@/lib/schemas";
 
@@ -342,17 +344,17 @@ export function DailyDashboard({
             {format(parseDateOnly(selectedDate), "EEEE, d MMM yyyy")}
           </h2>
           <div className="flex items-center gap-2">
-            {selectedDate !== browserToday && (
-              <Button
-                variant="outline"
-                size="sm"
+            <Tooltip content={<p>Back to today</p>}>
+              <button
+                type="button"
+                aria-label="Back to today"
                 onClick={() => setSelectedDateOverride(null)}
-                disabled={isPending}
-                className="h-7 rounded-full px-3 text-xs font-semibold border-stone-300 text-stone-700 hover:bg-stone-50 cursor-pointer"
+                disabled={selectedDate === browserToday || isPending}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-sm transition-colors hover:bg-stone-50 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Today
-              </Button>
-            )}
+                <RotateCcw size={14} />
+              </button>
+            </Tooltip>
             <DatePickerDialog
               value={selectedDate}
               onChange={(value) => setSelectedDateOverride(value)}
@@ -378,15 +380,6 @@ export function DailyDashboard({
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              {summary && summary.estimated_deficit !== null && (
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-xs ${
-                  energyStatus === "deficit"
-                    ? "bg-emerald-100/80 text-emerald-800 border-emerald-200/60"
-                    : "bg-amber-100/80 text-amber-800 border-amber-200/60"
-                }`}>
-                  {energyStatus === "deficit" ? "On Track" : "Surplus Limit"}
-                </span>
-              )}
               <InfoButton
                 title="How deficit is calculated"
                 description={
@@ -421,13 +414,13 @@ export function DailyDashboard({
           </div>
 
           {/* Breakdown toggle */}
-          <div className="border-t border-stone-200/40 mt-4 pt-3">
+          <div className="flex justify-end border-t border-stone-200/40 mt-4 pt-2">
             <button
               type="button"
-              className="flex w-full items-center justify-between text-xs font-semibold text-stone-500 hover:text-stone-700 transition-colors cursor-pointer"
+              aria-label={caloriesDetailOpen ? "Hide breakdown" : "Show breakdown"}
               onClick={() => setCaloriesDetailOpen((v) => !v)}
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-stone-400 transition hover:bg-stone-100/60 hover:text-stone-600"
             >
-              <span>{caloriesDetailOpen ? "Hide breakdown" : "Show breakdown"}</span>
               <ChevronDown
                 size={14}
                 className={`transition-transform duration-200 ${caloriesDetailOpen ? "rotate-180" : ""}`}
