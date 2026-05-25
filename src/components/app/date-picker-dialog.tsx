@@ -92,12 +92,12 @@ export function DatePickerDialog({
     >
       <DialogTrigger asChild>
         <button
-          className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 hover:text-stone-900 hover:bg-stone-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           type="button"
+          aria-label="Change date"
           disabled={disabled}
         >
-          <CalendarDays size={14} className="text-stone-500 animate-pulse" />
-          <span>Change Date</span>
+          <CalendarDays size={15} />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-sm p-0">
