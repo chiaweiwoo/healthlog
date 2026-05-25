@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
 import { EntryDetailDialog } from "@/components/app/entry-detail-dialog";
@@ -194,9 +194,14 @@ export function DailyDashboard({
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const [recordDatesVersion, setRecordDatesVersion] = useState(0);
   const selectedDate = selectedDateOverride ?? browserToday;
+  const isMountRef = useRef(true);
 
   useEffect(() => {
-    if (selectedDate === initialDate && selectedDateOverride === null) return;
+    if (isMountRef.current && selectedDate === initialDate && selectedDateOverride === null) {
+      isMountRef.current = false;
+      return;
+    }
+    isMountRef.current = false;
     const toastId = toast.loading(`Loading entries for ${selectedDate}...`);
     startTransition(async () => {
       try {
@@ -406,6 +411,16 @@ export function DailyDashboard({
               />
             </button>
           </div>
+
+          {/* Intake vs quota bar */}
+          {summary?.tdee != null && summary.tdee > 0 && (
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-200/50">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ease-out ${energyStatus === "surplus" ? "bg-amber-400" : "bg-emerald-500"}`}
+                style={{ width: `${Math.min(Math.round((summary.calories / summary.tdee) * 100), 100)}%` }}
+              />
+            </div>
+          )}
 
           {/* Collapsible: Intake + Quota details */}
           {caloriesDetailOpen && (
