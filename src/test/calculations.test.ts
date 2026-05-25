@@ -32,6 +32,20 @@ describe("calculateBmr", () => {
 
     expect(result.bmr).toBe(1709);
   });
+
+  it("prefers a profile bmr override when present", () => {
+    const result = calculateBmr({
+      age: 31,
+      sex: "male",
+      heightCm: 172,
+      weightKg: 78.4,
+      country: "Singapore",
+      metadata: { overrides: { bmr: 1800 } },
+    });
+
+    expect(result.bmr).toBe(1800);
+    expect(result.warnings).toHaveLength(0);
+  });
 });
 
 describe("calculateTdee", () => {
@@ -52,6 +66,24 @@ describe("calculateTdee", () => {
     expect(result.baseTdee).toBe(1880);
     expect(result.baselineActivityCalories).toBe(171);
     expect(result.tdee).toBe(2255);
+  });
+
+  it("lets neat override baseline activity without needing lifestyle", () => {
+    const result = calculateTdee(
+      {
+        age: 31,
+        sex: "male",
+        heightCm: 172,
+        weightKg: 78.4,
+        country: "Singapore",
+        metadata: { overrides: { neatCalories: 190 } },
+      },
+      { exerciseCalories: 320, tefCalories: 55 },
+    );
+
+    expect(result.baseTdee).toBe(1899);
+    expect(result.baselineActivityCalories).toBe(190);
+    expect(result.tdee).toBe(2274);
   });
 });
 

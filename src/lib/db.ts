@@ -1,7 +1,17 @@
 import "server-only";
 
 import { SummaryDisplayItem, summarizeDailyItems } from "@/lib/calculations";
-import { BodyParseResult, DailyParseResult, ParsedDailyItem, ParseStatus, Profile, Warning, profileSchema } from "@/lib/schemas";
+import { buildProfileMetadata, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
+import {
+  BodyParseResult,
+  DailyParseResult,
+  ParsedDailyItem,
+  ParseStatus,
+  Profile,
+  ProfileOverrideKey,
+  Warning,
+  profileSchema,
+} from "@/lib/schemas";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export type DailyEntryRow = {
@@ -68,30 +78,12 @@ function asErrorMessage(error: unknown) {
   return "Unexpected parsing error.";
 }
 
-function dedupeBodyMeasurements(parsed: BodyParseResult, rawNote: string) {
-  const normalizedRawNote = rawNote.toLowerCase();
-  const measurements = parsed.measurements.filter((measurement) => measurement.type !== "height");
-  const hasWeightInMeasurements = measurements.some((measurement) => measurement.type === "weight");
-  const weightMentioned = /\b\d+(\.\d+)?\s*(kg|kgs|kilogram|kilograms)\b/i.test(normalizedRawNote);
-
-  if (parsed.profile?.weightKg && weightMentioned && !hasWeightInMeasurements) {
-    measurements.unshift({
-      measuredAt: new Date().toISOString(),
-      type: "weight",
-      value: parsed.profile.weightKg,
-      unit: "kg",
-      confidence: parsed.confidence,
-      remarks: "Captured from body profile note.",
-      metadata: {
-        inferredFromProfile: true,
-      },
-    });
-  }
-
-  return measurements;
-}
-
-function buildBodyNoteChangeSummary(previousProfile: Profile | null, nextProfile: Profile | null, addedMeasurements: BodyMeasurementRow[]) {
+function buildBodyNoteChangeSummary(
+  previousProfile: Profile | null,
+  nextProfile: Profile | null,
+  addedMeasurements: BodyMeasurementRow[],
+  parsed: BodyParseResult,
+) {
   const fields: Array<keyof Profile> = ["age", "sex", "heightCm", "weightKg", "activityLevel", "goal", "country", "remarks"];
   const profileChanges = fields
     .filter((field) => previousProfile?.[field] !== nextProfile?.[field])
@@ -101,8 +93,38 @@ function buildBodyNoteChangeSummary(previousProfile: Profile | null, nextProfile
       after: nextProfile?.[field] ?? null,
     }));
 
+  const previousOverrides = getProfileOverrides(previousProfile);
+  const nextOverrides = getProfileOverrides(nextProfile);
+  const overrideKeys: ProfileOverrideKey[] = ["waterTargetMl", "bmr", "neatCalories"];
+  const overrideChanges = overrideKeys
+    .filter((key) => previousOverrides[key] !== nextOverrides[key])
+    .map((key) => ({
+      key,
+      before: previousOverrides[key] ?? null,
+      after: nextOverrides[key] ?? null,
+    }));
+
+  const previousMemory = getProfileMemory(previousProfile);
+  const nextMemory = getProfileMemory(nextProfile);
+  const previousMemoryMap = new Map(previousMemory.map((item) => [item.id, item]));
+  const nextMemoryMap = new Map(nextMemory.map((item) => [item.id, item]));
+  const touchedMemoryIds = new Set([
+    ...parsed.metadataDeletes,
+    ...parsed.metadataUpserts.map((item) => item.id),
+  ]);
+  const memoryChanges = Array.from(touchedMemoryIds)
+    .map((id) => ({
+      id,
+      before: previousMemoryMap.get(id) ?? null,
+      after: nextMemoryMap.get(id) ?? null,
+    }))
+    .filter((change) => change.before || change.after);
+
   return {
+    action: parsed.action,
     profileChanges,
+    overrideChanges,
+    memoryChanges,
     addedMeasurements: addedMeasurements.map((measurement) => ({
       id: measurement.id,
       type: measurement.type,
@@ -157,6 +179,33 @@ export async function upsertProfile(profile: Partial<Profile>) {
 
   if (error) throw error;
   return data;
+}
+
+async function applyProfileManagerResult(parsed: BodyParseResult, noteId: string) {
+  const existing = await getProfile();
+  const metadata = buildProfileMetadata({
+    existing: existing?.metadata ?? {},
+    overrides: parsed.overrides,
+    overrideDeletes: parsed.overrideDeletes,
+    memoryUpserts: parsed.metadataUpserts.map((item) => ({
+      ...item,
+      sourceNoteId: item.sourceNoteId ?? noteId,
+      updatedAt: item.updatedAt ?? new Date().toISOString(),
+    })),
+    memoryDeletes: parsed.metadataDeletes,
+  });
+
+  const nextProfilePatch: Partial<Profile> = {
+    ...(parsed.profile ?? {}),
+    metadata,
+  };
+
+  if (!existing && !parsed.profile && !parsed.metadataUpserts.length && !parsed.metadataDeletes.length && !parsed.overrides && !parsed.overrideDeletes.length) {
+    return existing;
+  }
+
+  await upsertProfile(nextProfilePatch);
+  return getProfile();
 }
 
 export async function listDailyEntries(date: string) {
@@ -440,11 +489,10 @@ export async function createPendingBodyNote(rawNote: string) {
 
 export async function finalizeBodyNoteParsed(id: string, rawNote: string, parsed: BodyParseResult) {
   const previousProfile = await getProfile();
-  const measurementsToInsert = dedupeBodyMeasurements(parsed, rawNote);
-  if (parsed.profile) await upsertProfile(parsed.profile);
+  const measurementsToInsert = parsed.measurements.filter((measurement) => measurement.type !== "height");
+  const nextProfile = await applyProfileManagerResult(parsed, id);
   const insertedMeasurements = await addBodyMeasurements(measurementsToInsert);
-  const nextProfile = await getProfile();
-  const changeSummary = buildBodyNoteChangeSummary(previousProfile, nextProfile, insertedMeasurements);
+  const changeSummary = buildBodyNoteChangeSummary(previousProfile, nextProfile, insertedMeasurements, parsed);
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -452,7 +500,14 @@ export async function finalizeBodyNoteParsed(id: string, rawNote: string, parsed
     .update({
       parse_status: "parsed",
       parsed_payload: parsed,
-      applied_profile: parsed.profile ?? null,
+      applied_profile: {
+        ...(parsed.profile ?? {}),
+        metadataUpserts: parsed.metadataUpserts,
+        metadataDeletes: parsed.metadataDeletes,
+        overrides: parsed.overrides ?? {},
+        overrideDeletes: parsed.overrideDeletes,
+        action: parsed.action,
+      },
       applied_measurements: measurementsToInsert,
       confidence: parsed.confidence,
       warnings: parsed.warnings,
@@ -498,6 +553,6 @@ export async function finalizeBodyNoteFailed(id: string, error: unknown) {
     note: data as BodyNoteRow,
     profile: await getProfile(),
     measurements: await listBodyMeasurements(),
-    changeSummary: { profileChanges: [], addedMeasurements: [] },
+    changeSummary: { action: "clarify", profileChanges: [], overrideChanges: [], memoryChanges: [], addedMeasurements: [] },
   };
 }

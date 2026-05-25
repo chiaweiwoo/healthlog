@@ -6,7 +6,7 @@ HealthLog is a private single-user web app for recording a healthier journey thr
 ## Product Behavior
 - `/login`: username/password login with `APP_USERNAME` and `APP_PASSWORD_HASH`, signed HttpOnly cookie, 3-day expiry.
 - `/app`: daily dashboard with date picker, free-text input, raw records list, and daily summary.
-- `/app/body`: free-text profile/body input plus progressive measurements history.
+- `/app/profile`: profile memory and Daily readiness context.
 - `/app/analysis`: placeholder for future weekly analysis.
 - Daily summary stays compact and mobile-first.
 - Intake should read as one grouped story: calories, water, protein, fat, carbs, and alcohol from food/drinks.

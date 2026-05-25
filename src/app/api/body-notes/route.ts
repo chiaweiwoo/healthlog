@@ -48,9 +48,12 @@ export async function POST(request: NextRequest) {
     let profile = currentProfile;
     let measurements = await listBodyMeasurements();
     let changeSummary: {
+      action?: string;
       profileChanges: Array<{ field: string; before: unknown; after: unknown }>;
+      overrideChanges: Array<{ key: string; before: unknown; after: unknown }>;
+      memoryChanges: Array<{ id: string; before: unknown; after: unknown }>;
       addedMeasurements: Array<{ id: string; type: string; value: number; unit: string; measuredAt: string }>;
-    } = { profileChanges: [], addedMeasurements: [] };
+    } = { profileChanges: [], overrideChanges: [], memoryChanges: [], addedMeasurements: [] };
     try {
       const parsed = await parseBodyNote({ note: rawNote, currentProfile });
       parsedWarningsCount = parsed.warnings.length;

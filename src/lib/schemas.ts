@@ -44,6 +44,32 @@ export const dailyParseResultSchema = z.object({
 
 export const activityLevelSchema = z.enum(["sedentary", "light", "moderate", "active", "very_active"]);
 
+export const profileOverrideKeySchema = z.enum(["waterTargetMl", "bmr", "neatCalories"]);
+export const profileMemoryCategorySchema = z.enum([
+  "lifestyle",
+  "diet",
+  "exercise_context",
+  "food_context",
+  "medical_context",
+  "preference",
+  "other",
+]);
+
+export const profileMemoryItemSchema = z.object({
+  id: z.string(),
+  category: profileMemoryCategorySchema,
+  label: z.string(),
+  value: z.string(),
+  sourceNoteId: z.string().optional(),
+  updatedAt: z.string().datetime(),
+});
+
+export const profileOverridesSchema = z.object({
+  waterTargetMl: z.number().positive().optional(),
+  bmr: z.number().positive().optional(),
+  neatCalories: z.number().nonnegative().optional(),
+});
+
 export const profileSchema = z.object({
   age: z.number().int().positive().nullable().optional(),
   sex: z.enum(["female", "male"]).nullable().optional(),
@@ -67,7 +93,12 @@ export const bodyMeasurementSchema = z.object({
 });
 
 export const bodyParseResultSchema = z.object({
+  action: z.enum(["add", "update", "delete", "clarify", "no_change"]).default("update"),
   profile: profileSchema.partial().optional(),
+  metadataUpserts: z.array(profileMemoryItemSchema).default([]),
+  metadataDeletes: z.array(z.string()).default([]),
+  overrides: profileOverridesSchema.partial().optional(),
+  overrideDeletes: z.array(profileOverrideKeySchema).default([]),
   measurements: z.array(bodyMeasurementSchema).default([]),
   confidence: z.number().min(0).max(1),
   warnings: z.array(warningSchema).default([]),
@@ -80,3 +111,7 @@ export type DailyParseResult = z.infer<typeof dailyParseResultSchema>;
 export type Profile = z.infer<typeof profileSchema>;
 export type BodyParseResult = z.infer<typeof bodyParseResultSchema>;
 export type ParseStatus = z.infer<typeof parseStatusSchema>;
+export type ProfileMemoryItem = z.infer<typeof profileMemoryItemSchema>;
+export type ProfileMemoryCategory = z.infer<typeof profileMemoryCategorySchema>;
+export type ProfileOverrideKey = z.infer<typeof profileOverrideKeySchema>;
+export type ProfileOverrides = z.infer<typeof profileOverridesSchema>;

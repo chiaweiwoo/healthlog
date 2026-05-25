@@ -108,12 +108,24 @@ describe("normalizeDailyResult", () => {
 describe("normalizeBodyResult", () => {
   it("rescues confidence and remarks drift for body profile updates", () => {
     const normalized = normalizeBodyResult({
+      action: "update",
       profile: {
         sex: "male",
         age: 38,
         heightCm: 168,
         weightKg: 106,
       },
+      overrides: {
+        water_target_ml: "3200",
+      },
+      metadataUpserts: [
+        {
+          id: "work-style",
+          category: "lifestyle",
+          label: "Work style",
+          value: "White-collar, mostly sitting.",
+        },
+      ],
       measurements: [],
       confidence: {
         profile: 0.9,
@@ -124,8 +136,11 @@ describe("normalizeBodyResult", () => {
     });
 
     const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.action).toBe("update");
     expect(parsed.profile?.sex).toBe("male");
     expect(parsed.profile?.age).toBe(38);
+    expect(parsed.overrides?.waterTargetMl).toBe(3200);
+    expect(parsed.metadataUpserts[0]?.label).toBe("Work style");
     expect(parsed.confidence).toBe(0.9);
     expect(parsed.remarks).toBeNull();
   });

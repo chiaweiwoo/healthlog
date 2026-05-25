@@ -26,8 +26,8 @@ export default function AnalysisPage() {
               <p className="mt-1">Steps, workouts, and energy burn context.</p>
             </div>
             <div className="rounded-md border border-stone-200 p-3">
-              <p className="font-medium text-stone-900">Body progress</p>
-              <p className="mt-1">Measurements and profile changes over time.</p>
+              <p className="font-medium text-stone-900">Profile context</p>
+              <p className="mt-1">Profile changes, memory, and body-related context over time.</p>
             </div>
           </div>
         </CardContent>

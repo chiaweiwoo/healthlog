@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getDisplayNutrition, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
+import { deriveWaterTarget } from "@/lib/profile-memory";
 import type { Profile } from "@/lib/schemas";
 
 type Warning = { code: string; message: string; improveWith?: string };
@@ -298,9 +299,7 @@ export function DailyDashboard({
     totalCalories: summary?.calories ?? 0,
   };
 
-  const targetWaterMl = profile?.weightKg
-    ? Math.round(profile.weightKg * 35)
-    : (profile?.sex === "male" ? 3000 : profile?.sex === "female" ? 2200 : 2500);
+  const targetWaterMl = deriveWaterTarget(profile).value ?? 2500;
 
   const currentWaterMl = summary?.water_ml ?? 0;
   const pct = targetWaterMl > 0 ? Math.round((currentWaterMl / targetWaterMl) * 100) : 0;
@@ -584,7 +583,7 @@ export function DailyDashboard({
                       {profile?.weightKg ? (
                         <li>Based on your body profile weight of <strong>{profile.weightKg} kg</strong>, your recommended water target is scaled at 35 ml/kg: <strong>{targetWaterMl} ml</strong> per day.</li>
                       ) : (
-                        <li>Set up your body profile details (weight, sex) in the <strong>Body</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
+                        <li>Set up your profile details (weight, sex) in the <strong>Profile</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
                       )}
                       <li>Standard fallback targets: 3,000 ml for men, 2,200 ml for women, and 2,500 ml general baseline.</li>
                     </ul>

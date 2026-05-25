@@ -87,6 +87,27 @@ function normalizeRemarks(value: unknown) {
   return null;
 }
 
+function normalizeProfileAction(value: unknown) {
+  if (typeof value !== "string") return "update";
+  const normalized = value.toLowerCase().trim();
+  if (["add", "update", "delete", "clarify", "no_change"].includes(normalized)) return normalized;
+  if (["remove", "clear"].includes(normalized)) return "delete";
+  if (["keep", "ignore", "none"].includes(normalized)) return "no_change";
+  return "update";
+}
+
+function normalizeMemoryCategory(value: unknown) {
+  if (typeof value !== "string") return "other";
+  const normalized = value.toLowerCase().trim().replace(/\s+/g, "_");
+  if (["lifestyle", "diet", "exercise_context", "food_context", "medical_context", "preference", "other"].includes(normalized)) {
+    return normalized;
+  }
+  if (["exercise", "workout", "activity_context"].includes(normalized)) return "exercise_context";
+  if (["food", "cuisine"].includes(normalized)) return "food_context";
+  if (["medical"].includes(normalized)) return "medical_context";
+  return "other";
+}
+
 function getNutritionSource(source: Record<string, unknown>) {
   const candidate =
     (source.nutrition && typeof source.nutrition === "object" ? source.nutrition : null) ??
@@ -169,8 +190,25 @@ export function normalizeBodyResult(raw: unknown) {
   const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const profile = record.profile && typeof record.profile === "object" ? (record.profile as Record<string, unknown>) : undefined;
   const measurements = Array.isArray(record.measurements) ? record.measurements : [];
+  const metadataUpserts = Array.isArray(record.metadataUpserts)
+    ? record.metadataUpserts
+    : Array.isArray(record.memory)
+      ? record.memory
+      : [];
+  const metadataDeletes = Array.isArray(record.metadataDeletes)
+    ? record.metadataDeletes
+    : Array.isArray(record.deleteMemory)
+      ? record.deleteMemory
+      : [];
+  const overrides =
+    record.overrides && typeof record.overrides === "object"
+      ? (record.overrides as Record<string, unknown>)
+      : record.profileOverrides && typeof record.profileOverrides === "object"
+        ? (record.profileOverrides as Record<string, unknown>)
+        : {};
 
   return {
+    action: normalizeProfileAction(record.action ?? record.actionType),
     profile: profile
       ? {
           age: normalizeNumber(profile.age),
@@ -212,6 +250,53 @@ export function normalizeBodyResult(raw: unknown) {
           metadata: profile,
         }
       : undefined,
+    metadataUpserts: metadataUpserts
+      .map((item, index) => {
+        const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+        const label =
+          typeof source.label === "string"
+            ? source.label
+            : typeof source.key === "string"
+              ? source.key
+              : typeof source.name === "string"
+                ? source.name
+                : null;
+        const value =
+          typeof source.value === "string"
+            ? source.value
+            : typeof source.note === "string"
+              ? source.note
+              : typeof source.text === "string"
+                ? source.text
+                : null;
+        if (!label || !value) return null;
+        return {
+          id: typeof source.id === "string" ? source.id : `memory-${index + 1}`,
+          category: normalizeMemoryCategory(source.category),
+          label,
+          value,
+          sourceNoteId: typeof source.sourceNoteId === "string" ? source.sourceNoteId : undefined,
+          updatedAt:
+            typeof source.updatedAt === "string"
+              ? source.updatedAt
+              : new Date().toISOString(),
+        };
+      })
+      .filter(Boolean),
+    metadataDeletes: metadataDeletes.filter((item): item is string => typeof item === "string" && item.trim().length > 0),
+    overrides: {
+      waterTargetMl: normalizeNumber(
+        overrides.waterTargetMl ?? overrides.water_target_ml ?? overrides.waterTarget ?? overrides.water_ml,
+      ) ?? undefined,
+      bmr: normalizeNumber(overrides.bmr ?? overrides.basalMetabolicRate) ?? undefined,
+      neatCalories: normalizeNumber(overrides.neatCalories ?? overrides.neat ?? overrides.neat_calories) ?? undefined,
+    },
+    overrideDeletes: Array.isArray(record.overrideDeletes)
+      ? record.overrideDeletes.filter(
+          (item): item is "waterTargetMl" | "bmr" | "neatCalories" =>
+            item === "waterTargetMl" || item === "bmr" || item === "neatCalories",
+        )
+      : [],
     measurements: measurements.map((item) => {
       const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       return {

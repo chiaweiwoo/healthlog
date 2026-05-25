@@ -24,7 +24,7 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 
 - `/login`
 - `/app`
-- `/app/body`
+- `/app/profile`
 - `/app/analysis`
 
 ## Local Setup
@@ -68,7 +68,7 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
   - `TDEE = baseTdee + TEF + EAT`
 - Deficit is calculated as `TDEE - intake calories`
 - Mobile warning details open in a tap-friendly dialog
-- Baseline lifestyle can be set from the body page without typing a full body note
+- Baseline lifestyle and profile context can be managed from the profile page
 - The mobile dashboard prefers dense list rows over decorative metric cards
 
 ## Good Practices

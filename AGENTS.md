@@ -24,7 +24,7 @@ Stack:
 Current V1 routes:
 - `/login`
 - `/app`
-- `/app/body`
+- `/app/profile`
 - `/app/analysis`
 
 ---

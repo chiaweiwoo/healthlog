@@ -1,13 +1,6 @@
 import { ParsedDailyItem, Profile, Warning, activityLevelSchema } from "@/lib/schemas";
+import { baselineLifestyleMultipliers, getProfileOverrides } from "@/lib/profile-memory";
 import { round } from "@/lib/utils";
-
-const baselineLifestyleMultipliers: Record<ReturnType<typeof activityLevelSchema.parse>, number> = {
-  sedentary: 1.05,
-  light: 1.1,
-  moderate: 1.16,
-  active: 1.25,
-  very_active: 1.35,
-};
 
 export const atwaterFactors = {
   protein: 4,
@@ -56,11 +49,15 @@ function isKnownNumber(value: number | null | undefined): value is number {
 
 export function calculateBmr(profile: Profile): { bmr: number | null; warnings: Warning[] } {
   const warnings: Warning[] = [];
+  const overrides = getProfileOverrides(profile);
+  if (overrides.bmr != null) {
+    return { bmr: round(overrides.bmr), warnings };
+  }
   if (!profile.age || !profile.sex || !profile.heightCm || !profile.weightKg) {
     warnings.push({
       code: "profile_incomplete",
       message: "Age, sex, height, and weight are needed for a precise BMR estimate.",
-      improveWith: "Add age, sex, height, and weight on the body page.",
+      improveWith: "Add age, sex, height, and weight on the profile page.",
     });
     return { bmr: null, warnings };
   }
@@ -74,7 +71,8 @@ export function calculateTdee(profile: Profile, input?: { exerciseCalories?: num
   const exerciseCalories = input?.exerciseCalories ?? 0;
   const tefCalories = input?.tefCalories ?? 0;
   const { bmr, warnings } = calculateBmr(profile);
-  if (!bmr || !profile.activityLevel) {
+  const overrides = getProfileOverrides(profile);
+  if (!bmr || (!profile.activityLevel && overrides.neatCalories == null)) {
     return {
       bmr,
       baseTdee: null,
@@ -82,19 +80,22 @@ export function calculateTdee(profile: Profile, input?: { exerciseCalories?: num
       tdee: null,
       warnings: [
         ...warnings,
-        ...(profile.activityLevel
+        ...(profile.activityLevel || overrides.neatCalories != null
           ? []
           : [{
               code: "activity_missing",
               message: "Baseline lifestyle is needed for TDEE.",
-              improveWith: "Set your baseline lifestyle on the body page.",
+              improveWith: "Set your baseline lifestyle on the profile page.",
             } satisfies Warning]),
       ],
     };
   }
 
-  const baseTdee = round(bmr * baselineLifestyleMultipliers[profile.activityLevel]);
-  const baselineActivityCalories = round(Math.max(baseTdee - bmr, 0));
+  const baselineActivityCalories =
+    overrides.neatCalories != null
+      ? round(Math.max(overrides.neatCalories, 0))
+      : round(Math.max(round(bmr * baselineLifestyleMultipliers[profile.activityLevel as ReturnType<typeof activityLevelSchema.parse>]) - bmr, 0));
+  const baseTdee = round(bmr + baselineActivityCalories);
   return {
     bmr,
     baseTdee,

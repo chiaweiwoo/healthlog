@@ -340,11 +340,18 @@ New note: ${input.note}
 
 export async function parseBodyNote(input: { note: string; currentProfile: Profile | null }) {
   const prompt = `
-You parse body and profile notes into structured JSON for a private health log.
+You are a constrained profile manager for a private health log.
 
 Return JSON only. No markdown. No prose.
 
 The note may mix English and Chinese. Preserve original wording where useful.
+
+Allowed action values: add, update, delete, clarify, no_change.
+This page is only for profile, lifestyle, context, and health-log memory.
+Do not log daily food, drinks, water, or exercise here. If the note is mainly a daily log, return action "clarify" with warnings.
+Do not diagnose or provide medical advice.
+Uncertain facts should become warnings or remarks, not hard facts.
+Delete requests must target a specific known field, override, or memory item.
 
 Allowed activityLevel values: sedentary, light, moderate, active, very_active.
 Interpret activityLevel as conservative non-exercise baseline lifestyle only.
@@ -355,13 +362,23 @@ Examples:
 - moderate: desk life plus regular errands, commute, and chores
 - active: often on feet for work or daily life, but not because of logged workouts
 - very_active: physically demanding non-workout daily life
+Map office work, white-collar life, mostly sitting, and watching drama at home to light or sedentary unless the note clearly implies more non-exercise movement.
 Do not invent profile fields that are not supported by the note.
-Only create measurement rows when the note implies a real measurement event.
-Use weight measurements when a body weight is stated. Height should normally update the profile only.
-Before finalizing, self-check that activityLevel uses only the allowed enum values.
+Only create measurement rows when the note explicitly implies a real measurement event that should be preserved as a measurement.
+Prefer profile fields, overrides, and memory items over measurement rows.
+Daily calculations care especially about water target, BMR, and NEAT:
+- waterTargetMl override
+- bmr override
+- neatCalories override
+Helpful memory includes work/lifestyle context, diet preferences, food context, exercise context, and other health-log-relevant facts.
+Before finalizing, self-check that:
+- activityLevel uses only the allowed enum values
+- updates stay inside HealthLog profile/context scope
+- logged workouts are not folded into activityLevel
+- deletions are specific rather than broad
 
 Return JSON matching:
-{ profile, measurements, confidence, warnings, remarks }
+{ action, profile, metadataUpserts, metadataDeletes, overrides, overrideDeletes, measurements, confidence, warnings, remarks }
 
 Profile can include:
 - age
@@ -373,6 +390,16 @@ Profile can include:
 - country
 - remarks
 - metadata
+
+metadataUpserts items can include:
+- id
+- category: lifestyle, diet, exercise_context, food_context, medical_context, preference, other
+- label
+- value
+
+metadataDeletes is an array of memory ids to remove.
+overrides can include waterTargetMl, bmr, neatCalories.
+overrideDeletes can include waterTargetMl, bmr, neatCalories.
 
 Measurements can include:
 - measuredAt
@@ -386,6 +413,7 @@ Measurements can include:
 
 Example JSON:
 {
+  "action": "update",
   "profile": {
     "age": 38,
     "sex": "male",
@@ -396,19 +424,54 @@ Example JSON:
     "remarks": null,
     "metadata": {}
   },
-  "measurements": [
+  "metadataUpserts": [
     {
-      "measuredAt": "2026-05-25T08:00:00Z",
-      "type": "weight",
-      "value": 106,
-      "unit": "kg",
-      "confidence": 0.95,
-      "remarks": null,
-      "metadata": {}
+      "id": "work-style",
+      "category": "lifestyle",
+      "label": "Work style",
+      "value": "White-collar office work, mostly sitting."
     }
   ],
+  "metadataDeletes": [],
+  "overrides": {},
+  "overrideDeletes": [],
+  "measurements": [],
   "confidence": 0.95,
   "warnings": [],
+  "remarks": null
+}
+
+Example delete JSON:
+{
+  "action": "delete",
+  "profile": {},
+  "metadataUpserts": [],
+  "metadataDeletes": ["gym-context"],
+  "overrides": {},
+  "overrideDeletes": ["neatCalories"],
+  "measurements": [],
+  "confidence": 0.8,
+  "warnings": [],
+  "remarks": null
+}
+
+Example clarify JSON:
+{
+  "action": "clarify",
+  "profile": {},
+  "metadataUpserts": [],
+  "metadataDeletes": [],
+  "overrides": {},
+  "overrideDeletes": [],
+  "measurements": [],
+  "confidence": 0.45,
+  "warnings": [
+    {
+      "code": "daily_log_wrong_place",
+      "message": "This looks like a daily log rather than profile context.",
+      "improveWith": "Log meals, water, and exercise on the Daily tab."
+    }
+  ],
   "remarks": null
 }
 
