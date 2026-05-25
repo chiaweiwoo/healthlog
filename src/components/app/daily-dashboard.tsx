@@ -13,9 +13,10 @@ import {
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
+import { EntryDetailDialog } from "@/components/app/entry-detail-dialog";
 import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
-import { EntryDetailDialog } from "@/components/app/entry-detail-dialog";
+import { NutritionIcons } from "@/components/app/nutrition-icons";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { WarningDot } from "@/components/app/warning-dot";
 import { Button } from "@/components/ui/button";
@@ -111,17 +112,16 @@ function hasWarningCode(warnings: Warning[] | undefined, code: string) {
   return warnings?.some((warning) => warning.code === code) ?? false;
 }
 
-function formatFoodNutrition(item: EntryItem) {
+function getItemNutritionData(item: EntryItem) {
   const derived = getDisplayNutrition(item);
-  const parts: string[] = [];
-  if (derived.calories != null) parts.push(`${derived.calories} kcal`);
-  if (derived.proteinG != null) parts.push(`P ${derived.proteinG}g`);
-  if (derived.fatG != null) parts.push(`F ${derived.fatG}g`);
-  if (derived.carbsG != null) parts.push(`C ${derived.carbsG}g`);
-  if (derived.alcoholG != null) parts.push(`A ${derived.alcoholG}g`);
-  if (item.waterMl != null) parts.push(`Water ${item.waterMl} ml`);
-  if (parts.length) return parts.join(" | ");
-  return "Estimate unavailable";
+  return {
+    calories: derived.calories,
+    proteinG: derived.proteinG,
+    fatG: derived.fatG,
+    carbsG: derived.carbsG,
+    alcoholG: derived.alcoholG,
+    waterMl: item.waterMl,
+  };
 }
 
 function getDeficitDisplayTitle(summary: Summary) {
@@ -724,13 +724,15 @@ export function DailyDashboard({
                       {entry.parsed_items.length ? (
                         entry.parsed_items.length === 1 ? (
                           <div className="mt-1">
-                            <p className="text-xs text-stone-500 font-medium leading-relaxed">
-                              {entry.parsed_items[0].kind === "exercise"
-                                ? entry.parsed_items[0].exerciseCalories != null
+                            {entry.parsed_items[0].kind === "exercise" ? (
+                              <p className="text-xs font-medium text-stone-500 leading-relaxed">
+                                {entry.parsed_items[0].exerciseCalories != null
                                   ? `${entry.parsed_items[0].exerciseCalories} kcal burn`
-                                  : "Exercise recorded"
-                                : formatFoodNutrition(entry.parsed_items[0])}
-                            </p>
+                                  : "Exercise recorded"}
+                              </p>
+                            ) : (
+                              <NutritionIcons data={getItemNutritionData(entry.parsed_items[0])} />
+                            )}
                             {entry.parsed_items[0].remarks && (
                               <p className="mt-1 text-[11px] text-stone-400 italic font-medium">
                                 Remarks: {entry.parsed_items[0].remarks}
@@ -750,13 +752,17 @@ export function DailyDashboard({
                                   />
                                   <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
                                 </div>
-                                <p className="mt-1 text-xs text-stone-500 font-medium">
-                                  {item.kind === "exercise"
-                                    ? item.exerciseCalories != null
-                                      ? `${item.exerciseCalories} kcal burn`
-                                      : "Exercise recorded"
-                                    : formatFoodNutrition(item)}
-                                </p>
+                                <div className="mt-1">
+                                  {item.kind === "exercise" ? (
+                                    <p className="text-xs font-medium text-stone-500">
+                                      {item.exerciseCalories != null
+                                        ? `${item.exerciseCalories} kcal burn`
+                                        : "Exercise recorded"}
+                                    </p>
+                                  ) : (
+                                    <NutritionIcons data={getItemNutritionData(item)} />
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>

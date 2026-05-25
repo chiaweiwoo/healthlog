@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { NutritionIcons } from "@/components/app/nutrition-icons";
 import { WarningDot } from "@/components/app/warning-dot";
 import { getDisplayNutrition } from "@/lib/calculations";
 
@@ -37,16 +38,16 @@ type Entry = {
   created_at: string;
 };
 
-function formatItemNutrition(item: EntryItem): string {
+function getItemNutritionData(item: EntryItem) {
   const derived = getDisplayNutrition(item);
-  const parts: string[] = [];
-  if (derived.calories != null) parts.push(`${derived.calories} kcal`);
-  if (derived.proteinG != null) parts.push(`P ${derived.proteinG}g`);
-  if (derived.fatG != null) parts.push(`F ${derived.fatG}g`);
-  if (derived.carbsG != null) parts.push(`C ${derived.carbsG}g`);
-  if (derived.alcoholG != null) parts.push(`A ${derived.alcoholG}g`);
-  if (item.waterMl != null) parts.push(`Water ${item.waterMl} ml`);
-  return parts.join(" | ") || "Estimate unavailable";
+  return {
+    calories: derived.calories,
+    proteinG: derived.proteinG,
+    fatG: derived.fatG,
+    carbsG: derived.carbsG,
+    alcoholG: derived.alcoholG,
+    waterMl: item.waterMl,
+  };
 }
 
 export function EntryDetailDialog({
@@ -82,13 +83,17 @@ export function EntryDetailDialog({
                       <p className="break-words text-sm font-semibold text-stone-900">{item.label}</p>
                       <WarningDot warnings={item.warnings} label={`${item.label} warnings`} className="-mt-0.5 shrink-0" />
                     </div>
-                    <p className="mt-1 text-xs text-stone-500">
-                      {item.kind === "exercise"
-                        ? item.exerciseCalories != null
-                          ? `${item.exerciseCalories} kcal burn`
-                          : "Exercise recorded"
-                        : formatItemNutrition(item)}
-                    </p>
+                    <div className="mt-1">
+                      {item.kind === "exercise" ? (
+                        <p className="text-xs text-stone-500">
+                          {item.exerciseCalories != null
+                            ? `${item.exerciseCalories} kcal burn`
+                            : "Exercise recorded"}
+                        </p>
+                      ) : (
+                        <NutritionIcons data={getItemNutritionData(item)} />
+                      )}
+                    </div>
                     {item.remarks && (
                       <p className="mt-1 text-[11px] italic text-stone-400">{item.remarks}</p>
                     )}
