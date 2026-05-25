@@ -253,3 +253,8 @@ CI should run lint, typecheck, tests, and production build.
 - **Problem**: Drinks like barley tea can carry both calories and liquid volume. Treating them as only `food` or only `water` makes the daily screen inconsistent.
 - **Solution**: Keep calorie-bearing beverages classified as `food` when appropriate, but still include `waterMl` and surface them in both the Food and Water breakdown sections.
 - **Lesson**: Summary totals and breakdown sections must derive from the same normalized items, with water contribution determined by `waterMl`, not by item kind alone.
+
+### 6. Baseline Activity Must Stay Separate From Logged Exercise
+- **Problem**: Treating "physical activity" as a leftover after subtracting BMR and TEF from baseline TDEE makes the model hard to understand and can blur the line between default daily movement and explicitly logged exercise.
+- **Solution**: Use `baseTdee = BMR * activityMultiplier` as the activity-level baseline, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, and compute `TDEE = baseTdee + TEF + loggedExercise`.
+- **Lesson**: Activity level represents ordinary daily movement baseline, not workouts. Logged exercise is always additive and must never be implicitly folded back into the activity-level component.

@@ -76,6 +76,8 @@ type Summary = {
   exercise_calories: number;
   bmr: number | null;
   base_tdee: number | null;
+  baseline_activity_calories?: number | null;
+  tef_calories?: number | null;
   tdee: number | null;
   estimated_deficit: number | null;
   confidence: number;
@@ -437,7 +439,7 @@ export function DailyDashboard({
                       description={
                         <>
                           <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
-                          <p>Physical activity is the remaining part of your baseline TDEE after separating out BMR and the estimated thermic effect of food.</p>
+                          <p>Baseline activity comes from your chosen activity level and represents ordinary daily movement before logged exercise.</p>
                           <p>TEF uses a macro-based estimate:</p>
                           <ul className="list-disc space-y-1 pl-4">
                             <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
@@ -445,7 +447,7 @@ export function DailyDashboard({
                             <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
                             <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
                           </ul>
-                          <p>Total TDEE still follows the app&apos;s baseline TDEE plus logged exercise. TEF is shown here as an explanatory slice of that baseline, not an extra top-up.</p>
+                          <p>Total TDEE is calculated as BMR + baseline activity + TEF + logged exercise.</p>
                         </>
                       }
                     />
@@ -462,16 +464,16 @@ export function DailyDashboard({
                   />
                   <MetricRow
                     icon={<Sparkles size={16} />}
-                    label="Physical activity"
-                    value={output.physicalActivityCalories != null ? `${output.physicalActivityCalories} kcal` : "Profile needed"}
-                    info="Physical activity is the baseline TDEE remainder after BMR and TEF are separated out."
-                    percent={getPercent(output.physicalActivityCalories, output.totalTdee)}
+                    label="Baseline activity"
+                    value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
+                    info="Baseline activity is estimated from your chosen activity level and excludes explicitly logged exercise."
+                    percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
                   />
                   <MetricRow
                     icon={<UtensilsCrossed size={16} />}
                     label="TEF"
                     value={`${output.tefCalories} kcal`}
-                    info="Thermic Effect of Food is estimated from macro-specific digestion costs and shown as part of baseline output."
+                    info="Thermic Effect of Food is estimated dynamically from today&apos;s protein, carbs, fat, and alcohol intake."
                     percent={getPercent(output.tefCalories, output.totalTdee)}
                   />
                   <MetricRow

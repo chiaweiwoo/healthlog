@@ -35,7 +35,7 @@ describe("calculateBmr", () => {
 });
 
 describe("calculateTdee", () => {
-  it("adds exercise calories on top of base tdee", () => {
+  it("adds tef and exercise on top of the activity-level baseline", () => {
     const result = calculateTdee(
       {
         age: 31,
@@ -46,11 +46,12 @@ describe("calculateTdee", () => {
         country: "Singapore",
         metadata: {},
       },
-      320,
+      { exerciseCalories: 320, tefCalories: 55 },
     );
 
     expect(result.baseTdee).toBe(2350);
-    expect(result.tdee).toBe(2670);
+    expect(result.baselineActivityCalories).toBe(641);
+    expect(result.tdee).toBe(2725);
   });
 });
 
@@ -162,7 +163,9 @@ describe("summarizeDailyItems", () => {
     expect(summary.waterMl).toBe(500);
     expect(summary.exerciseCalories).toBe(250);
     expect(summary.alcoholG).toBe(0);
-    expect(summary.estimatedDeficit).toBe(1964);
+    expect(summary.tefCalories).toBe(66);
+    expect(summary.baselineActivityCalories).toBe(641);
+    expect(summary.estimatedDeficit).toBe(2030);
     expect(summary.breakdown.food).toHaveLength(2);
     expect(summary.breakdown.water).toHaveLength(1);
     expect(summary.breakdown.water[0]?.label).toBe("Barley tea");
@@ -205,7 +208,7 @@ describe("summarizeDailyItems", () => {
 });
 
 describe("getOutputBreakdown", () => {
-  it("splits output into bmr, activity, tef, exercise, and total tdee", () => {
+  it("splits output into bmr, baseline activity, tef, exercise, and total tdee", () => {
     const output = getOutputBreakdown({
       bmr: 1709,
       baseTdee: 2350,
@@ -217,8 +220,8 @@ describe("getOutputBreakdown", () => {
     });
 
     expect(output.tefCalories).toBe(72);
-    expect(output.physicalActivityCalories).toBe(569);
-    expect(output.totalTdee).toBe(2600);
+    expect(output.baselineActivityCalories).toBe(641);
+    expect(output.totalTdee).toBe(2672);
   });
 
   it("returns null output totals when profile is incomplete", () => {
@@ -233,7 +236,7 @@ describe("getOutputBreakdown", () => {
     });
 
     expect(output.tefCalories).toBe(18);
-    expect(output.physicalActivityCalories).toBeNull();
+    expect(output.baselineActivityCalories).toBeNull();
     expect(output.totalTdee).toBeNull();
   });
 });

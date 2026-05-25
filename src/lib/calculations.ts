@@ -70,12 +70,15 @@ export function calculateBmr(profile: Profile): { bmr: number | null; warnings: 
   return { bmr: round(base + adjustment), warnings };
 }
 
-export function calculateTdee(profile: Profile, exerciseCalories = 0) {
+export function calculateTdee(profile: Profile, input?: { exerciseCalories?: number; tefCalories?: number }) {
+  const exerciseCalories = input?.exerciseCalories ?? 0;
+  const tefCalories = input?.tefCalories ?? 0;
   const { bmr, warnings } = calculateBmr(profile);
   if (!bmr || !profile.activityLevel) {
     return {
       bmr,
       baseTdee: null,
+      baselineActivityCalories: null,
       tdee: null,
       warnings: [
         ...warnings,
@@ -91,10 +94,12 @@ export function calculateTdee(profile: Profile, exerciseCalories = 0) {
   }
 
   const baseTdee = round(bmr * activityMultipliers[profile.activityLevel]);
+  const baselineActivityCalories = round(Math.max(baseTdee - bmr, 0));
   return {
     bmr,
     baseTdee,
-    tdee: round(baseTdee + exerciseCalories),
+    baselineActivityCalories,
+    tdee: round(baseTdee + tefCalories + exerciseCalories),
     warnings,
   };
 }
@@ -210,7 +215,7 @@ export function getOutputBreakdown(input: {
   if (input.bmr === null || input.baseTdee === null) {
     return {
       bmr: input.bmr,
-      physicalActivityCalories: null,
+      baselineActivityCalories: null,
       tefCalories,
       exerciseCalories: input.exerciseCalories,
       totalTdee: null,
@@ -219,10 +224,10 @@ export function getOutputBreakdown(input: {
 
   return {
     bmr: input.bmr,
-    physicalActivityCalories: round(Math.max(input.baseTdee - input.bmr - tefCalories, 0)),
+    baselineActivityCalories: round(Math.max(input.baseTdee - input.bmr, 0)),
     tefCalories,
     exerciseCalories: input.exerciseCalories,
-    totalTdee: round(input.baseTdee + input.exerciseCalories),
+    totalTdee: round(input.baseTdee + tefCalories + input.exerciseCalories),
   };
 }
 
@@ -270,7 +275,13 @@ export function summarizeDailyItems(items: SummaryDisplayItem[], profile: Profil
     },
   );
 
-  const tdee = calculateTdee(profile, totals.exerciseCalories);
+  const tefCalories = calculateThermicEffectOfFood({
+    proteinG: totals.proteinG,
+    fatG: totals.fatG,
+    carbsG: totals.carbsG,
+    alcoholG: totals.alcoholG,
+  });
+  const tdee = calculateTdee(profile, { exerciseCalories: totals.exerciseCalories, tefCalories });
   const confidence = totals.confidenceValues.length
     ? round(totals.confidenceValues.reduce((sum, value) => sum + value, 0) / totals.confidenceValues.length, 2)
     : 1;
@@ -304,6 +315,8 @@ export function summarizeDailyItems(items: SummaryDisplayItem[], profile: Profil
     exerciseCalories: round(totals.exerciseCalories),
     bmr: tdee.bmr,
     baseTdee: tdee.baseTdee,
+    baselineActivityCalories: tdee.baselineActivityCalories,
+    tefCalories,
     tdee: tdee.tdee,
     estimatedDeficit: tdee.tdee === null || caloriesIncomplete ? null : round(tdee.tdee - totals.calories),
     confidence,
