@@ -332,6 +332,14 @@ export function DailyDashboard({
     alcoholG: summary?.alcohol_g ?? 0,
   });
 
+  const intakeBreakdown = {
+    proteinCalories: Math.round((summary?.protein_g ?? 0) * atwaterFactors.protein),
+    fatCalories: Math.round((summary?.fat_g ?? 0) * atwaterFactors.fat),
+    carbsCalories: Math.round((summary?.carbs_g ?? 0) * atwaterFactors.carbs),
+    alcoholCalories: Math.round((summary?.alcohol_g ?? 0) * atwaterFactors.alcohol),
+    totalCalories: summary?.calories ?? 0,
+  };
+
   const breakdownSections = [
     { key: "food", label: "Food & drinks", items: getFoodAndDrinkItems(summary) },
     { key: "exercise", label: "Exercise", items: summary?.breakdown?.exercise ?? [] },
@@ -390,34 +398,46 @@ export function DailyDashboard({
                     caption={summary?.breakdown.meta?.caloriesIncomplete ? "Known total so far" : "Known total"}
                   />
                   <MetricRow
-                    icon={<Droplets size={16} />}
-                    label="Water"
-                    value={`${summary?.water_ml ?? 0} ml`}
-                    info="Water includes drinks and water entries with liquid volume."
-                  />
-                  <MetricRow
                     icon={<Drumstick size={16} />}
                     label="Protein"
                     value={`${summary?.protein_g ?? 0} g`}
                     info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
+                    caption={`${intakeBreakdown.proteinCalories} kcal`}
+                    percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<Droplet size={16} />}
                     label="Fat"
                     value={`${summary?.fat_g ?? 0} g`}
                     info="Fat contributes 9 kcal per gram and a smaller thermic effect."
+                    caption={`${intakeBreakdown.fatCalories} kcal`}
+                    percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<Wheat size={16} />}
                     label="Carbs"
                     value={`${summary?.carbs_g ?? 0} g`}
                     info="Carbohydrates contribute 4 kcal per gram."
+                    caption={`${intakeBreakdown.carbsCalories} kcal`}
+                    percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
+                    subordinate
                   />
                   <MetricRow
                     icon={<Martini size={16} />}
                     label="Alcohol"
                     value={`${summary?.alcohol_g ?? 0} g`}
                     info="Alcohol contributes 7 kcal per gram when present."
+                    caption={`${intakeBreakdown.alcoholCalories} kcal`}
+                    percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
+                    subordinate
+                  />
+                  <MetricRow
+                    icon={<Droplets size={16} />}
+                    label="Water"
+                    value={`${summary?.water_ml ?? 0} ml`}
+                    info="Water includes drinks and water entries with liquid volume."
                   />
                 </div>
               </section>
