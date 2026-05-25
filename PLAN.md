@@ -8,8 +8,11 @@ HealthLog is a private single-user web app for recording a healthier journey thr
 - `/app`: daily dashboard with date picker, free-text input, raw records list, and daily summary.
 - `/app/body`: free-text profile/body input plus progressive measurements history.
 - `/app/analysis`: placeholder for future weekly analysis.
-- Daily summary stays compact: calories, protein, fat, carbs, water, exercise calories, estimated TDEE, estimated deficit/surplus.
-- Detailed food/water/exercise breakdowns are expandable so the daily screen stays focused.
+- Daily summary stays compact and mobile-first.
+- Intake should read as one grouped story: calories, water, protein, fat, carbs, and alcohol from food/drinks.
+- Output should read as a TDEE breakdown: BMR, baseline activity, TEF, exercise, and total TDEE.
+- Deficit/surplus should be shown as `TDEE - intake calories`.
+- Detailed food/drink and exercise breakdowns are expandable so the daily screen stays focused.
 - Low-confidence items remain visible and show warnings explaining uncertainty and what would improve the estimate.
 - Mentioned time is preserved when available.
 
@@ -20,6 +23,12 @@ HealthLog is a private single-user web app for recording a healthier journey thr
 - Raw notes are stored first. Summaries are recalculated from active entries. The LLM never directly mutates database state.
 - Singapore is the default food context unless the user says otherwise.
 - TDEE uses Mifflin-St Jeor by default and warns instead of faking precision when profile fields are missing.
+- Current TDEE model:
+  - `baseTdee = BMR * activityMultiplier`
+  - `baselineActivity = baseTdee - BMR`
+  - `TEF` is dynamic from today's macros and alcohol
+  - `TDEE = baseTdee + TEF + loggedExercise`
+- Water-bearing beverages should contribute to both intake totals and water breakdowns when `waterMl` is known.
 
 ## User Setup
 - Provide Supabase URL and service role key in Vercel/local env.

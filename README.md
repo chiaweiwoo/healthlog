@@ -2,8 +2,8 @@
 
 HealthLog is a private single-user health logging app built for fast daily capture
 from messy free-text notes. The app keeps raw notes, parses them into structured
-records with Gemini, and recalculates a daily summary for calories, macros, water,
-exercise, TDEE, and deficit or surplus.
+records with Gemini, and recalculates a daily summary for intake, output, TDEE,
+and deficit or surplus.
 
 The app also keeps request-level debug traces in Supabase so production issues can
 be tied back to a `requestId` and a server-side log row. LLM parse attempts are
@@ -57,8 +57,18 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 - Daily notes are inserted first with parse state `pending`, then updated to `parsed` or `failed`
 - Failed parsing keeps the raw note visible instead of dropping the user input
 - Daily summaries treat unknown calories and macros as incomplete, not zero
+- Intake is one grouped story: food, calorie-bearing drinks, and water all contribute to daily intake
+- Water-bearing beverages can appear in both food/drink and water breakdowns when `waterMl` is known
+- Output uses a component model:
+  - `BMR` from Mifflin-St Jeor
+  - `baseTdee = BMR * activityMultiplier`
+  - `baselineActivity = baseTdee - BMR`
+  - `TEF` from today's protein, carbs, fat, and alcohol
+  - `TDEE = baseTdee + TEF + logged exercise`
+- Deficit is calculated as `TDEE - intake calories`
 - Mobile warning details open in a tap-friendly dialog
 - Activity level can be set from the body page without typing a full body note
+- The mobile dashboard prefers dense list rows over decorative metric cards
 
 ## Good Practices
 

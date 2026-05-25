@@ -79,6 +79,17 @@ TDEE uses Mifflin-St Jeor. If age, sex, height, weight, or activity level is
 missing, return `null` for incomplete values and show warnings instead of making
 up defaults.
 
+Current component model:
+- `BMR` comes from Mifflin-St Jeor
+- `baseTdee = BMR * activityMultiplier`
+- `baselineActivity = baseTdee - BMR`
+- `TEF` is dynamic from today's macros and alcohol
+- `TDEE = baseTdee + TEF + loggedExercise`
+- `Deficit = TDEE - intakeCalories`
+
+Do not reintroduce a remainder-style "physical activity" component that subtracts
+TEF back out of baseline TDEE.
+
 ### 6. JSON reliability comes from prompt contract + tolerant parsing
 
 Gemini calls use strict JSON-only prompts, Zod validation, and tolerant JSON
@@ -223,6 +234,8 @@ CI should run lint, typecheck, tests, and production build.
 - Prefer preserving a user action with a warning over rejecting it after partial work
 - Treat unknown nutrition as incomplete, not zero
 - Keep mobile interactions tap-friendly; do not rely on hover-only affordances for important detail
+- Prefer compact, list-first mobile summaries over decorative metric cards when density matters
+- Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass
 
@@ -258,3 +271,8 @@ CI should run lint, typecheck, tests, and production build.
 - **Problem**: Treating "physical activity" as a leftover after subtracting BMR and TEF from baseline TDEE makes the model hard to understand and can blur the line between default daily movement and explicitly logged exercise.
 - **Solution**: Use `baseTdee = BMR * activityMultiplier` as the activity-level baseline, define `baselineActivity = baseTdee - BMR`, calculate `TEF` dynamically from macros, and compute `TDEE = baseTdee + TEF + loggedExercise`.
 - **Lesson**: Activity level represents ordinary daily movement baseline, not workouts. Logged exercise is always additive and must never be implicitly folded back into the activity-level component.
+
+### 7. Intake And Output Need Different Presentation Logic
+- **Problem**: Reusing the same card-heavy visual treatment for both intake and output wastes vertical space on mobile and blurs the conceptual difference between intake nutrients and TDEE components.
+- **Solution**: Keep the daily dashboard compact and operational. Intake should read as one grouped story about food and drinks. Output should read as one TDEE breakdown, with explanatory details available behind tap-friendly info affordances.
+- **Lesson**: On this app, mobile density and clarity beat decorative symmetry. Prefer list rows, fewer nested surfaces, and dialogs for deeper explanation.

@@ -14,11 +14,14 @@ any other repository from this thread.
 - Use JSONB for evolving structures and scalar columns for stable query fields.
 - Keep low-confidence items visible with warnings.
 - TDEE must return incomplete warnings instead of fake precision.
+- TDEE uses a component model: `BMR`, `baseline activity`, `TEF`, and `logged exercise` are separate, and `TDEE = baseTdee + TEF + loggedExercise`.
+- Treat intake as one story: food, calorie-bearing drinks, and water belong together in daily intake summaries.
 - Parse LLM JSON defensively and validate with Zod.
 - Mutating and auth-related API routes should write request traces to `app_request_logs`.
 - Never log passwords, API keys, service role keys, or session secrets.
 - Keep service role, Gemini, Langfuse secret, password hash, and session secret
   server-side only.
+- Keep important mobile interactions tap-friendly and prefer dense list summaries over decorative card grids.
 
 ## Commands
 
