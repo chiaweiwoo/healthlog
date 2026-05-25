@@ -60,7 +60,7 @@ describe("/api/daily-entries", () => {
     const response = await POST(
       new NextRequest("http://localhost/api/daily-entries", {
         method: "POST",
-        body: JSON.stringify({ date: "2026-05-25", rawNote: "bak chor mee" }),
+        body: JSON.stringify({ date: "2026-05-25", clientToday: "2026-05-26", rawNote: "bak chor mee" }),
         headers: { "Content-Type": "application/json" },
       }),
     );
@@ -69,6 +69,10 @@ describe("/api/daily-entries", () => {
     const body = await response.json();
     expect(body.entry.parse_status).toBe("failed");
     expect(mockCreatePendingDailyEntry.mock.invocationCallOrder[0]).toBeLessThan(mockFinalizeDailyEntryFailed.mock.invocationCallOrder[0]);
+    expect(mockFinalizeDailyEntryFailed).toHaveBeenCalledWith("entry-1", expect.any(Error), {
+      entryDate: "2026-05-25",
+      clientToday: "2026-05-26",
+    });
   });
 
   it("reparses an edited note through PATCH", async () => {
@@ -102,7 +106,7 @@ describe("/api/daily-entries", () => {
     const response = await PATCH(
       new NextRequest("http://localhost/api/daily-entries", {
         method: "PATCH",
-        body: JSON.stringify({ id: "entry-2", rawNote: "updated note" }),
+        body: JSON.stringify({ id: "entry-2", rawNote: "updated note", clientToday: "2026-05-26" }),
         headers: { "Content-Type": "application/json" },
       }),
     );
@@ -110,7 +114,10 @@ describe("/api/daily-entries", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.entry.parse_status).toBe("parsed");
-    expect(mockFinalizeDailyEntryParsed).toHaveBeenCalled();
+    expect(mockFinalizeDailyEntryParsed).toHaveBeenCalledWith("entry-2", expect.any(Object), {
+      entryDate: "2026-05-25",
+      clientToday: "2026-05-26",
+    });
   });
 
   it("soft deletes entries through DELETE", async () => {

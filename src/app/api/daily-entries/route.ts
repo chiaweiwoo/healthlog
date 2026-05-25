@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response;
     const body = await request.json();
     const date = isoDateSchema.parse(body.date);
+    const clientToday = typeof body.clientToday === "string" ? isoDateSchema.parse(body.clientToday) : date;
     const rawNote = String(body.rawNote ?? "").trim();
     if (!rawNote) return Response.json({ error: "Note is required." }, { status: 400 });
 
@@ -58,9 +59,9 @@ export async function POST(request: NextRequest) {
         profile,
         activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
       });
-      entry = await finalizeDailyEntryParsed(entry.id, parsed);
+      entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: date, clientToday });
     } catch (parseError) {
-      entry = await finalizeDailyEntryFailed(entry.id, parseError);
+      entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: date, clientToday });
     }
     const summary = await getDailySummary(date);
     await logUserAction({
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
-      requestPayload: { date, rawNote },
+      requestPayload: { date, clientToday, rawNote },
       responsePayload: {
         requestId,
         entryId: entry.id,
@@ -115,6 +116,7 @@ export async function PATCH(request: NextRequest) {
       rawNote: typeof body.rawNote === "string" ? body.rawNote.trim() : undefined,
       isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
     });
+    const clientToday = typeof body.clientToday === "string" ? isoDateSchema.parse(body.clientToday) : entry.entry_date;
 
     if (typeof body.rawNote === "string" && body.rawNote.trim()) {
       const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(entry.entry_date)]);
@@ -125,9 +127,9 @@ export async function PATCH(request: NextRequest) {
           profile,
           activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
         });
-        entry = await finalizeDailyEntryParsed(entry.id, parsed);
+        entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: entry.entry_date, clientToday });
       } catch (parseError) {
-        entry = await finalizeDailyEntryFailed(entry.id, parseError);
+        entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: entry.entry_date, clientToday });
       }
     }
     const summary = await getDailySummary(entry.entry_date);
@@ -140,7 +142,7 @@ export async function PATCH(request: NextRequest) {
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
-      requestPayload: { id, isActive: body.isActive, hasRawNote: typeof body.rawNote === "string" },
+      requestPayload: { id, clientToday, isActive: body.isActive, hasRawNote: typeof body.rawNote === "string" },
       responsePayload: { requestId, entryId: entry.id, parseStatus: entry.parse_status, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });

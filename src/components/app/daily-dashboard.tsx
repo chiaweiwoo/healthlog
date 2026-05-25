@@ -248,7 +248,7 @@ export function DailyDashboard({
       const response = await fetch("/api/daily-entries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, rawNote }),
+        body: JSON.stringify({ id, rawNote, clientToday: browserToday }),
       });
       const body = (await response.json().catch(() => null)) as
         | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }

@@ -62,7 +62,7 @@ export function QuickNoteSheet({
       const response = await fetch("/api/daily-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDate, rawNote }),
+        body: JSON.stringify({ date: selectedDate, clientToday: getLocalDateString(), rawNote }),
       });
       const body = (await response.json().catch(() => null)) as {
         entry?: Entry;

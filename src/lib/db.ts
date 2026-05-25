@@ -1,6 +1,7 @@
 import "server-only";
 
 import { SummaryDisplayItem, summarizeDailyItems } from "@/lib/calculations";
+import { normalizeDailyParseResultTimes, resolveFailedEntryOccurredTime } from "@/lib/daily-entry-time-guard";
 import { buildProfileMetadata, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
 import {
   BodyParseResult,
@@ -270,17 +271,22 @@ export async function createPendingDailyEntry(date: string, rawNote: string) {
   return data as DailyEntryRow;
 }
 
-export async function finalizeDailyEntryParsed(id: string, parsed: DailyParseResult) {
+export async function finalizeDailyEntryParsed(
+  id: string,
+  parsed: DailyParseResult,
+  context: { entryDate: string; clientToday: string },
+) {
   const supabase = getSupabaseAdmin();
+  const normalized = normalizeDailyParseResultTimes(parsed, context);
   const { data, error } = await supabase
     .from("daily_entries")
     .update({
-      occurred_time: parsed.occurredTime ?? null,
-      action_type: parsed.actionType,
-      parsed_items: parsed.items,
-      confidence: parsed.confidence,
-      warnings: parsed.warnings,
-      remarks: parsed.remarks ?? null,
+      occurred_time: normalized.occurredTime ?? null,
+      action_type: normalized.actionType,
+      parsed_items: normalized.items,
+      confidence: normalized.confidence,
+      warnings: normalized.warnings,
+      remarks: normalized.remarks ?? null,
       parse_status: "parsed",
       parse_error: null,
       updated_at: new Date().toISOString(),
@@ -294,13 +300,17 @@ export async function finalizeDailyEntryParsed(id: string, parsed: DailyParseRes
   return data as DailyEntryRow;
 }
 
-export async function finalizeDailyEntryFailed(id: string, error: unknown) {
+export async function finalizeDailyEntryFailed(
+  id: string,
+  error: unknown,
+  context: { entryDate: string; clientToday: string },
+) {
   const supabase = getSupabaseAdmin();
   const message = asErrorMessage(error);
   const { data, error: updateError } = await supabase
     .from("daily_entries")
     .update({
-      occurred_time: null,
+      occurred_time: resolveFailedEntryOccurredTime(context),
       action_type: "clarify",
       parsed_items: [],
       confidence: 0,
