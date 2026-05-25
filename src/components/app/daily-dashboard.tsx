@@ -396,12 +396,11 @@ export function DailyDashboard({
       <div className="grid min-w-0 gap-4 lg:grid-cols-[1.12fr_0.88fr]">
         <section className="min-w-0 space-y-4">
           <Card className="overflow-hidden">
-            <CardHeader className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-emerald-700">{format(parseDateOnly(selectedDate), "EEE, d MMM")}</p>
-                  <CardTitle className="mt-1 text-xl">How today is going</CardTitle>
-                </div>
+            <CardHeader className="py-4">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-lg font-bold text-stone-900 font-sans">
+                  {format(parseDateOnly(selectedDate), "EEEE, d MMM yyyy")}
+                </CardTitle>
                 <DatePickerDialog
                   value={selectedDate}
                   onChange={(value) => setSelectedDateOverride(value)}
@@ -428,7 +427,7 @@ export function DailyDashboard({
                       title="How deficit is calculated"
                       description={
                         <div className="space-y-2">
-                          <p>Your energy balance is calculated as **Total Out (TDEE)** minus **Total In (Intake)**.</p>
+                          <p>Your energy balance is calculated as **Quota (TDEE)** minus **In (Intake)**.</p>
                           <ul className="list-disc pl-4 space-y-1">
                             <li><strong>Deficit (Green)</strong>: You spent more energy than you consumed. Aligns with weight loss.</li>
                             <li><strong>Surplus (Amber)</strong>: You consumed more energy than you spent. Aligns with weight gain.</li>
@@ -449,7 +448,7 @@ export function DailyDashboard({
                     </p>
                   </div>
                   <div className="border-l border-stone-200/60 pl-4 text-left">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Out (TDEE)</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
                     <p className="mt-0.5 text-lg font-bold text-stone-800">
                       {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
                       <span className="text-xs font-normal text-stone-500">kcal</span>
@@ -538,16 +537,16 @@ export function DailyDashboard({
                   </div>
                 </section>
 
-                {/* Output Details Card */}
+                {/* Quota Details Card */}
                 <section className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 flex flex-col justify-between shadow-sm">
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold text-stone-900">Output Details</p>
+                        <p className="text-sm font-semibold text-stone-900">Quota Details</p>
                         <p className="mt-0.5 text-[11px] text-stone-500">Expenditure and metabolic breakdown.</p>
                       </div>
                       <InfoButton
-                        title="How output is calculated"
+                        title="How quota is calculated"
                         description={
                           <>
                             <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
