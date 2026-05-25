@@ -219,6 +219,16 @@ function Entries2MetricIcon({ metric, size = 13 }: { metric: EntryTableMetric; s
   return <Activity size={size} />;
 }
 
+function getEntries2MetricShortLabel(metric: EntryTableMetric) {
+  if (metric === "calories") return "Kcal";
+  if (metric === "water") return "Water";
+  if (metric === "protein") return "Prot";
+  if (metric === "fat") return "Fat";
+  if (metric === "carbs") return "Carb";
+  if (metric === "alcohol") return "Alc";
+  return "Ex";
+}
+
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -865,7 +875,8 @@ export function DailyDashboard({
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               <fieldset>
                 <legend className="sr-only">Entries 2 measurement selector</legend>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="-mx-1 overflow-x-auto pb-1">
+                  <div className="flex min-w-max gap-1.5 px-1">
                   {entries2Metrics.map((metric) => (
                     <label key={metric.key} className="cursor-pointer">
                       <input
@@ -878,17 +889,18 @@ export function DailyDashboard({
                       />
                       <span
                         className={cn(
-                          "inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold transition",
+                          "inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold transition",
                           entries2Metric === metric.key
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-stone-200 bg-white text-stone-500 hover:bg-stone-50 hover:text-stone-800",
                         )}
                       >
-                        <Entries2MetricIcon metric={metric.key} />
-                        {metric.label}
+                        <Entries2MetricIcon metric={metric.key} size={12} />
+                        {getEntries2MetricShortLabel(metric.key)}
                       </span>
                     </label>
                   ))}
+                  </div>
                 </div>
               </fieldset>
 
@@ -903,11 +915,15 @@ export function DailyDashboard({
                 <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white text-sm">
                   <div
                     className="grid items-center gap-x-2 bg-stone-50/80 px-2 py-2 text-[11px] uppercase tracking-wide text-stone-500"
-                    style={{ gridTemplateColumns: "3rem minmax(0,1fr) fit-content(5.5rem)" }}
+                    style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) fit-content(5rem)" }}
                   >
                     <div className="font-semibold">Time</div>
                     <div className="font-semibold">Item</div>
-                    <div className="text-right font-semibold">{selectedEntries2Metric.label}</div>
+                    <div className="flex justify-end">
+                      <span className="inline-flex text-stone-500">
+                        <Entries2MetricIcon metric={entries2Metric} size={13} />
+                      </span>
+                    </div>
                   </div>
                   {entries2Rows.map((row) => {
                     const measurement = row.measurements[entries2Metric];
@@ -915,7 +931,7 @@ export function DailyDashboard({
                       <div
                         key={row.id}
                         className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
-                        style={{ gridTemplateColumns: "3rem minmax(0,1fr) fit-content(5.5rem)" }}
+                        style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) fit-content(5rem)" }}
                       >
                         <div className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
                           {row.time}
