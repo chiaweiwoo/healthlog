@@ -657,9 +657,8 @@ export function DailyDashboard({
                       </span>
                       {entry.parse_status !== "failed" && (
                         <FullTextDialog
-                          title="Raw note"
+                          title="Raw Note"
                           text={entry.raw_note}
-                          description="This is the original note that was saved before HealthLog structured it."
                           trigger={
                             <button
                               type="button"
