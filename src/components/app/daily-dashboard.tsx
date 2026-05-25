@@ -434,7 +434,7 @@ export function DailyDashboard({
                       description={
                         <>
                           <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
-                          <p>Baseline activity comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
+                          <p>NEAT comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
                           <p>TEF uses a macro-based estimate:</p>
                           <ul className="list-disc space-y-1 pl-4">
                             <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
@@ -459,9 +459,9 @@ export function DailyDashboard({
                   />
                   <MetricRow
                     icon={<Sparkles size={16} />}
-                    label="Baseline activity"
+                    label="NEAT"
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
-                    info="Baseline activity is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
+                    info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
                   />
                   <MetricRow
@@ -740,7 +740,9 @@ function MetricRow({
     <div className="border-b border-stone-200 px-3 py-2.5 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-stone-500">{icon}</span>
+          <InfoButton className="h-6 w-6 text-stone-500 hover:bg-stone-100 hover:text-stone-700" title={label} description={<p>{info}</p>}>
+            {icon}
+          </InfoButton>
           <div className="min-w-0">
             <p className={`text-sm text-stone-900 ${strong ? "font-semibold" : "font-medium"}`}>{label}</p>
             {caption ? <p className="mt-0.5 text-xs text-stone-500">{caption}</p> : null}
@@ -749,7 +751,6 @@ function MetricRow({
         <div className="flex shrink-0 items-center gap-2">
           {percent != null ? <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-500">{percent}%</span> : null}
           <p className={`text-sm text-stone-900 ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
-          <InfoButton title={label} description={<p>{info}</p>} />
         </div>
       </div>
       {percent != null ? (
