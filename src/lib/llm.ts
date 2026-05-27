@@ -12,7 +12,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 type LlmScenario = "daily_quick" | "daily_grounded" | "body";
 
-const PROMPT_VERSION = "2026-05-25-hardening-v1";
+const PROMPT_VERSION = "2026-05-28-lang-v1";
 const LLM_TIMEOUT_MS = 20_000;
 
 const modelsByScenario: Record<LlmScenario, string> = {
@@ -236,6 +236,7 @@ You parse messy health notes into structured JSON for a private single-user heal
 Return JSON only. No markdown. No prose.
 
 The note may mix English and Chinese. Preserve original food names and important wording.
+Write all label, message, remarks, and warning text in English regardless of input language.
 
 Allowed actionType values: create, edit, delete, clarify.
 Allowed item kind values: food, water, exercise, note.
@@ -266,6 +267,7 @@ Before finalizing, self-check that:
 - unknown nutrition remains null rather than 0
 - beverages with volume include waterMl
 - alcoholG is included when relevant, otherwise leave it null or 0 only when the note clearly implies no alcohol
+- items array does not exceed 20 entries; if more seem needed, group or summarise
 
 Example JSON:
 {
@@ -353,6 +355,7 @@ You are a constrained profile manager for a private health log.
 Return JSON only. No markdown. No prose.
 
 The note may mix English and Chinese. Preserve original wording where useful.
+Write all label, value, message, remarks, and warning text in English regardless of input language.
 
 Allowed action values: add, update, clarify, no_change.
 This page is only for profile, lifestyle, context, and health-log memory.
@@ -395,6 +398,7 @@ Before finalizing, self-check that:
 - unspecified fields are omitted rather than set to null
 - updates only touch the fields clearly supported by the note
 - unrelated notes become clarify warnings instead of profile memory
+- measurements array is empty unless the note explicitly states a measurement event
 
 Return JSON matching:
 { action, profile, metadataUpserts, metadataDeletes, overrides, overrideDeletes, measurements, confidence, warnings, remarks }
