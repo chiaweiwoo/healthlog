@@ -439,30 +439,43 @@ export function DailyDashboard({
               </button>
             }
           />
-          {/* Prominent metric */}
-          <p className={`mt-3 text-xl font-bold tracking-tight ${getDeficitTextColor(summary)}`}>
-            {getDeficitDisplayTitle(summary)}
-          </p>
+          <div className="space-y-2 pt-4">
+            <div className="flex justify-between items-baseline gap-3 border-t border-stone-200/40 pt-4">
+              <p className="text-sm font-semibold text-stone-800">
+                {summary ? `${summary.calories.toLocaleString()}` : "0"}{" "}
+                <span className="text-xs font-normal text-stone-500">kcal</span>
+              </p>
+              <p className="text-xs font-medium text-stone-400">
+                {summary?.tdee != null
+                  ? `${Math.min(Math.round((summary.calories / summary.tdee) * 100), 100)}% of ${summary.tdee.toLocaleString()} kcal`
+                  : "Quota unavailable"}
+              </p>
+            </div>
+            <p className={`text-sm font-bold ${getDeficitTextColor(summary)}`}>
+              {getDeficitDisplayTitle(summary)}
+            </p>
+          </div>
 
-          {/* In / Quota row */}
+          {summary !== null && false ? (
           <div className="mt-4 flex items-end gap-4 border-t border-stone-200/40 pt-4">
             <div className="flex flex-1 gap-4">
               <div className="text-left">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In (Intake)</span>
                 <p className="mt-0.5 text-lg font-bold text-stone-800">
-                  {summary ? `${summary.calories}` : "0"}{" "}
+                  {summary?.calories ?? 0}{" "}
                   <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
                 </p>
               </div>
               <div className="border-l border-stone-200/40 pl-4 text-left">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Quota (TDEE)</span>
                 <p className="mt-0.5 text-lg font-bold text-stone-800">
-                  {summary?.tdee != null ? `${summary.tdee}` : "—"}{" "}
+                  {summary?.tdee != null ? `${summary?.tdee}` : "â€”"}{" "}
                   <span className="text-xs font-normal text-stone-500 font-sans">kcal</span>
                 </p>
               </div>
             </div>
           </div>
+          ) : null}
 
           {/* Intake vs quota bar */}
           {summary?.tdee != null && summary.tdee > 0 && (
@@ -836,7 +849,7 @@ export function DailyDashboard({
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
                     label="TDEE"
-                    value={summary?.tdee != null ? `${summary.tdee} kcal` : "Profile needed"}
+                    value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
                     info="Total Daily Energy Expenditure is the app's estimate of your daily energy out."
                     strong
                   />
