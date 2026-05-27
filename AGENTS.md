@@ -229,6 +229,7 @@ Migration lives in `supabase/migrations`.
 ## Testing
 
 ```bash
+npm run check:schema
 npm run lint
 npm run typecheck
 npm test
@@ -255,6 +256,8 @@ CI should run lint, typecheck, tests, and production build.
   instead of surfacing it as a total save failure.
 - If `app_request_logs` is missing, treat that as a production deployment bug.
   Fall back to Supabase API/Postgres logs until the table is repaired.
+- Use `npm run check:schema` after schema-dependent changes or when production
+  request IDs suggest the live DB shape may not match the repo assumptions.
 - When resetting profile state for testing, back up the current `profile` row first, then clear only `profile`, `body_notes`, `body_measurements`, and `analysis_reports`. Do not clear `daily_entries`, `daily_summaries`, `app_request_logs`, or `llm_runs`.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
@@ -265,6 +268,13 @@ CI should run lint, typecheck, tests, and production build.
 - After adding a new table or column that app code depends on, verify the live
   project has it and reload the PostgREST schema cache before assuming writes
   will succeed.
+- The 7-day analysis script reviews the 7 calendar days before the current local
+  day, not including "today".
+- In the current analysis script, "complete days" means days with active parsed
+  entries. That is a logging coverage heuristic, not a guarantee of fully
+  complete daily intake/output capture.
+- The 7-day analysis script must force low confidence when fewer than 4 such
+  days are present in the target window.
 - When changing prompt contracts, update the normalizers and tests in the same pass
 - When the user is iterating on shipped UI tweaks and asks for changes in this repo, default to committing and pushing at the end of each completed pass unless they explicitly ask to keep it local. Do not repeatedly stop at "not pushed yet" for these small follow-up refinements.
 - Do NOT verify or poll Vercel deployment status after pushing to GitHub. Running Vercel CLI checks or waiting for builds consumes excessive context tokens and time. Simply verify the local build compiles cleanly, push changes, and let Vercel handle automatic deployment.
