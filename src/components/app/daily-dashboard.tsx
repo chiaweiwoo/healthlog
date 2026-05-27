@@ -188,11 +188,28 @@ const MEASUREMENT_LABELS = {
   exercise: "Exercise",
 } as const;
 
-function QuotaLabel({ short, full }: { short: string; full: string }) {
+function QuotaLabel({
+  short,
+  full,
+  infoTitle,
+  info,
+}: {
+  short: string;
+  full: string;
+  infoTitle: string;
+  info: React.ReactNode;
+}) {
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-      <span className="font-semibold text-stone-800">{short}</span>
-      <span className="text-xs font-medium text-stone-400">{full}</span>
+    <span className="inline-flex flex-col items-start gap-0.5">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="font-semibold text-stone-800">{short}</span>
+        <InfoButton
+          title={infoTitle}
+          description={info}
+          className="h-4 w-4 rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+        />
+      </span>
+      <span className="text-[11px] font-medium leading-tight text-stone-400">{full}</span>
     </span>
   );
 }
@@ -827,49 +844,94 @@ export function DailyDashboard({
               <section className="space-y-3">
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
-                    label={<QuotaLabel short="TDEE" full="Total Daily Energy Expenditure" />}
-                    value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
-                    infoTitle="About TDEE"
-                    info={
-                      <>
-                        <p>TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.</p>
-                        <p>It is an estimate of your daily energy out, not a precise measurement.</p>
-                      </>
+                    label={
+                      <QuotaLabel
+                        short="TDEE"
+                        full="Total Daily Energy Expenditure"
+                        infoTitle="About TDEE"
+                        info={
+                          <>
+                            <p>TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.</p>
+                            <p>Think of it as your estimated daily calories out, not a precise measurement.</p>
+                          </>
+                        }
+                      />
                     }
+                    value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
                     strong
                   />
                   <MetricRow
-                    label={<QuotaLabel short="BMR" full="Basal Metabolic Rate" />}
+                    label={
+                      <QuotaLabel
+                        short="BMR"
+                        full="Basal Metabolic Rate"
+                        infoTitle="About BMR"
+                        info={
+                          <>
+                            <p>BMR is the calories your body uses at rest to keep basic functions running.</p>
+                            <p>Examples: breathing, circulation, body temperature, and organ function.</p>
+                          </>
+                        }
+                      />
+                    }
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
-                    infoTitle="About BMR"
-                    info={<p>Basal Metabolic Rate is the calories your body uses at rest.</p>}
                     percent={getPercent(output.bmr, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label={<QuotaLabel short="NEAT" full="Non-Exercise Activity Thermogenesis" />}
+                    label={
+                      <QuotaLabel
+                        short="NEAT"
+                        full="Non-Exercise Activity Thermogenesis"
+                        infoTitle="About NEAT"
+                        info={
+                          <>
+                            <p>NEAT covers everyday movement outside formal exercise.</p>
+                            <p>Examples: walking around, standing, chores, errands, and moving at work.</p>
+                          </>
+                        }
+                      />
+                    }
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
-                    infoTitle="About NEAT"
-                    info={<p>NEAT is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise.</p>}
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label={<QuotaLabel short="TEF" full="Thermic Effect of Food" />}
+                    label={
+                      <QuotaLabel
+                        short="TEF"
+                        full="Thermic Effect of Food"
+                        infoTitle="About TEF"
+                        info={
+                          <>
+                            <p>TEF is the energy your body uses to digest and process food.</p>
+                            <p>Examples: chewing, digestion, absorption, and nutrient processing after meals.</p>
+                          </>
+                        }
+                      />
+                    }
                     value={`${output.tefCalories} kcal`}
-                    infoTitle="About TEF"
-                    info={<p>TEF is estimated dynamically from today&apos;s protein, carbs, fat, and alcohol intake.</p>}
                     percent={getPercent(output.tefCalories, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label={<QuotaLabel short="EAT" full="Exercise Activity Thermogenesis" />}
+                    label={
+                      <QuotaLabel
+                        short="EAT"
+                        full="Exercise Activity Thermogenesis"
+                        infoTitle="About EAT"
+                        info={
+                          <>
+                            <p>EAT is the calories burned from exercise you explicitly log.</p>
+                            <p>Examples: walking sessions, runs, gym workouts, cycling, or sports.</p>
+                          </>
+                        }
+                      />
+                    }
                     value={`${summary?.exercise_calories ?? 0} kcal`}
-                    infoTitle="About EAT"
-                    info={<p>EAT comes from your explicitly logged exercise entries.</p>}
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
