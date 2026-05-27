@@ -55,13 +55,12 @@ export async function POST(request: NextRequest) {
     if (!rawNote) return Response.json({ error: "Note is required." }, { status: 400 });
 
     let entry = await createPendingDailyEntry(date, rawNote);
-    const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(date)]);
+    const profile = await getProfile();
     try {
       const parsed = await parseDailyNote({
         note: rawNote,
         date,
         profile,
-        activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
       });
       entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: date, clientToday });
     } catch (parseError) {
@@ -162,13 +161,12 @@ export async function PATCH(request: NextRequest) {
     const effectiveClientToday = clientToday ?? entry.entry_date;
 
     if (typeof body.rawNote === "string" && body.rawNote.trim()) {
-      const [profile, activeEntries] = await Promise.all([getProfile(), listDailyEntries(entry.entry_date)]);
+      const profile = await getProfile();
       try {
         const parsed = await parseDailyNote({
           note: body.rawNote.trim(),
           date: entry.entry_date,
           profile,
-          activeEntries: activeEntries.filter((candidate) => candidate.is_active && candidate.id !== entry.id),
         });
         entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: entry.entry_date, clientToday: effectiveClientToday });
       } catch (parseError) {

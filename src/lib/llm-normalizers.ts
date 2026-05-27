@@ -54,10 +54,10 @@ function withInvalidTimeWarning<T extends { warnings: Array<{ code: string; mess
 function normalizeActionType(value: unknown) {
   if (typeof value !== "string") return "create";
   const normalized = value.toLowerCase().trim();
-  if (["create", "edit", "delete", "clarify"].includes(normalized)) return normalized;
+  if (["create", "clarify"].includes(normalized)) return normalized;
+  // Map removed values gracefully so old data still loads
+  if (["edit", "update", "updated", "change", "changed", "delete", "remove", "removed"].includes(normalized)) return "create";
   if (["eat", "drink", "exercise", "log", "record", "add"].includes(normalized)) return "create";
-  if (["remove", "removed"].includes(normalized)) return "delete";
-  if (["update", "updated", "change", "changed"].includes(normalized)) return "edit";
   return "create";
 }
 

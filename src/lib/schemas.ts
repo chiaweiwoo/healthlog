@@ -47,7 +47,7 @@ export const adminAlertSchema = z.object({
 
 export const dailyParseResultSchema = z.object({
   occurredTime: timeSchema.optional(),
-  actionType: z.enum(["create", "edit", "delete", "clarify"]).default("create"),
+  actionType: z.enum(["create", "clarify"]).default("create"),
   items: z.array(parsedDailyItemSchema),
   confidence: z.number().min(0).max(1),
   warnings: z.array(warningSchema).default([]),

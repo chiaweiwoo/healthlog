@@ -233,7 +233,6 @@ export async function parseDailyNote(input: {
   note: string;
   date: string;
   profile: Profile | null;
-  activeEntries: Array<{ id: string; raw_note: string; parsed_items: unknown[]; parse_status?: string }>;
 }) {
   const scenario: LlmScenario = needsGrounding(input.note) ? "daily_grounded" : "daily_quick";
   const prompt = `
@@ -244,7 +243,7 @@ Return JSON only. No markdown. No prose.
 The note may mix English and Chinese. Preserve original food names and important wording.
 Write all label, message, remarks, and warning text in English regardless of input language.
 
-Allowed actionType values: create, edit, delete, clarify.
+Allowed actionType values: create, clarify.
 Allowed item kind values: food, water, exercise, note.
 Use occurredTime only as HH:MM when the note gives a specific time. Otherwise omit it.
 
@@ -351,29 +350,6 @@ Selected date: ${input.date}
 
 Profile: ${JSON.stringify(input.profile ?? {})}
 
-Current active entries: ${JSON.stringify(
-    input.activeEntries.map((entry) => ({
-      id: entry.id,
-      rawNote: entry.raw_note,
-      parsedItems: Array.isArray(entry.parsed_items)
-        ? (entry.parsed_items as Array<{
-            kind?: string;
-            label?: string;
-            occurredTime?: string;
-            nutrition?: Record<string, unknown> | null;
-            waterMl?: number | null;
-          }>).map((item) => ({
-            kind: item?.kind,
-            label: item?.label,
-            occurredTime: item?.occurredTime,
-            nutrition: item?.nutrition,
-            waterMl: item?.waterMl,
-          }))
-        : [],
-      parseStatus: entry.parse_status ?? "parsed",
-    })),
-  )}
-
 New note: ${input.note}
   `.trim();
 
@@ -383,7 +359,6 @@ New note: ${input.note}
     requestSummary: {
       date: input.date,
       note: input.note,
-      activeEntryCount: input.activeEntries.length,
       hasProfile: Boolean(input.profile),
     },
     normalizer: normalizeDailyResult,

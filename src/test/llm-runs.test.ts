@@ -57,7 +57,6 @@ describe("llm_runs logging", () => {
       note: "chicken rice",
       date: "2026-05-25",
       profile: null,
-      activeEntries: [],
     });
 
     expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ success: true, scenario: "daily_quick" }));
@@ -75,7 +74,6 @@ describe("llm_runs logging", () => {
         note: "oops",
         date: "2026-05-25",
         profile: null,
-        activeEntries: [],
       }),
     ).rejects.toThrow();
 
