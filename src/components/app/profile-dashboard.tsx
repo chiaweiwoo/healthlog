@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertCircle, Brain, CheckCircle2, MessageCircle, UserRound } from "lucide-react";
+import { AlertCircle, Brain, CheckCircle2, MapPin, MessageCircle, UserRound } from "lucide-react";
 import { useState } from "react";
 import { InfoButton } from "@/components/app/info-button";
 import { ProfileManagerSheet } from "@/components/app/profile-manager-sheet";
+import { DEFAULT_COUNTRY } from "@/lib/config";
 import {
   deriveBmr,
   deriveNeat,
@@ -153,6 +154,8 @@ export function ProfileDashboard({
           />
 
           <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+            <LocationRow country={profile?.country ?? DEFAULT_COUNTRY} city={profile?.city ?? null} />
+            <div className="border-t border-stone-100" />
             <GoalRow value={profile?.goal?.trim() ? profile.goal : null} />
           </div>
 
@@ -255,6 +258,31 @@ function DerivedValueRow({
         <p className="break-words text-sm font-semibold text-stone-900">{value}</p>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-stone-400">{caption}</p>
+    </div>
+  );
+}
+
+function LocationRow({ country, city }: { country: string; city: string | null }) {
+  const isDefault = country === DEFAULT_COUNTRY && city === null;
+  const displayValue = city ? `${city}, ${country}` : country;
+
+  return (
+    <div className="px-3 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <MapPin size={13} className="shrink-0 text-stone-400" />
+          <p className="text-sm font-medium text-stone-700">Location</p>
+        </div>
+        <p className={`break-words text-sm ${isDefault ? "text-stone-400" : "font-semibold text-stone-900"}`}>
+          {displayValue}
+          {isDefault ? <span className="italic"> (default)</span> : null}
+        </p>
+      </div>
+      {isDefault ? (
+        <p className="mt-1.5 text-xs leading-relaxed text-stone-400">
+          Defaulting to {DEFAULT_COUNTRY}. Tell the assistant if you live elsewhere — e.g. &ldquo;I&rsquo;m based in Tokyo&rdquo;.
+        </p>
+      ) : null}
     </div>
   );
 }
