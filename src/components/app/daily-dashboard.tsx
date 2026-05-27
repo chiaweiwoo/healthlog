@@ -19,7 +19,7 @@ import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { atwaterFactors, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
+import { atwaterFactors, getOutputBreakdown } from "@/lib/calculations";
 import {
   flattenEntriesForTable,
   formatEntryTableMetricValue,
@@ -175,17 +175,6 @@ function formatCompactTableValue(value: number | null) {
   if (value === null || value === 0) return "";
   return Number.isInteger(value) ? String(value) : String(Math.round(value * 10) / 10);
 }
-
-const ENERGY_TAB_COPY = {
-  intake: {
-    title: "Calories Intake",
-    body: "Uses Atwater factors from known macros. Water still counts from pure water entries and calorie-bearing drinks that include liquid volume.",
-  },
-  quota: {
-    title: "Calories Quota",
-    body: "TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.",
-  },
-} as const;
 
 type EnergyDetailsTab = "intake" | "quota";
 
@@ -563,7 +552,7 @@ export function DailyDashboard({
 
             <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               {entries2Rows.length ? (
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white text-sm">
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white text-[13px]">
                   <div
                     className="grid items-center gap-x-2 bg-stone-50/80 px-2 py-2 text-[11px] uppercase tracking-wide text-stone-500"
                     style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) minmax(0,3.35rem) minmax(0,3.35rem)" }}
@@ -585,10 +574,10 @@ export function DailyDashboard({
                     return (
                       <div
                         key={row.id}
-                        className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
+                        className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-1.5 first:border-t-0"
                         style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) minmax(0,3.35rem) minmax(0,3.35rem)" }}
                       >
-                        <div className="pt-0.5 text-[12px] font-medium tabular-nums text-stone-500">
+                        <div className="pt-0.5 text-[11px] font-medium tabular-nums text-stone-500">
                           {row.time}
                         </div>
                         <div className="min-w-0 overflow-hidden">
@@ -596,7 +585,7 @@ export function DailyDashboard({
                             title="Item"
                             text={row.label}
                             className="block min-w-0 max-w-full"
-                            previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-stone-900"
+                            previewClassName="block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium text-stone-900"
                           >
                             <div className="space-y-3">
                               {visibleMeasurements.length ? (
@@ -659,10 +648,10 @@ export function DailyDashboard({
                             </div>
                           </FullTextDialog>
                         </div>
-                        <div className="pt-0.5 text-right text-[13px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
+                        <div className="pt-0.5 text-right text-[12px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
                           {formatCompactTableValue(row.caloriesDisplayValue.value)}
                         </div>
-                        <div className="pt-0.5 text-right text-[13px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
+                        <div className="pt-0.5 text-right text-[12px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
                           {formatCompactTableValue(row.waterDisplayValue.value)}
                         </div>
                       </div>
@@ -785,104 +774,93 @@ export function DailyDashboard({
 
             {energyDetailsTab === "intake" ? (
               <section className="space-y-3">
-                <div className="rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2.5">
-                  <p className="text-sm font-semibold text-stone-900">{ENERGY_TAB_COPY.intake.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{ENERGY_TAB_COPY.intake.body}</p>
-                  <p className="mt-2 text-xs text-stone-500">
-                    Protein {atwaterFactors.protein} kcal/g, fat {atwaterFactors.fat} kcal/g, carbs {atwaterFactors.carbs} kcal/g, alcohol {atwaterFactors.alcohol} kcal/g.
-                  </p>
-                </div>
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
                     label="Calories"
                     value={`${summary?.calories ?? 0} kcal`}
-                    info="Intake calories are the known total from food and drinks."
                     caption={summary?.breakdown.meta?.caloriesIncomplete ? "Incomplete data - more entries may change this" : undefined}
                   />
                   <MetricRow
                     label="Protein"
                     value={`${summary?.protein_g ?? 0} g`}
-                    info="Protein contributes 4 kcal per gram and also drives a higher thermic effect."
                     detail={`${intakeBreakdown.proteinCalories} kcal`}
                     percent={getPercent(intakeBreakdown.proteinCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-amber-400"
+                    progressStyle="bg-orange-300"
                     subordinate
                   />
                   <MetricRow
                     label="Fat"
                     value={`${summary?.fat_g ?? 0} g`}
-                    info="Fat contributes 9 kcal per gram and a smaller thermic effect."
                     detail={`${intakeBreakdown.fatCalories} kcal`}
                     percent={getPercent(intakeBreakdown.fatCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-amber-400"
+                    progressStyle="bg-orange-300"
                     subordinate
                   />
                   <MetricRow
                     label="Carbs"
                     value={`${summary?.carbs_g ?? 0} g`}
-                    info="Carbohydrates contribute 4 kcal per gram."
                     detail={`${intakeBreakdown.carbsCalories} kcal`}
                     percent={getPercent(intakeBreakdown.carbsCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-amber-400"
+                    progressStyle="bg-orange-300"
                     subordinate
                   />
                   <MetricRow
                     label="Alcohol"
                     value={`${summary?.alcohol_g ?? 0} g`}
-                    info="Alcohol contributes 7 kcal per gram when present."
                     detail={`${intakeBreakdown.alcoholCalories} kcal`}
                     percent={getPercent(intakeBreakdown.alcoholCalories, intakeBreakdown.totalCalories)}
-                    progressStyle="bg-amber-400"
+                    progressStyle="bg-orange-300"
                     subordinate
                   />
                 </div>
               </section>
             ) : (
               <section className="space-y-3">
-                <div className="rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2.5">
-                  <p className="text-sm font-semibold text-stone-900">{ENERGY_TAB_COPY.quota.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{ENERGY_TAB_COPY.quota.body}</p>
-                  <p className="mt-2 text-xs text-stone-500">
-                    TEF rates: protein {Math.round(thermicEffectRates.protein * 100)}%, carbs {Math.round(thermicEffectRates.carbs * 100)}%, fat {Math.round(thermicEffectRates.fat * 100)}%, alcohol {Math.round(thermicEffectRates.alcohol * 100)}%.
-                  </p>
+                <div className="flex items-center gap-2 px-1 text-xs text-stone-500">
+                  <span className="font-medium text-stone-600">TDEE = Total Daily Energy Expenditure</span>
+                  <InfoButton
+                    title="About TDEE"
+                    description={
+                      <>
+                        <p>TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.</p>
+                        <p>It is an estimate of your daily energy out, not a precise measurement.</p>
+                      </>
+                    }
+                    className="h-5 w-5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+                  />
                 </div>
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
                     label="TDEE"
                     value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
-                    info="Total Daily Energy Expenditure is the app's estimate of your daily energy out."
                     strong
                   />
                   <MetricRow
                     label="BMR"
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
-                    info="Basal Metabolic Rate is the calories your body uses at rest."
                     percent={getPercent(output.bmr, output.totalTdee)}
-                    progressStyle="bg-indigo-400"
+                    progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
                     label="NEAT"
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
-                    info="Non-Exercise Activity Thermogenesis is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise."
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
-                    progressStyle="bg-indigo-400"
+                    progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
                     label="TEF"
                     value={`${output.tefCalories} kcal`}
-                    info="Thermic Effect of Food is estimated dynamically from today's protein, carbs, fat, and alcohol intake."
                     percent={getPercent(output.tefCalories, output.totalTdee)}
-                    progressStyle="bg-indigo-400"
+                    progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
                     label="EAT"
                     value={`${summary?.exercise_calories ?? 0} kcal`}
-                    info="Exercise Activity Thermogenesis comes from your explicitly logged exercise entries."
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
-                    progressStyle="bg-indigo-400"
+                    progressStyle="bg-emerald-300"
                     subordinate
                   />
                 </div>
@@ -944,7 +922,7 @@ function MetricRow({
 }: {
   label: string;
   value: string;
-  info: string;
+  info?: React.ReactNode;
   caption?: string;
   detail?: string;
   percent?: number | null;
@@ -957,15 +935,21 @@ function MetricRow({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className={`min-w-0 ${subordinate ? "pl-3" : ""}`}>
-            <InfoButton
-              className="inline-flex h-auto w-auto items-center bg-transparent p-0 text-left hover:bg-transparent justify-start rounded-none"
-              title={label}
-              description={<p>{info}</p>}
-            >
-              <span className={`text-sm select-none border-b border-dashed border-stone-300 hover:border-stone-500 cursor-pointer ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : "font-medium"}`}>
+            {info ? (
+              <InfoButton
+                className="inline-flex h-auto w-auto items-center justify-start rounded-none bg-transparent p-0 text-left hover:bg-transparent"
+                title={label}
+                description={info}
+              >
+                <span className={`cursor-pointer select-none border-b border-dashed border-stone-300 text-sm hover:border-stone-500 ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : "font-medium"}`}>
+                  {label}
+                </span>
+              </InfoButton>
+            ) : (
+              <span className={`text-sm ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : "font-medium"}`}>
                 {label}
               </span>
-            </InfoButton>
+            )}
             {caption ? <p className={`mt-0.5 text-xs ${subordinate ? "text-stone-400" : "text-stone-500"}`}>{caption}</p> : null}
           </div>
         </div>
