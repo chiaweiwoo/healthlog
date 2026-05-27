@@ -4,12 +4,11 @@ import { format } from "date-fns";
 import {
   BookOpen,
   ChartColumnIncreasing,
-  Droplets,
-  Zap,
   NotebookPen,
   Pencil,
   Trash2,
 } from "lucide-react";
+import { NUTRITION_CONFIG } from "@/components/app/nutrition-icons";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
@@ -435,8 +434,8 @@ export function DailyDashboard({
         {/* 1. CALORIES */}
         <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-5 shadow-sm transition-all duration-300">
           <SectionHeader
-            icon={<Zap size={18} className={energyIconColor} />}
-            iconBg="bg-amber-50/60"
+            icon={NUTRITION_CONFIG.calories.icon({ size: 18, className: energyIconColor })}
+            iconBg={NUTRITION_CONFIG.calories.bg}
             caption="DAILY ENERGY BALANCE"
             title="Energy Balance"
             action={
@@ -507,8 +506,8 @@ export function DailyDashboard({
         {/* 2. WATER */}
         <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-3 transition-all duration-300">
           <SectionHeader
-            icon={<Droplets size={18} className={hydrationIconColor} />}
-            iconBg="bg-sky-50/60"
+            icon={NUTRITION_CONFIG.waterMl.icon({ size: 18, className: hydrationIconColor })}
+            iconBg={NUTRITION_CONFIG.waterMl.bg}
             caption="DAILY HYDRATION"
             title="Water Intake"
           />
@@ -586,11 +585,11 @@ export function DailyDashboard({
                     <div className="font-semibold">Time</div>
                     <div className="font-semibold">Item</div>
                     <div className="flex items-center justify-end gap-1 text-stone-500">
-                      <Zap size={12} className="text-amber-500" />
+                      {NUTRITION_CONFIG.calories.icon({ size: 12, className: NUTRITION_CONFIG.calories.color })}
                       <span className="text-[10px] font-semibold normal-case tracking-normal">kcal</span>
                     </div>
                     <div className="flex items-center justify-end gap-1 text-stone-500">
-                      <Droplets size={12} />
+                      {NUTRITION_CONFIG.waterMl.icon({ size: 12, className: NUTRITION_CONFIG.waterMl.color })}
                       <span className="text-[10px] font-semibold normal-case tracking-normal">ml</span>
                     </div>
                   </div>

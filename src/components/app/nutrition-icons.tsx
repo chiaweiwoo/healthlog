@@ -2,7 +2,7 @@
 
 import { Droplets, Egg, Wine, Zap } from "lucide-react";
 
-type NutritionData = {
+export type NutritionData = {
   calories?: number | null;
   proteinG?: number | null;
   fatG?: number | null;
@@ -11,7 +11,7 @@ type NutritionData = {
   waterMl?: number | null;
 };
 
-export function AvocadoIcon({ size = 12 }: { size?: number }) {
+export function AvocadoIcon({ size = 12, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -22,6 +22,7 @@ export function AvocadoIcon({ size = 12 }: { size?: number }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={className}
     >
       <path d="M12 2C8.5 2 6 7 6 13a6 6 0 0 0 12 0c0-6-2.5-11-6-11z" />
       <circle cx="12" cy="14" r="2.5" fill="currentColor" />
@@ -29,7 +30,7 @@ export function AvocadoIcon({ size = 12 }: { size?: number }) {
   );
 }
 
-export function BreadIcon({ size = 12 }: { size?: number }) {
+export function BreadIcon({ size = 12, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -40,6 +41,7 @@ export function BreadIcon({ size = 12 }: { size?: number }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={className}
     >
       <path d="M7 21h10a2 2 0 0 0 2-2v-6a4 4 0 0 0-3-3.87 4 4 0 0 0-8 0A4 4 0 0 0 5 13v6a2 2 0 0 0 2 2z" />
       <path d="M9 12l2-2" />
@@ -48,18 +50,73 @@ export function BreadIcon({ size = 12 }: { size?: number }) {
   );
 }
 
-const MACROS: {
+export interface NutrientMetadata {
   key: keyof NutritionData;
-  icon: (props: { size?: number }) => React.ReactNode;
-  color: string;
+  label: string;
   unit: string;
-}[] = [
-  { key: "calories", icon: ({ size = 12 }) => <Zap size={size} />, color: "text-amber-500", unit: "kcal" },
-  { key: "proteinG", icon: ({ size = 12 }) => <Egg size={size} />, color: "text-indigo-400", unit: "g" },
-  { key: "fatG", icon: AvocadoIcon, color: "text-emerald-500", unit: "g" },
-  { key: "carbsG", icon: BreadIcon, color: "text-orange-400", unit: "g" },
-  { key: "alcoholG", icon: ({ size = 12 }) => <Wine size={size} />, color: "text-purple-400", unit: "g" },
-  { key: "waterMl", icon: ({ size = 12 }) => <Droplets size={size} />, color: "text-sky-400", unit: "ml" },
+  color: string;
+  bg: string;
+  icon: (props: { size?: number; className?: string }) => React.ReactNode;
+}
+
+export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
+  calories: {
+    key: "calories",
+    label: "Calories",
+    unit: "kcal",
+    color: "text-amber-500",
+    bg: "bg-amber-50/60",
+    icon: ({ size = 12, className }) => <Zap size={size} className={className} />,
+  },
+  proteinG: {
+    key: "proteinG",
+    label: "Protein",
+    unit: "g",
+    color: "text-indigo-400",
+    bg: "bg-indigo-50/60",
+    icon: ({ size = 12, className }) => <Egg size={size} className={className} />,
+  },
+  fatG: {
+    key: "fatG",
+    label: "Fat",
+    unit: "g",
+    color: "text-emerald-500",
+    bg: "bg-emerald-50/60",
+    icon: AvocadoIcon,
+  },
+  carbsG: {
+    key: "carbsG",
+    label: "Carbs",
+    unit: "g",
+    color: "text-orange-400",
+    bg: "bg-orange-50/60",
+    icon: BreadIcon,
+  },
+  alcoholG: {
+    key: "alcoholG",
+    label: "Alcohol",
+    unit: "g",
+    color: "text-purple-400",
+    bg: "bg-purple-50/60",
+    icon: ({ size = 12, className }) => <Wine size={size} className={className} />,
+  },
+  waterMl: {
+    key: "waterMl",
+    label: "Water",
+    unit: "ml",
+    color: "text-sky-400",
+    bg: "bg-sky-50/60",
+    icon: ({ size = 12, className }) => <Droplets size={size} className={className} />,
+  },
+};
+
+const MACROS = [
+  NUTRITION_CONFIG.calories,
+  NUTRITION_CONFIG.proteinG,
+  NUTRITION_CONFIG.fatG,
+  NUTRITION_CONFIG.carbsG,
+  NUTRITION_CONFIG.alcoholG,
+  NUTRITION_CONFIG.waterMl,
 ];
 
 export function NutritionIcons({

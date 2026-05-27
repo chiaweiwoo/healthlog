@@ -9,15 +9,11 @@ import {
   Target,
   Sparkles,
   Info,
-  Droplets,
-  Egg,
-  Wine,
-  Zap,
   UserCheck,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { NutritionIcons, AvocadoIcon, BreadIcon } from "@/components/app/nutrition-icons";
+import { NutritionIcons, NUTRITION_CONFIG } from "@/components/app/nutrition-icons";
 type EntryItem = {
   kind: "food" | "water" | "exercise" | "note";
   label: string;
@@ -192,10 +188,10 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
         {/* ENERGY CARD */}
         <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
           <SectionHeader
-            icon={<Zap size={18} className="text-amber-500" />}
+            icon={NUTRITION_CONFIG.calories.icon({ size: 18, className: NUTRITION_CONFIG.calories.color })}
             caption="Energy Balance"
             title="Calorie Outcomes"
-            iconBg="bg-amber-50"
+            iconBg={NUTRITION_CONFIG.calories.bg}
           />
 
           <div className="grid grid-cols-3 gap-3 text-center">
@@ -246,10 +242,10 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
         {/* NUTRITION & MACROS CARD */}
         <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
           <SectionHeader
-            icon={<Egg size={18} className="text-indigo-600" />}
+            icon={NUTRITION_CONFIG.proteinG.icon({ size: 18, className: NUTRITION_CONFIG.proteinG.color })}
             caption="Intake Composition"
             title="Macro Averages"
-            iconBg="bg-stone-100"
+            iconBg={NUTRITION_CONFIG.proteinG.bg}
           />
 
           <div className="space-y-3">
@@ -257,7 +253,9 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-indigo-400"><Egg size={12} /></span>
+                  <span className={NUTRITION_CONFIG.proteinG.color}>
+                    {NUTRITION_CONFIG.proteinG.icon({ size: 12 })}
+                  </span>
                   Protein
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageProteinG}g</span>
@@ -271,7 +269,9 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-emerald-500"><AvocadoIcon size={12} /></span>
+                  <span className={NUTRITION_CONFIG.fatG.color}>
+                    {NUTRITION_CONFIG.fatG.icon({ size: 12 })}
+                  </span>
                   Fat
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageFatG}g</span>
@@ -285,7 +285,9 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-orange-400"><BreadIcon size={12} /></span>
+                  <span className={NUTRITION_CONFIG.carbsG.color}>
+                    {NUTRITION_CONFIG.carbsG.icon({ size: 12 })}
+                  </span>
                   Carbs
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageCarbsG}g</span>
@@ -300,7 +302,9 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                    <span className="text-purple-400"><Wine size={12} /></span>
+                    <span className={NUTRITION_CONFIG.alcoholG.color}>
+                      {NUTRITION_CONFIG.alcoholG.icon({ size: 12 })}
+                    </span>
                     Alcohol
                   </span>
                   <span className="font-bold text-red-600">{stats.averageAlcoholG}g</span>
@@ -316,10 +320,10 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
         {/* HYDRATION & WATER CARD */}
         <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
           <SectionHeader
-            icon={<Droplets size={18} className="text-sky-600" />}
+            icon={NUTRITION_CONFIG.waterMl.icon({ size: 18, className: NUTRITION_CONFIG.waterMl.color })}
             caption="Hydration Balance"
             title="Hydration Intake"
-            iconBg="bg-sky-50"
+            iconBg={NUTRITION_CONFIG.waterMl.bg}
           />
 
           <div className="flex items-center justify-between">
