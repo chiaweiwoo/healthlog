@@ -230,6 +230,47 @@ function normalizeUsageMetadata(usageMetadata) {
   };
 }
 
+// Serialization Helpers for Token Efficiency
+function formatDateShort(dateStr) {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  } catch {
+    return dateStr;
+  }
+}
+
+function serializeFoodItem(item) {
+  const date = formatDateShort(item.date || (item.remarks && item.remarks.match(/Logged on ([\d-]+):/)?.[1]) || "");
+  const qty = item.quantity ? ` (${item.quantity})` : "";
+  const nut = item.nutrition || {};
+  const macros = [];
+  if (nut.proteinG) macros.push(`${nut.proteinG}g P`);
+  if (nut.fatG) macros.push(`${nut.fatG}g F`);
+  if (nut.carbsG) macros.push(`${nut.carbsG}g C`);
+  if (nut.alcoholG) macros.push(`${nut.alcoholG}g Alc`);
+  
+  const macroStr = macros.length > 0 ? ` (${macros.join(", ")})` : "";
+  const cals = nut.calories ? `${nut.calories} kcal` : "unknown cals";
+  const rawNote = item.remarks ? item.remarks.replace(/^Logged on [\d-]+: /, "") : "";
+  
+  return `- [${date}] ${item.label}${qty}: ${cals}${macroStr} - ${rawNote}`;
+}
+
+function serializeWaterItem(item) {
+  const date = formatDateShort(item.date || (item.remarks && item.remarks.match(/Logged on ([\d-]+):/)?.[1]) || "");
+  const vol = item.waterMl ? `${item.waterMl} ml` : "unknown ml";
+  const rawNote = item.remarks ? item.remarks.replace(/^Logged on [\d-]+: /, "") : "";
+  return `- [${date}] ${item.label}: +${vol} - ${rawNote}`;
+}
+
+function serializeExerciseItem(item) {
+  const date = formatDateShort(item.date || (item.remarks && item.remarks.match(/Logged on ([\d-]+):/)?.[1]) || "");
+  const cals = item.exerciseCalories ? `${item.exerciseCalories} kcal` : "unknown cals";
+  const rawNote = item.remarks ? item.remarks.replace(/^Logged on [\d-]+: /, "") : "";
+  return `- [${date}] ${item.label}: -${cals} - ${rawNote}`;
+}
+
 async function run() {
   try {
     const todayStr = getTodayString();
@@ -489,11 +530,16 @@ ${JSON.stringify(profileSummary, null, 2)}
 - Intake Stats: ${JSON.stringify(stats, null, 2)}
 
 === ANOMALIES & CONTRIBUTORS EVIDENCE ===
-- Top 5 Calorie Foods: ${JSON.stringify(topCalorieFoods, null, 2)}
-- Alcohol logs: ${JSON.stringify(alcoholContributors, null, 2)}
-- Hydration logs: ${JSON.stringify(waterContributors, null, 2)}
-- Exercise logs: ${JSON.stringify(exerciseContributors, null, 2)}
-- High-Calorie/Low-Protein Candidates (>300 kcal, <10g protein): ${JSON.stringify(highCalorieLowProteinCandidates, null, 2)}
+- Top Calorie Foods:
+${topCalorieFoods.map(serializeFoodItem).join("\n") || "None"}
+- Alcohol logs:
+${alcoholContributors.map(serializeFoodItem).join("\n") || "None"}
+- Hydration logs:
+${waterContributors.map(serializeWaterItem).join("\n") || "None"}
+- Exercise logs:
+${exerciseContributors.map(serializeExerciseItem).join("\n") || "None"}
+- High-Calorie/Low-Protein Candidates (>300 kcal, <10g protein):
+${highCalorieLowProteinCandidates.map(serializeFoodItem).join("\n") || "None"}
 
 === CRITICAL REQUIREMENT FOR LIMITED DATA ===
 - If the number of complete days is LESS THAN ${thresholdDays} (we have ${completeDaysCount} days), the overall data is highly limited.
