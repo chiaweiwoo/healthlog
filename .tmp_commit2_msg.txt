@@ -1,0 +1,5 @@
+perf(llm): slim daily and body prompts (~40-55% smaller)
+
+Compresses personalization, reasoning, and adminAlert blocks; tightens
+self-check; cuts body example JSONs from 5 to 2. Schema and inline rules
+already cover the omitted examples.
