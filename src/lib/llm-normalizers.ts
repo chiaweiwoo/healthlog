@@ -239,6 +239,10 @@ function buildSparseProfilePatch(profile: Record<string, unknown>) {
     patch.country = profile.country;
   }
 
+  if (hasOwn(profile, "city") && typeof profile.city === "string" && profile.city.trim()) {
+    patch.city = profile.city.trim();
+  }
+
   if (hasOwn(profile, "remarks")) {
     const remarks = normalizeRemarks(profile.remarks);
     if (remarks != null) patch.remarks = remarks;

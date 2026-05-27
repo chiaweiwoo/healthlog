@@ -6,6 +6,7 @@ import { Langfuse } from "langfuse";
 import { z, type ZodType } from "zod";
 import { getEnv, requireEnv } from "@/lib/env";
 import { extractJsonObject } from "@/lib/json";
+import { DEFAULT_COUNTRY } from "@/lib/config";
 import { normalizeBodyResult, normalizeDailyResult } from "@/lib/llm-normalizers";
 import { bodyParseResultSchema, dailyParseResultSchema, Profile } from "@/lib/schemas";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -275,7 +276,7 @@ Nutrition keys are:
 
 Water uses waterMl. For beverages/drinks (e.g., soy milk, milk, coffee, tea, soda, soup), even if their kind is classified as "food" (because they have calories), always estimate and include their liquid volume in "waterMl" (e.g., one cup = 250ml, one can = 330ml) so they count towards daily liquid/water intake.
 Exercise uses exerciseCalories.
-Use Singapore food context by default unless the note clearly says otherwise.
+Use ${(input.profile?.country ?? DEFAULT_COUNTRY)}${input.profile?.city ? "/" + input.profile.city : ""} food context by default unless the note clearly says otherwise.
 If uncertain, keep the item visible, lower confidence, and add warnings with improveWith.
 
 Reasoning (always populate, never user-visible):
@@ -432,8 +433,13 @@ Profile can include:
 - activityLevel
 - goal
 - country
+- city
 - remarks
 - metadata
+
+Location facts (country, city) belong on profile.country and profile.city,
+NOT in metadataUpserts. Examples: "I'm based in Singapore" -> profile.country = "Singapore".
+"Just moved to Tokyo" -> profile.country = "Japan", profile.city = "Tokyo".
 
 metadataUpserts items can include:
 - id

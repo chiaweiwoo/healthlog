@@ -92,6 +92,7 @@ export const profileSchema = z.object({
   activityLevel: activityLevelSchema.nullable().optional(),
   goal: z.string().nullable().optional(),
   country: z.string().default("Singapore"),
+  city: z.string().nullable().optional(),
   remarks: z.string().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).default({}),
 });

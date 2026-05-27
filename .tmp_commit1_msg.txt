@@ -1,8 +1,0 @@
-refactor(llm): make daily parsing stateless, drop activeEntries payload
-
-- Daily calls are independent: each parse only sees the new note + profile.
-- Edits and deletes already flow through dedicated UI buttons (Pencil PATCH,
-  Trash DELETE) -- the LLM never needed to know existing entries.
-- Drop "edit" and "delete" from actionType enum; normalizer maps legacy
-  values to "create" so existing rows still load.
-- Removes ~300-2000 tokens per call depending on day's log density.

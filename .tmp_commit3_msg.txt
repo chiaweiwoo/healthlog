@@ -1,0 +1,10 @@
+feat(llm): dynamic country/city via DEFAULT_COUNTRY constant + profile
+
+- Centralize hardcoded "Singapore" in src/lib/config.ts (single source of truth)
+- Add optional city field to profileSchema
+- Both prompts use profile.country / profile.city dynamically, falling back
+  to DEFAULT_COUNTRY when unset
+- parseBodyNote learns to extract location facts into profile fields, not
+  metadata memory
+- Add city handling to buildSparseProfilePatch normalizer
+- Delete PROMPT_OPTIMIZATION_PLAN.md
