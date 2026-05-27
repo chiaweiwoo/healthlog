@@ -146,6 +146,23 @@ function normalizeMemoryCategory(value: unknown) {
   return "other";
 }
 
+function inferMemoryCategory(label: string | null, value: string | null, fallback: ReturnType<typeof normalizeMemoryCategory>) {
+  const text = `${label ?? ""} ${value ?? ""}`.toLowerCase();
+  if (/(medication|medicine|meds|supplement|vitamin|pill|tablet|injury|injured|pain|sprain|fracture|recovery|physio|allergy)/.test(text)) {
+    return "medical_context";
+  }
+  if (/(diet|food|meal|cuisine|vegetarian|vegan|halal|avoid|restriction)/.test(text)) {
+    return "diet";
+  }
+  if (/(exercise|workout|run|running|gym|training|sport|sports|mobility|stretch)/.test(text)) {
+    return "exercise_context";
+  }
+  if (/(sleep|shift|office|desk|commute|lifestyle|routine|work style|occupation)/.test(text)) {
+    return "lifestyle";
+  }
+  return fallback;
+}
+
 function getNutritionSource(source: Record<string, unknown>) {
   const candidate =
     (source.nutrition && typeof source.nutrition === "object" ? source.nutrition : null) ??
@@ -314,9 +331,10 @@ export function normalizeBodyResult(raw: unknown) {
                 ? source.text
                 : null;
         if (!label || !value) return null;
+        const fallbackCategory = normalizeMemoryCategory(source.category);
         return {
           id: typeof source.id === "string" ? source.id : `memory-${index + 1}`,
-          category: normalizeMemoryCategory(source.category),
+          category: inferMemoryCategory(label, value, fallbackCategory),
           label,
           value,
           sourceNoteId: typeof source.sourceNoteId === "string" ? source.sourceNoteId : undefined,

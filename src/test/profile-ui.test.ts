@@ -70,8 +70,67 @@ describe("profile-driven setup UI", () => {
 
     expect(html).toContain("Profile for Daily");
     expect(html).toContain("Profile knowledge");
-    expect(html).toContain("No context added yet.");
+    expect(html).toContain("No health context added yet.");
     expect(html).not.toContain("Recent profile notes");
+    expect(html).not.toContain("Latest body measurements");
+    expect((html.match(/>Missing</g) ?? []).length).toBe(5);
+    expect(html).not.toContain(">Missing</span>");
+  });
+
+  it("shows derived targets only when essentials are complete", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(ProfileDashboard, {
+        initialProfile: {
+          age: 35,
+          sex: "male",
+          heightCm: 175,
+          weightKg: 72,
+          activityLevel: "moderate",
+          goal: null,
+          country: "Singapore",
+          remarks: null,
+          metadata: {},
+        },
+        initialMeasurements: [],
+      }),
+    );
+
+    expect(html).toContain("Calculated targets");
+    expect(html).toContain("Water target");
+  });
+
+  it("groups medication and injury context into health-relevant sections", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(ProfileDashboard, {
+        initialProfile: {
+          goal: "Fat loss",
+          country: "Singapore",
+          remarks: null,
+          metadata: {
+            memory: [
+              {
+                id: "med-1",
+                category: "medical_context",
+                label: "Medication",
+                value: "Taking metformin daily.",
+                updatedAt: "2026-05-27T00:00:00.000Z",
+              },
+              {
+                id: "injury-1",
+                category: "medical_context",
+                label: "Injury limitation",
+                value: "Avoiding running due to ankle sprain.",
+                updatedAt: "2026-05-27T00:00:00.000Z",
+              },
+            ],
+          },
+        },
+        initialMeasurements: [],
+      }),
+    );
+
+    expect(html).toContain("Medication / Supplement");
+    expect(html).toContain("Injury / Limitation");
   });
 
   it("shows the analysis setup gate when the profile is incomplete", async () => {

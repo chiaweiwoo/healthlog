@@ -1,11 +1,18 @@
 "use client";
 
-import { Brain, ChevronDown, MessageCircle, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertCircle, Brain, CheckCircle2, MessageCircle, UserRound } from "lucide-react";
+import { useState } from "react";
 import { InfoButton } from "@/components/app/info-button";
 import { ProfileManagerSheet } from "@/components/app/profile-manager-sheet";
-import { deriveBmr, deriveNeat, deriveWaterTarget, formatStatusLabel, getProfileMemory } from "@/lib/profile-memory";
-import type { Profile, ProfileMemoryCategory, ProfileMemoryItem } from "@/lib/schemas";
+import {
+  deriveBmr,
+  deriveNeat,
+  deriveWaterTarget,
+  getMissingProfileEssentials,
+  getProfileMemory,
+  isProfileComplete,
+} from "@/lib/profile-memory";
+import type { Profile, ProfileMemoryItem } from "@/lib/schemas";
 
 type BodyMeasurement = {
   id: string;
@@ -18,11 +25,22 @@ type BodyMeasurement = {
   metadata: Record<string, unknown>;
 };
 
+type EssentialFieldRow = {
+  key: string;
+  label: string;
+  value: string | null;
+  caption?: string;
+};
+
 type DerivedRow = {
   label: string;
   value: string;
-  status: string;
   caption: string;
+};
+
+type MemorySection = {
+  heading: string;
+  items: ProfileMemoryItem[];
 };
 
 const activityLabels: Record<string, string> = {
@@ -33,16 +51,6 @@ const activityLabels: Record<string, string> = {
   very_active: "Physical day",
 };
 
-const memoryCategoryLabels: Record<ProfileMemoryCategory, string> = {
-  exercise_context: "Exercise context",
-  diet: "Diet / Food context",
-  food_context: "Diet / Food context",
-  medical_context: "Medical context",
-  lifestyle: "Lifestyle",
-  preference: "Preference",
-  other: "Other",
-};
-
 export function ProfileDashboard({
   initialProfile,
   initialMeasurements,
@@ -50,39 +58,25 @@ export function ProfileDashboard({
   initialProfile: Profile | null;
   initialMeasurements: BodyMeasurement[];
 }) {
+  void initialMeasurements;
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  const [measurements, setMeasurements] = useState<BodyMeasurement[]>(initialMeasurements);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [measurementsOpen, setMeasurementsOpen] = useState(false);
 
+  const profileComplete = isProfileComplete(profile);
+  const missingEssentialKeys = new Set(getMissingProfileEssentials(profile).map((item) => item.key));
   const waterTarget = deriveWaterTarget(profile);
   const bmr = deriveBmr(profile);
   const neat = deriveNeat(profile);
 
-  const essentialRows = [
+  const essentialRows: EssentialFieldRow[] = [
+    { key: "age", label: "Age", value: profile?.age ? String(profile.age) : null },
+    { key: "sex", label: "Sex", value: profile?.sex ? capitalize(profile.sex) : null },
+    { key: "heightCm", label: "Height", value: profile?.heightCm ? `${profile.heightCm} cm` : null },
+    { key: "weightKg", label: "Weight", value: profile?.weightKg ? `${profile.weightKg} kg` : null },
     {
-      label: "Age",
-      value: profile?.age ? String(profile.age) : "Missing",
-      caption: undefined,
-    },
-    {
-      label: "Sex",
-      value: profile?.sex ? capitalize(profile.sex) : "Missing",
-      caption: undefined,
-    },
-    {
-      label: "Height",
-      value: profile?.heightCm ? `${profile.heightCm} cm` : "Missing",
-      caption: undefined,
-    },
-    {
-      label: "Weight",
-      value: profile?.weightKg ? `${profile.weightKg} kg` : "Missing",
-      caption: undefined,
-    },
-    {
+      key: "activityLevel",
       label: "Baseline lifestyle",
-      value: profile?.activityLevel ? (activityLabels[profile.activityLevel] ?? profile.activityLevel) : "Missing",
+      value: profile?.activityLevel ? (activityLabels[profile.activityLevel] ?? profile.activityLevel) : null,
       caption: "Used for NEAT only, excluding explicitly logged exercise.",
     },
   ];
@@ -90,49 +84,22 @@ export function ProfileDashboard({
   const derivedRows: DerivedRow[] = [
     {
       label: "BMR",
-      value: bmr.value != null ? `${bmr.value} kcal` : "Missing",
-      status: formatStatusLabel(bmr.status),
+      value: bmr.value != null ? `${bmr.value} kcal` : "Unavailable",
       caption: bmr.reason,
     },
     {
       label: "NEAT",
-      value: neat.value != null ? `${neat.value} kcal` : "Missing",
-      status: formatStatusLabel(neat.status),
+      value: neat.value != null ? `${neat.value} kcal` : "Unavailable",
       caption: neat.reason,
     },
     {
       label: "Water target",
-      value: waterTarget.value != null ? `${waterTarget.value} ml/day` : "Missing",
-      status: formatStatusLabel(waterTarget.status),
+      value: waterTarget.value != null ? `${waterTarget.value} ml/day` : "Unavailable",
       caption: waterTarget.reason,
     },
   ];
 
-  const latestMeasurements = useMemo(() => {
-    const seen = new Set<string>();
-    const rows: BodyMeasurement[] = [];
-    for (const measurement of measurements) {
-      if (seen.has(measurement.type)) continue;
-      seen.add(measurement.type);
-      rows.push(measurement);
-    }
-    return rows;
-  }, [measurements]);
-
-  const groupedMemory = useMemo(() => {
-    const memory = getProfileMemory(profile);
-    const groups = new Map<string, ProfileMemoryItem[]>();
-    for (const item of memory) {
-      const label = memoryCategoryLabels[item.category];
-      const list = groups.get(label) ?? [];
-      list.push(item);
-      groups.set(label, list);
-    }
-
-    return Array.from(groups.entries())
-      .map(([label, items]) => [label, items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))] as const)
-      .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [profile]);
+  const memorySections = buildMemorySections(getProfileMemory(profile));
 
   return (
     <main className="mx-auto max-w-2xl px-3 py-4 pb-28 sm:px-4 sm:py-6">
@@ -146,67 +113,35 @@ export function ProfileDashboard({
             action={
               <InfoButton
                 title="Why this matters"
-                description="Daily needs these basics to estimate BMR, water target, energy output, and analysis quality."
+                description="Daily needs your basics to estimate calorie output, hydration target, and analysis quality."
               />
             }
           />
 
-          <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+          <div className="mt-4 space-y-2">
             {essentialRows.map((row) => (
-              <ProfileRow
-                key={row.label}
+              <EssentialChecklistRow
+                key={row.key}
                 label={row.label}
                 value={row.value}
-                status={row.value === "Missing" ? "Missing" : "Provided"}
                 caption={row.caption}
+                missing={missingEssentialKeys.has(row.key as never)}
               />
             ))}
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            {derivedRows.map((row) => (
-              <ProfileRow key={row.label} label={row.label} value={row.value} status={row.status} caption={row.caption} />
-            ))}
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            <button
-              type="button"
-              onClick={() => setMeasurementsOpen((current) => !current)}
-              className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
-              aria-expanded={measurementsOpen}
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-stone-900">Latest body measurements</p>
-                <p className="mt-0.5 text-xs text-stone-400">
-                  {latestMeasurements.length
-                    ? "Newest value for each measurement type."
-                    : "No body measurements saved yet."}
-                </p>
+          {profileComplete ? (
+            <div className="mt-5 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+              <div className="border-b border-stone-200 px-3 py-2.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Calculated targets</p>
               </div>
-              <ChevronDown
-                size={16}
-                className={`shrink-0 text-stone-400 transition-transform ${measurementsOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {measurementsOpen ? (
-              latestMeasurements.length ? (
-                <div className="border-t border-stone-200">
-                  {latestMeasurements.map((measurement) => (
-                    <ProfileRow
-                      key={measurement.id}
-                      label={formatMeasurementType(measurement.type)}
-                      value={`${measurement.value} ${measurement.unit}`}
-                      status={formatMeasuredAt(measurement.measured_at)}
-                      caption={measurement.remarks ?? undefined}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="border-t border-stone-200 px-3 py-3 text-sm text-stone-500">No measurements yet.</div>
-              )
-            ) : null}
-          </div>
+              <div className="divide-y divide-stone-200">
+                {derivedRows.map((row) => (
+                  <DerivedValueRow key={row.label} label={row.label} value={row.value} caption={row.caption} />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm">
@@ -218,30 +153,21 @@ export function ProfileDashboard({
           />
 
           <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            <ProfileRow
-              label="Goal"
-              value={profile?.goal?.trim() ? profile.goal : "Not set"}
-              status={profile?.goal?.trim() ? "Provided" : "Optional"}
-            />
+            <GoalRow value={profile?.goal?.trim() ? profile.goal : null} />
           </div>
 
-          {groupedMemory.length ? (
+          {memorySections.length ? (
             <div className="mt-4 space-y-3">
-              {groupedMemory.map(([label, items]) => (
-                <section key={label} className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+              {memorySections.map((section) => (
+                <section key={section.heading} className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <div className="border-b border-stone-200 px-3 py-2">
-                    <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{label}</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{section.heading}</p>
                   </div>
                   <div className="divide-y divide-stone-200">
-                    {items.map((item) => (
-                      <div key={item.id} className="px-3 py-2.5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-stone-700">{item.label}</p>
-                            <p className="mt-0.5 break-words text-sm font-semibold text-stone-900">{item.value}</p>
-                          </div>
-                          <span className="shrink-0 text-[11px] text-stone-400">{formatShortDate(item.updatedAt)}</span>
-                        </div>
+                    {section.items.map((item) => (
+                      <div key={item.id} className="px-3 py-3">
+                        <p className="text-sm font-medium text-stone-700">{item.label}</p>
+                        <p className="mt-1 break-words text-sm text-stone-900">{item.value}</p>
                       </div>
                     ))}
                   </div>
@@ -249,8 +175,8 @@ export function ProfileDashboard({
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-lg border border-dashed border-stone-200 bg-white/70 px-4 py-5 text-sm text-stone-500">
-              No context added yet. Tap the chat button to add goals, habits, dietary preferences, or lifestyle context.
+            <div className="mt-4 rounded-lg border border-dashed border-stone-200 bg-white/70 px-4 py-5 text-sm leading-relaxed text-stone-500">
+              No health context added yet. Use the chat button for goals, medication, injuries, dietary restrictions, lifestyle, or exercise limits that affect analysis.
             </div>
           )}
         </section>
@@ -270,48 +196,75 @@ export function ProfileDashboard({
       <ProfileManagerSheet
         open={managerOpen}
         onOpenChange={setManagerOpen}
-        onSubmitted={({ profile: nextProfile, measurements: nextMeasurements }) => {
+        onSubmitted={({ profile: nextProfile }) => {
           setProfile((nextProfile as Profile | null) ?? null);
-          setMeasurements(nextMeasurements);
         }}
       />
     </main>
   );
 }
 
-function ProfileRow({
+function EssentialChecklistRow({
   label,
   value,
-  status,
+  caption,
+  missing,
+}: {
+  label: string;
+  value: string | null;
+  caption?: string;
+  missing: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white/90 px-3 py-3">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0">
+          {missing ? (
+            <AlertCircle size={16} className="text-amber-600" />
+          ) : (
+            <CheckCircle2 size={16} className="text-emerald-600" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <p className="text-sm font-medium text-stone-800">{label}</p>
+            <p className={`break-words text-sm ${missing ? "text-stone-400" : "font-semibold text-stone-900"}`}>
+              {value ?? "Missing"}
+            </p>
+          </div>
+          {caption ? <p className="mt-1 text-xs leading-relaxed text-stone-400">{caption}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DerivedValueRow({
+  label,
+  value,
   caption,
 }: {
   label: string;
   value: string;
-  status: string;
-  caption?: string;
+  caption: string;
 }) {
-  const statusStyle =
-    status === "Missing"
-      ? "bg-amber-50 text-amber-800"
-      : status === "Overridden"
-        ? "bg-sky-50 text-sky-700"
-        : status === "Estimated"
-          ? "bg-stone-100 text-stone-700"
-          : status === "Provided"
-            ? "bg-emerald-50 text-emerald-700"
-            : "bg-stone-100 text-stone-600";
-
   return (
-    <div className="border-b border-stone-200 px-3 py-2.5 last:border-b-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-stone-700">{label}</p>
-          {caption ? <p className="mt-0.5 text-xs text-stone-400">{caption}</p> : null}
-        </div>
-        <div className="min-w-0 text-right">
-          <p className="break-words text-sm font-semibold text-stone-900">{value}</p>
-          <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${statusStyle}`}>{status}</span>
-        </div>
+    <div className="px-3 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+        <p className="text-sm font-medium text-stone-700">{label}</p>
+        <p className="break-words text-sm font-semibold text-stone-900">{value}</p>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-stone-400">{caption}</p>
+    </div>
+  );
+}
+
+function GoalRow({ value }: { value: string | null }) {
+  return (
+    <div className="px-3 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+        <p className="text-sm font-medium text-stone-700">Goal</p>
+        <p className={`break-words text-sm ${value ? "font-semibold text-stone-900" : "text-stone-400"}`}>{value ?? "Not set"}</p>
       </div>
     </div>
   );
@@ -332,11 +285,11 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60 ${iconBg}`}>
           {icon}
         </div>
-        <div>
+        <div className="min-w-0">
           <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{caption}</span>
           <p className="text-base font-bold leading-tight text-stone-900">{title}</p>
         </div>
@@ -346,29 +299,48 @@ function SectionHeader({
   );
 }
 
-function formatMeasurementType(value: string) {
-  return value
-    .split(/[_\s]+/)
-    .filter(Boolean)
-    .map(capitalize)
-    .join(" ");
+function buildMemorySections(items: ProfileMemoryItem[]): MemorySection[] {
+  const sectionMap = new Map<string, ProfileMemoryItem[]>();
+
+  for (const item of items) {
+    const heading = getMemoryHeading(item);
+    const list = sectionMap.get(heading) ?? [];
+    list.push(item);
+    sectionMap.set(heading, list);
+  }
+
+  const sectionOrder = [
+    "Medical context",
+    "Medication / Supplement",
+    "Injury / Limitation",
+    "Exercise context",
+    "Diet preference",
+    "Lifestyle",
+    "Other health context",
+  ];
+
+  return sectionOrder
+    .map((heading) => {
+      const sectionItems = sectionMap.get(heading) ?? [];
+      return sectionItems.length ? { heading, items: sectionItems } : null;
+    })
+    .filter((section): section is MemorySection => section !== null);
+}
+
+function getMemoryHeading(item: ProfileMemoryItem) {
+  const text = `${item.label} ${item.value}`.toLowerCase();
+
+  if (/(medication|medicine|meds|supplement|vitamin|tablet|pill)/.test(text)) return "Medication / Supplement";
+  if (/(injury|injured|pain|sprain|fracture|limitation|limit|physio|recovery)/.test(text)) return "Injury / Limitation";
+  if (item.category === "medical_context") return "Medical context";
+  if (item.category === "exercise_context") return "Exercise context";
+  if (item.category === "diet" || item.category === "food_context" || /(allergy|restrict|avoid|diet|food|vegetarian|vegan|halal)/.test(text)) {
+    return "Diet preference";
+  }
+  if (item.category === "lifestyle" || item.category === "preference") return "Lifestyle";
+  return "Other health context";
 }
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function formatShortDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatMeasuredAt(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }

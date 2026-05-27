@@ -179,4 +179,71 @@ describe("normalizeBodyResult", () => {
     expect(parsed.confidence).toBe(0.9);
     expect(parsed.remarks).toBeNull();
   });
+
+  it("maps medication and injury context into medical memory", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      metadataUpserts: [
+        {
+          label: "Medication",
+          value: "Taking metformin daily.",
+        },
+        {
+          label: "Injury limitation",
+          value: "Avoiding running due to ankle sprain.",
+        },
+      ],
+      measurements: [],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.metadataUpserts[0]?.category).toBe("medical_context");
+    expect(parsed.metadataUpserts[1]?.category).toBe("medical_context");
+  });
+
+  it("keeps age, height, and weight as scalar profile fields", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      profile: {
+        age: "33",
+        height: "172 cm",
+        weight: "68.5 kg",
+        sex: "female",
+      },
+      measurements: [],
+      confidence: 0.85,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.profile?.age).toBe(33);
+    expect(parsed.profile?.heightCm).toBe(172);
+    expect(parsed.profile?.weightKg).toBe(68.5);
+    expect(parsed.measurements).toHaveLength(0);
+  });
+
+  it("does not turn unrelated notes into profile memory when no structured fields are present", () => {
+    const normalized = normalizeBodyResult({
+      action: "clarify",
+      metadataUpserts: [],
+      measurements: [],
+      confidence: 0.35,
+      warnings: [
+        {
+          code: "profile_context_not_relevant",
+          message: "This note does not look relevant to health logging or analysis.",
+        },
+      ],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.action).toBe("clarify");
+    expect(parsed.metadataUpserts).toHaveLength(0);
+    expect(parsed.warnings[0]?.code).toBe("profile_context_not_relevant");
+  });
 });

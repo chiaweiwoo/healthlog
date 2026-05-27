@@ -379,11 +379,18 @@ Daily calculations care especially about water target, BMR, and NEAT:
 - bmr override
 - neatCalories override
 Helpful memory includes work/lifestyle context, diet preferences, food context, exercise context, and other health-log-relevant facts.
+Health-related context that affects analysis should be kept as memory items, especially:
+- medication or supplements
+- injuries, pain, movement limits, rehab, or recovery constraints
+- dietary restrictions, allergies, or medically relevant food limits
+- sleep/work/lifestyle patterns that affect energy, hydration, or activity interpretation
+Do not store unrelated personal trivia, preferences, or life details if they do not affect health logging or analysis.
 Before finalizing, self-check that:
 - activityLevel uses only the allowed enum values
 - updates stay inside HealthLog profile/context scope
 - logged workouts are not folded into activityLevel
 - deletions are specific rather than broad
+- unrelated notes become clarify warnings instead of profile memory
 
 Return JSON matching:
 { action, profile, metadataUpserts, metadataDeletes, overrides, overrideDeletes, measurements, confidence, warnings, remarks }
@@ -449,6 +456,48 @@ Example JSON:
   "remarks": null
 }
 
+Example medication JSON:
+{
+  "action": "update",
+  "profile": {},
+  "metadataUpserts": [
+    {
+      "id": "metformin",
+      "category": "medical_context",
+      "label": "Medication",
+      "value": "Taking metformin daily."
+    }
+  ],
+  "metadataDeletes": [],
+  "overrides": {},
+  "overrideDeletes": [],
+  "measurements": [],
+  "confidence": 0.9,
+  "warnings": [],
+  "remarks": null
+}
+
+Example injury JSON:
+{
+  "action": "update",
+  "profile": {},
+  "metadataUpserts": [
+    {
+      "id": "ankle-injury",
+      "category": "medical_context",
+      "label": "Injury limitation",
+      "value": "Recovering from an ankle sprain and avoiding running for now."
+    }
+  ],
+  "metadataDeletes": [],
+  "overrides": {},
+  "overrideDeletes": [],
+  "measurements": [],
+  "confidence": 0.9,
+  "warnings": [],
+  "remarks": null
+}
+
 Example delete JSON:
 {
   "action": "delete",
@@ -478,6 +527,26 @@ Example clarify JSON:
       "code": "daily_log_wrong_place",
       "message": "This looks like a daily log rather than profile context.",
       "improveWith": "Log meals, water, and exercise on the Daily tab."
+    }
+  ],
+  "remarks": null
+}
+
+Example unrelated-note JSON:
+{
+  "action": "clarify",
+  "profile": {},
+  "metadataUpserts": [],
+  "metadataDeletes": [],
+  "overrides": {},
+  "overrideDeletes": [],
+  "measurements": [],
+  "confidence": 0.35,
+  "warnings": [
+    {
+      "code": "profile_context_not_relevant",
+      "message": "This note does not look relevant to health logging or analysis.",
+      "improveWith": "Use Profile for basics, medication, injuries, diet restrictions, health goals, or lifestyle context."
     }
   ],
   "remarks": null
