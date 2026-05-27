@@ -44,12 +44,20 @@ function getLangfuse() {
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  return Promise.race<T>([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs}ms.`)), timeoutMs);
-    }),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(new Error(`LLM request timed out after ${timeoutMs}ms.`)), timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function logLlmRun(input: {

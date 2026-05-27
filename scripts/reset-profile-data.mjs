@@ -4,12 +4,26 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 const requiredEnv = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
+const confirmationFlag = "--confirm-reset-profile-data";
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
 
-for (const key of requiredEnv) {
-  if (!process.env[key]) {
-    console.error(`Missing required environment variable: ${key}`);
-    process.exit(1);
-  }
+export function hasConfirmationFlag(argv = process.argv.slice(2)) {
+  return argv.includes(confirmationFlag);
+}
+
+export function buildProfileResetBackup(input) {
+  return {
+    exportedAt: new Date().toISOString(),
+    profile: input.profile ?? null,
+    bodyNotes: input.bodyNotes ?? [],
+    bodyMeasurements: input.bodyMeasurements ?? [],
+    analysisReports: input.analysisReports ?? [],
+    counts: {
+      bodyNotes: input.bodyNotes?.length ?? 0,
+      bodyMeasurements: input.bodyMeasurements?.length ?? 0,
+      analysisReports: input.analysisReports?.length ?? 0,
+    },
+  };
 }
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,19 +31,33 @@ const backupDir = path.join(rootDir, ".local");
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const backupPath = path.join(backupDir, `profile-backup-${timestamp}.json`);
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-  db: { schema: "healthlog" },
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
 async function main() {
-  const [{ data: profile, error: profileError }, { count: bodyNotesCount, error: bodyNotesError }, { count: bodyMeasurementsCount, error: bodyMeasurementsError }, { count: analysisReportsCount, error: analysisReportsError }] =
-    await Promise.all([
-      supabase.from("profile").select("*").eq("id", "current").maybeSingle(),
-      supabase.from("body_notes").select("*", { count: "exact", head: true }),
-      supabase.from("body_measurements").select("*", { count: "exact", head: true }),
-      supabase.from("analysis_reports").select("*", { count: "exact", head: true }),
-    ]);
+  for (const key of requiredEnv) {
+    if (!process.env[key]) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  }
+
+  if (!hasConfirmationFlag()) {
+    throw new Error(`Refusing to reset profile data without ${confirmationFlag}`);
+  }
+
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    db: { schema: "healthlog" },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const [
+    { data: profile, error: profileError },
+    { data: bodyNotes, error: bodyNotesError },
+    { data: bodyMeasurements, error: bodyMeasurementsError },
+    { data: analysisReports, error: analysisReportsError },
+  ] = await Promise.all([
+    supabase.from("profile").select("*").eq("id", "current").maybeSingle(),
+    supabase.from("body_notes").select("*").order("created_at", { ascending: false }),
+    supabase.from("body_measurements").select("*").order("measured_at", { ascending: false }),
+    supabase.from("analysis_reports").select("*").order("created_at", { ascending: false }),
+  ]);
 
   for (const error of [profileError, bodyNotesError, bodyMeasurementsError, analysisReportsError]) {
     if (error) throw error;
@@ -39,15 +67,12 @@ async function main() {
   await fs.writeFile(
     backupPath,
     JSON.stringify(
-      {
-        exportedAt: new Date().toISOString(),
+      buildProfileResetBackup({
         profile,
-        counts: {
-          bodyNotes: bodyNotesCount ?? 0,
-          bodyMeasurements: bodyMeasurementsCount ?? 0,
-          analysisReports: analysisReportsCount ?? 0,
-        },
-      },
+        bodyNotes,
+        bodyMeasurements,
+        analysisReports,
+      }),
       null,
       2,
     ),
@@ -69,7 +94,9 @@ async function main() {
   console.log("Cleared healthlog.profile(current), body_notes, body_measurements, and analysis_reports.");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (isDirectRun) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

@@ -374,7 +374,8 @@ export async function getDailySummary(date: string) {
 export async function recalculateDailySummary(date: string) {
   const supabase = getSupabaseAdmin();
   const entries = (await listDailyEntries(date)).filter((entry) => entry.is_active);
-  const profile = (await getProfile()) ?? { country: "Singapore", metadata: {} };
+  const profile = await getProfile();
+  const profileForSummary = profile ?? { country: "Singapore", metadata: {} };
   const parsedEntries = entries.filter((entry) => entry.parse_status === "parsed");
   const failedEntries = entries.filter((entry) => entry.parse_status === "failed" || entry.parse_status === "pending");
   const items = parsedEntries.flatMap((entry) =>
@@ -386,7 +387,7 @@ export async function recalculateDailySummary(date: string) {
       sourceRawNote: entry.raw_note,
     } satisfies SummaryDisplayItem)),
   );
-  const summary = summarizeDailyItems(items, profile);
+  const summary = summarizeDailyItems(items, profileForSummary);
 
   const warnings = [...summary.warnings];
   if (failedEntries.length) {

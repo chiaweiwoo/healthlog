@@ -8,21 +8,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const revalidate = 0; // Ensure the page is always dynamic
 
 export default async function AnalysisPage() {
-  const supabase = getSupabaseAdmin();
   const profile = await getProfile().catch(() => null);
   const profileComplete = isProfileComplete(profile);
-
-  const { data: report, error } = await supabase
-    .from("analysis_reports")
-    .select("*")
-    .order("period_end", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Error fetching analysis report:", error);
-  }
 
   if (!profileComplete) {
     return (
@@ -34,6 +21,19 @@ export default async function AnalysisPage() {
         />
       </main>
     );
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: report, error } = await supabase
+    .from("analysis_reports")
+    .select("*")
+    .order("period_end", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching analysis report:", error);
   }
 
   if (!report || !report.payload || Object.keys(report.payload).length === 0) {
