@@ -250,7 +250,7 @@ CI should run lint, typecheck, tests, and production build.
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
 - When changing prompt contracts, update the normalizers and tests in the same pass
 - When the user is iterating on shipped UI tweaks and asks for changes in this repo, default to committing and pushing at the end of each completed pass unless they explicitly ask to keep it local. Do not repeatedly stop at "not pushed yet" for these small follow-up refinements.
-- After pushing user-visible changes, confirm the production Vercel deployment has finished before reporting back when possible. If the local workspace does not have Vercel CLI or project linking, verify via the production URL or Vercel dashboard instead of guessing.
+- Do NOT verify or poll Vercel deployment status after pushing to GitHub. Running Vercel CLI checks or waiting for builds consumes excessive context tokens and time. Simply verify the local build compiles cleanly, push changes, and let Vercel handle automatic deployment.
 
 ---
 
