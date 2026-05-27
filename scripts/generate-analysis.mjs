@@ -451,6 +451,10 @@ async function run() {
     };
 
     // 8. Package Prompt for Gemini 3.5 Flash
+    const metadata = profile.metadata || {};
+    const overrides = metadata.overrides || {};
+    const memory = Array.isArray(metadata.memory) ? metadata.memory : [];
+
     const profileSummary = {
       age: profile.age,
       sex: profile.sex,
@@ -459,6 +463,12 @@ async function run() {
       activityLevel: profile.activityLevel ?? profile.activity_level,
       goal: profile.goal,
       remarks: profile.remarks,
+      overrides,
+      profileMemoryContext: memory.map(m => ({
+        category: m.category,
+        label: m.label,
+        value: m.value
+      }))
     };
 
     const prompt = `You are a personal health log analyst.
