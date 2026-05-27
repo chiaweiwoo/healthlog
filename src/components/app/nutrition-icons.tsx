@@ -1,6 +1,6 @@
 "use client";
 
-import { Droplets, Egg, Wine, Zap } from "lucide-react";
+import { Droplets, Wine, Zap } from "lucide-react";
 
 export type NutritionData = {
   calories?: number | null;
@@ -24,7 +24,7 @@ export function AvocadoIcon({ size = 12, className }: { size?: number; className
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M12 2C8.5 2 6 7 6 13a6 6 0 0 0 12 0c0-6-2.5-11-6-11z" />
+      <path d="M12 2C8.5 2 6 7 6 13a6 6 0 0 0 12 0c0-6-2.5-11-6-11z" fill="currentColor" fillOpacity="0.18" />
       <circle cx="12" cy="14" r="2.5" fill="currentColor" />
     </svg>
   );
@@ -43,9 +43,28 @@ export function BreadIcon({ size = 12, className }: { size?: number; className?:
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M7 21h10a2 2 0 0 0 2-2v-6a4 4 0 0 0-3-3.87 4 4 0 0 0-8 0A4 4 0 0 0 5 13v6a2 2 0 0 0 2 2z" />
+      <path d="M7 21h10a2 2 0 0 0 2-2v-6a4 4 0 0 0-3-3.87 4 4 0 0 0-8 0A4 4 0 0 0 5 13v6a2 2 0 0 0 2 2z" fill="currentColor" fillOpacity="0.18" />
       <path d="M9 12l2-2" />
       <path d="M13 10l2-2" />
+    </svg>
+  );
+}
+
+export function EggIcon({ size = 12, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 2C8 2 5 7 5 13a7 7 0 0 0 14 0c0-6-3-11-7-11z" fill="currentColor" fillOpacity="0.18" />
+      <circle cx="12" cy="14" r="3.5" fill="currentColor" />
     </svg>
   );
 }
@@ -66,7 +85,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "kcal",
     color: "text-amber-500",
     bg: "bg-amber-50/60",
-    icon: ({ size = 12, className }) => <Zap size={size} className={className} />,
+    icon: ({ size = 12, className }) => <Zap size={size} className={className} fill="currentColor" />,
   },
   proteinG: {
     key: "proteinG",
@@ -74,7 +93,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-indigo-400",
     bg: "bg-indigo-50/60",
-    icon: ({ size = 12, className }) => <Egg size={size} className={className} />,
+    icon: EggIcon,
   },
   fatG: {
     key: "fatG",
@@ -98,7 +117,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-purple-400",
     bg: "bg-purple-50/60",
-    icon: ({ size = 12, className }) => <Wine size={size} className={className} />,
+    icon: ({ size = 12, className }) => <Wine size={size} className={className} fill="currentColor" fillOpacity={0.18} />,
   },
   waterMl: {
     key: "waterMl",
@@ -106,7 +125,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "ml",
     color: "text-sky-400",
     bg: "bg-sky-50/60",
-    icon: ({ size = 12, className }) => <Droplets size={size} className={className} />,
+    icon: ({ size = 12, className }) => <Droplets size={size} className={className} fill="currentColor" fillOpacity={0.18} />,
   },
 };
 
