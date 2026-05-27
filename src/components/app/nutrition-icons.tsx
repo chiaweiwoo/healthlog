@@ -1,6 +1,6 @@
 "use client";
 
-import { Droplets, Wine, Zap } from "lucide-react";
+
 
 export type NutritionData = {
   calories?: number | null;
@@ -69,6 +69,22 @@ export function EggIcon({ size = 12, className }: { size?: number; className?: s
   );
 }
 
+export function EmojiIcon({ char, size = 12, className }: { char: string; size?: number; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center font-sans select-none ${className ?? ""}`}
+      style={{
+        fontSize: `${size}px`,
+        lineHeight: 1,
+        width: `${size}px`,
+        height: `${size}px`,
+      }}
+    >
+      {char}
+    </span>
+  );
+}
+
 export interface NutrientMetadata {
   key: keyof NutritionData;
   label: string;
@@ -85,7 +101,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "kcal",
     color: "text-amber-500",
     bg: "bg-amber-50/60",
-    icon: ({ size = 12, className }) => <Zap size={size} className={className} fill="currentColor" />,
+    icon: ({ size = 12, className }) => <EmojiIcon char="⚡" size={size} className={className} />,
   },
   proteinG: {
     key: "proteinG",
@@ -93,7 +109,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-indigo-400",
     bg: "bg-indigo-50/60",
-    icon: EggIcon,
+    icon: ({ size = 12, className }) => <EmojiIcon char="🥚" size={size} className={className} />,
   },
   fatG: {
     key: "fatG",
@@ -101,7 +117,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-emerald-500",
     bg: "bg-emerald-50/60",
-    icon: AvocadoIcon,
+    icon: ({ size = 12, className }) => <EmojiIcon char="🥑" size={size} className={className} />,
   },
   carbsG: {
     key: "carbsG",
@@ -109,7 +125,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-orange-400",
     bg: "bg-orange-50/60",
-    icon: BreadIcon,
+    icon: ({ size = 12, className }) => <EmojiIcon char="🍞" size={size} className={className} />,
   },
   alcoholG: {
     key: "alcoholG",
@@ -117,7 +133,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "g",
     color: "text-purple-400",
     bg: "bg-purple-50/60",
-    icon: ({ size = 12, className }) => <Wine size={size} className={className} fill="currentColor" fillOpacity={0.18} />,
+    icon: ({ size = 12, className }) => <EmojiIcon char="🍷" size={size} className={className} />,
   },
   waterMl: {
     key: "waterMl",
@@ -125,7 +141,7 @@ export const NUTRITION_CONFIG: Record<keyof NutritionData, NutrientMetadata> = {
     unit: "ml",
     color: "text-sky-400",
     bg: "bg-sky-50/60",
-    icon: ({ size = 12, className }) => <Droplets size={size} className={className} fill="currentColor" fillOpacity={0.18} />,
+    icon: ({ size = 12, className }) => <EmojiIcon char="💧" size={size} className={className} />,
   },
 };
 
