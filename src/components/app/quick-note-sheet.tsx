@@ -69,6 +69,7 @@ export function QuickNoteSheet({
         summary?: Record<string, unknown>;
         error?: string;
         requestId?: string;
+        summaryRecalculationError?: string;
       } | null;
       if (!response.ok) {
         const errorMsg = body?.requestId
@@ -80,6 +81,11 @@ export function QuickNoteSheet({
       const newEntry = body?.entry;
       if (newEntry?.parse_status === "failed") {
         toast.warning("Saved, but parsing failed. Check warnings.", { id: toastId });
+      } else if (body?.summaryRecalculationError) {
+        const warningMsg = body.requestId
+          ? `Saved, but the daily summary needs a refresh. (${body.requestId})`
+          : "Saved, but the daily summary needs a refresh.";
+        toast.warning(warningMsg, { id: toastId });
       } else {
         toast.success("Entry added.", { id: toastId });
       }

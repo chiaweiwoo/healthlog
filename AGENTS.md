@@ -138,6 +138,9 @@ an exact log row.
 - Logging must never block the user action from completing. Fail open if log
   writes fail.
 - Schema changes require a new Supabase migration file, not edits to an old one.
+- Production schema work is not complete when code and migrations are merged.
+  Either apply the SQL to the live project in the same pass or hand the exact
+  SQL and verification steps to the user explicitly.
 
 ### 10. Env good practices
 
@@ -247,6 +250,11 @@ CI should run lint, typecheck, tests, and production build.
 - Daily and Analysis must block with a centered setup overlay until these essentials are present: age, sex, height, weight, and baseline lifestyle (`activityLevel`).
 - `body_notes` stays in the database as the audit trail, but the Profile UI no longer shows a recent-notes history section.
 - Use `daily_summaries.profile_snapshot` to store essentials, derived BMR/NEAT/water target values, override values, and `snapshotAt` during recalculation.
+- Daily note persistence is primary. If recalculation fails after a raw note row
+  or parsed row has already been saved, return the saved entry with a warning
+  instead of surfacing it as a total save failure.
+- If `app_request_logs` is missing, treat that as a production deployment bug.
+  Fall back to Supabase API/Postgres logs until the table is repaired.
 - When resetting profile state for testing, back up the current `profile` row first, then clear only `profile`, `body_notes`, `body_measurements`, and `analysis_reports`. Do not clear `daily_entries`, `daily_summaries`, `app_request_logs`, or `llm_runs`.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
@@ -254,6 +262,9 @@ CI should run lint, typecheck, tests, and production build.
 - **Progress bar rules**: use single semantic colors — not decorative per-row gradients. Sub-level breakdown bars (macro rows, TDEE components) are always `bg-stone-300`. Top-level status bars use one meaningful color: water is always `bg-sky-500`; energy intake bar is `bg-emerald-500` (deficit) or `bg-amber-400` (surplus). Never use multi-colored gradients just for visual variety.
 - **Nutrition display**: use `NutritionIcons` component (Flame/Dumbbell/custom-fat-SVG/Wheat/Wine/Droplets) instead of pipe-separated text strings. Zero and null values are hidden.
 - When adding Supabase objects in `healthlog`, include grants and defaults in the migration
+- After adding a new table or column that app code depends on, verify the live
+  project has it and reload the PostgREST schema cache before assuming writes
+  will succeed.
 - When changing prompt contracts, update the normalizers and tests in the same pass
 - When the user is iterating on shipped UI tweaks and asks for changes in this repo, default to committing and pushing at the end of each completed pass unless they explicitly ask to keep it local. Do not repeatedly stop at "not pushed yet" for these small follow-up refinements.
 - Do NOT verify or poll Vercel deployment status after pushing to GitHub. Running Vercel CLI checks or waiting for builds consumes excessive context tokens and time. Simply verify the local build compiles cleanly, push changes, and let Vercel handle automatic deployment.
@@ -295,3 +306,20 @@ CI should run lint, typecheck, tests, and production build.
 - **Problem**: Reusing the same card-heavy visual treatment for both intake and output wastes vertical space on mobile and blurs the conceptual difference between intake nutrients and TDEE components.
 - **Solution**: Keep the daily dashboard compact and operational. Intake should read as one grouped story about food and drinks. Output should read as one TDEE breakdown, with explanatory details available behind tap-friendly info affordances.
 - **Lesson**: On this app, mobile density and clarity beat decorative symmetry. Prefer list rows, fewer nested surfaces, and dialogs for deeper explanation.
+
+### 8. Schema Drift Can Make Saved Notes Look Unsaved
+- **Problem**: Production can drift from repo migrations when code changes are
+  deployed before the matching SQL is applied to the live Supabase project. In
+  this app, `daily_entries` inserts succeeded, but `daily_summaries`
+  recalculation failed on a missing `profile_snapshot` column, which surfaced
+  to the user as `Could not save note`. Missing `app_request_logs` also removed
+  the normal request-level debugging trail.
+- **Solution**: Treat raw note persistence as the primary success condition. If
+  recalculation fails after a note row has already been saved, return the saved
+  entry with a non-fatal summary warning instead of a hard save failure. Add a
+  read-only schema preflight check for required objects and use Supabase
+  API/Postgres logs when `app_request_logs` is absent.
+- **Lesson**: For note mutations, raw row durability comes first, recalculation
+  and observability come second. Production verification must include required
+  tables/columns, PostgREST cache visibility, and one real end-to-end request
+  after schema changes.

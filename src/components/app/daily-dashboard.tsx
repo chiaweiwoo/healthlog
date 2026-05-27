@@ -279,7 +279,7 @@ export function DailyDashboard({
         body: JSON.stringify({ id, rawNote, clientToday: browserToday }),
       });
       const body = (await response.json().catch(() => null)) as
-        | { entry?: Entry; summary?: Summary; error?: string; requestId?: string }
+        | { entry?: Entry; summary?: Summary; error?: string; requestId?: string; summaryRecalculationError?: string }
         | null;
       if (!response.ok || !body?.entry) {
         const errorMsg = body?.requestId ? `${body.error ?? "Could not update note."} (${body.requestId})` : (body?.error ?? "Could not update note.");
@@ -289,6 +289,11 @@ export function DailyDashboard({
       setEntries((current) => current.map((entry) => (entry.id === id ? body.entry! : entry)));
       if (body.entry.parse_status === "failed") {
         toast.warning("Saved, but parsing failed.", { id: toastId });
+      } else if (body.summaryRecalculationError) {
+        const warningMsg = body.requestId
+          ? `Saved, but the daily summary needs a refresh. (${body.requestId})`
+          : "Saved, but the daily summary needs a refresh.";
+        toast.warning(warningMsg, { id: toastId });
       } else {
         toast.success("Entry updated.", { id: toastId });
       }
@@ -305,7 +310,7 @@ export function DailyDashboard({
     try {
       const response = await fetch(`/api/daily-entries?id=${id}`, { method: "DELETE" });
       const body = (await response.json().catch(() => null)) as
-        | { summary: Summary; error?: string; requestId?: string }
+        | { summary: Summary; error?: string; requestId?: string; summaryRecalculationError?: string }
         | null;
       if (!response.ok) {
         const errorMsg = body?.requestId ? `${body.error ?? "Could not delete note."} (${body.requestId})` : (body?.error ?? "Could not delete note.");
@@ -315,7 +320,14 @@ export function DailyDashboard({
       setEntries((current) => current.filter((entry) => entry.id !== id));
       setSummary(body?.summary ?? null);
       setRecordDatesVersion((current) => current + 1);
-      toast.success("Entry deleted.", { id: toastId });
+      if (body?.summaryRecalculationError) {
+        const warningMsg = body.requestId
+          ? `Entry deleted, but the daily summary needs a refresh. (${body.requestId})`
+          : "Entry deleted, but the daily summary needs a refresh.";
+        toast.warning(warningMsg, { id: toastId });
+      } else {
+        toast.success("Entry deleted.", { id: toastId });
+      }
     } catch {
       toast.error("Could not delete note.", { id: toastId });
     }

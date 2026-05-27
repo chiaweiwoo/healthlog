@@ -63,12 +63,50 @@ export type BodyNoteRow = {
   updated_at: string;
 };
 
+export class SummaryRecalculationWarning extends Error {
+  entry: DailyEntryRow;
+  summary: Record<string, unknown> | null;
+
+  constructor(input: {
+    message: string;
+    entry: DailyEntryRow;
+    summary: Record<string, unknown> | null;
+    cause?: unknown;
+  }) {
+    super(input.message);
+    this.name = "SummaryRecalculationWarning";
+    this.entry = input.entry;
+    this.summary = input.summary;
+    this.cause = input.cause;
+  }
+}
+
+export function isSummaryRecalculationWarning(error: unknown): error is SummaryRecalculationWarning {
+  return error instanceof SummaryRecalculationWarning;
+}
+
 function buildParseFailureWarning(message: string): Warning {
   return {
     code: "parse_failed",
     message,
     improveWith: "Edit the note with more specifics, such as portion size, food name, or measurement details.",
   };
+}
+
+async function buildSummaryRecalculationWarning(entry: DailyEntryRow, error: unknown) {
+  let summary: Record<string, unknown> | null = null;
+  try {
+    summary = await getDailySummary(entry.entry_date);
+  } catch {
+    summary = null;
+  }
+
+  return new SummaryRecalculationWarning({
+    message: asErrorMessage(error),
+    entry,
+    summary,
+    cause: error,
+  });
 }
 
 function asErrorMessage(error: unknown) {
@@ -326,7 +364,11 @@ export async function finalizeDailyEntryParsed(
     .single();
 
   if (error) throw error;
-  await recalculateDailySummary(data.entry_date);
+  try {
+    await recalculateDailySummary(data.entry_date);
+  } catch (recalculationError) {
+    throw await buildSummaryRecalculationWarning(data as DailyEntryRow, recalculationError);
+  }
   return data as DailyEntryRow;
 }
 
@@ -355,7 +397,11 @@ export async function finalizeDailyEntryFailed(
     .single();
 
   if (updateError) throw updateError;
-  await recalculateDailySummary(data.entry_date);
+  try {
+    await recalculateDailySummary(data.entry_date);
+  } catch (recalculationError) {
+    throw await buildSummaryRecalculationWarning(data as DailyEntryRow, recalculationError);
+  }
   return data as DailyEntryRow;
 }
 
@@ -381,8 +427,12 @@ export async function patchDailyEntry(id: string, patch: { rawNote?: string; isA
 
   const { data, error } = await supabase.from("daily_entries").update(next).eq("id", id).select().single();
   if (error) throw error;
-  if (patch.rawNote !== undefined || patch.isActive !== undefined) {
-    await recalculateDailySummary(data.entry_date);
+  if (patch.isActive !== undefined && patch.rawNote === undefined) {
+    try {
+      await recalculateDailySummary(data.entry_date);
+    } catch (recalculationError) {
+      throw await buildSummaryRecalculationWarning(data as DailyEntryRow, recalculationError);
+    }
   }
   return data as DailyEntryRow;
 }

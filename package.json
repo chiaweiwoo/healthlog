@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:schema": "node --env-file=.env scripts/check-schema.mjs",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:llm": "node --env-file=.env scripts/smoke-llm.mjs",
     "generate:analysis": "node --env-file=.env scripts/generate-analysis.mjs",

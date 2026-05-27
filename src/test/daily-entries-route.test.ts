@@ -11,6 +11,17 @@ const mockListDailyEntries = vi.fn();
 const mockPatchDailyEntry = vi.fn();
 const mockParseDailyNote = vi.fn();
 const mockLogUserAction = vi.fn();
+class MockSummaryRecalculationWarning extends Error {
+  entry: Record<string, unknown>;
+  summary: Record<string, unknown> | null;
+
+  constructor(input: { message: string; entry: Record<string, unknown>; summary: Record<string, unknown> | null }) {
+    super(input.message);
+    this.name = "SummaryRecalculationWarning";
+    this.entry = input.entry;
+    this.summary = input.summary;
+  }
+}
 
 vi.mock("@/lib/auth", () => ({
   requireApiSession: mockRequireApiSession,
@@ -22,6 +33,7 @@ vi.mock("@/lib/db", () => ({
   finalizeDailyEntryParsed: mockFinalizeDailyEntryParsed,
   getDailySummary: mockGetDailySummary,
   getProfile: mockGetProfile,
+  isSummaryRecalculationWarning: (error: unknown) => error instanceof MockSummaryRecalculationWarning,
   listDailyEntries: mockListDailyEntries,
   patchDailyEntry: mockPatchDailyEntry,
 }));
@@ -73,6 +85,81 @@ describe("/api/daily-entries", () => {
       entryDate: "2026-05-25",
       clientToday: "2026-05-26",
     });
+  });
+
+  it("returns a saved parsed entry when summary recalculation fails after persistence", async () => {
+    const { POST } = await import("@/app/api/daily-entries/route");
+    mockCreatePendingDailyEntry.mockResolvedValue({ id: "entry-1", entry_date: "2026-05-25" });
+    mockGetProfile.mockResolvedValue(null);
+    mockListDailyEntries.mockResolvedValue([{ id: "older", is_active: true }]);
+    mockParseDailyNote.mockResolvedValue({
+      occurredTime: "08:00",
+      actionType: "create",
+      items: [{ kind: "food", label: "Bak chor mee", confidence: 0.8, warnings: [], metadata: {} }],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+    mockFinalizeDailyEntryParsed.mockRejectedValue(
+      new MockSummaryRecalculationWarning({
+        message: "Could not find the 'profile_snapshot' column of 'daily_summaries' in the schema cache",
+        entry: {
+          id: "entry-1",
+          entry_date: "2026-05-25",
+          parse_status: "parsed",
+          parsed_items: [{ kind: "food", label: "Bak chor mee", confidence: 0.8, warnings: [], metadata: {} }],
+          warnings: [],
+        },
+        summary: { entry_date: "2026-05-25", calories: 320 },
+      }),
+    );
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/daily-entries", {
+        method: "POST",
+        body: JSON.stringify({ date: "2026-05-25", clientToday: "2026-05-26", rawNote: "bak chor mee" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.entry.parse_status).toBe("parsed");
+    expect(body.summaryRecalculationError).toMatch(/profile_snapshot/);
+  });
+
+  it("returns a saved failed entry when summary recalculation fails after parse failure finalization", async () => {
+    const { POST } = await import("@/app/api/daily-entries/route");
+    mockCreatePendingDailyEntry.mockResolvedValue({ id: "entry-1", entry_date: "2026-05-25" });
+    mockGetProfile.mockResolvedValue(null);
+    mockListDailyEntries.mockResolvedValue([{ id: "older", is_active: true }]);
+    mockParseDailyNote.mockRejectedValue(new Error("LLM timeout"));
+    mockFinalizeDailyEntryFailed.mockRejectedValue(
+      new MockSummaryRecalculationWarning({
+        message: "Could not find the 'profile_snapshot' column of 'daily_summaries' in the schema cache",
+        entry: {
+          id: "entry-1",
+          entry_date: "2026-05-25",
+          parse_status: "failed",
+          parsed_items: [],
+          warnings: [{ code: "parse_failed", message: "Saved note, but the structure is incomplete." }],
+        },
+        summary: { entry_date: "2026-05-25", calories: 320 },
+      }),
+    );
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/daily-entries", {
+        method: "POST",
+        body: JSON.stringify({ date: "2026-05-25", clientToday: "2026-05-26", rawNote: "bak chor mee" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.entry.parse_status).toBe("failed");
+    expect(body.summaryRecalculationError).toMatch(/profile_snapshot/);
   });
 
   it("reparses an edited note through PATCH", async () => {

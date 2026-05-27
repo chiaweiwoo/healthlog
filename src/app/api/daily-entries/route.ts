@@ -7,6 +7,7 @@ import {
   finalizeDailyEntryParsed,
   getDailySummary,
   getProfile,
+  isSummaryRecalculationWarning,
   listDailyEntries,
   patchDailyEntry,
 } from "@/lib/db";
@@ -41,9 +42,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const started = Date.now();
   const requestId = crypto.randomUUID();
+  let username: string | undefined;
   try {
     const auth = await requireApiSession(request);
     if (!auth.ok) return auth.response;
+    username = auth.session.username;
     const body = await request.json();
     const date = isoDateSchema.parse(body.date);
     const clientToday = typeof body.clientToday === "string" ? isoDateSchema.parse(body.clientToday) : date;
@@ -61,6 +64,9 @@ export async function POST(request: NextRequest) {
       });
       entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: date, clientToday });
     } catch (parseError) {
+      if (isSummaryRecalculationWarning(parseError)) {
+        throw parseError;
+      }
       entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: date, clientToday });
     }
     const summary = await getDailySummary(date);
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
       route: "/api/daily-entries",
       method: "POST",
       action: "daily_entries.create",
-      username: auth.session.username,
+      username,
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
@@ -86,6 +92,37 @@ export async function POST(request: NextRequest) {
     });
     return Response.json({ entry, summary, requestId });
   } catch (error) {
+    if (isSummaryRecalculationWarning(error)) {
+      await logUserAction({
+        requestId,
+        route: "/api/daily-entries",
+        method: "POST",
+        action: "daily_entries.create",
+        username,
+        statusCode: 200,
+        success: true,
+        durationMs: Date.now() - started,
+        responsePayload: {
+          requestId,
+          entryId: error.entry.id,
+          parseStatus: error.entry.parse_status,
+          hasSummary: Boolean(error.summary),
+          summaryRecalculationError: error.message,
+        },
+        error,
+        userAgent: request.headers.get("user-agent"),
+      });
+      return Response.json(
+        {
+          entry: error.entry,
+          summary: error.summary,
+          summaryRecalculationError: error.message,
+          requestId,
+        },
+        { status: 200 },
+      );
+    }
+
     const message = error instanceof Error ? error.message : "Could not save note.";
     await logUserAction({
       requestId,
@@ -106,9 +143,11 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const started = Date.now();
   const requestId = crypto.randomUUID();
+  let username: string | undefined;
   try {
     const auth = await requireApiSession(request);
     if (!auth.ok) return auth.response;
+    username = auth.session.username;
     const body = await request.json();
     const id = String(body.id ?? "");
     if (!id) return Response.json({ error: "Entry id is required.", requestId }, { status: 400 });
@@ -130,6 +169,9 @@ export async function PATCH(request: NextRequest) {
         });
         entry = await finalizeDailyEntryParsed(entry.id, parsed, { entryDate: entry.entry_date, clientToday: effectiveClientToday });
       } catch (parseError) {
+        if (isSummaryRecalculationWarning(parseError)) {
+          throw parseError;
+        }
         entry = await finalizeDailyEntryFailed(entry.id, parseError, { entryDate: entry.entry_date, clientToday: effectiveClientToday });
       }
     }
@@ -139,7 +181,7 @@ export async function PATCH(request: NextRequest) {
       route: "/api/daily-entries",
       method: "PATCH",
       action: "daily_entries.update",
-      username: auth.session.username,
+      username,
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
@@ -149,6 +191,37 @@ export async function PATCH(request: NextRequest) {
     });
     return Response.json({ entry, summary, requestId });
   } catch (error) {
+    if (isSummaryRecalculationWarning(error)) {
+      await logUserAction({
+        requestId,
+        route: "/api/daily-entries",
+        method: "PATCH",
+        action: "daily_entries.update",
+        username,
+        statusCode: 200,
+        success: true,
+        durationMs: Date.now() - started,
+        responsePayload: {
+          requestId,
+          entryId: error.entry.id,
+          parseStatus: error.entry.parse_status,
+          hasSummary: Boolean(error.summary),
+          summaryRecalculationError: error.message,
+        },
+        error,
+        userAgent: request.headers.get("user-agent"),
+      });
+      return Response.json(
+        {
+          entry: error.entry,
+          summary: error.summary,
+          summaryRecalculationError: error.message,
+          requestId,
+        },
+        { status: 200 },
+      );
+    }
+
     await logUserAction({
       requestId,
       route: "/api/daily-entries",
@@ -168,9 +241,11 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const started = Date.now();
   const requestId = crypto.randomUUID();
+  let username: string | undefined;
   try {
     const auth = await requireApiSession(request);
     if (!auth.ok) return auth.response;
+    username = auth.session.username;
     const id = String(request.nextUrl.searchParams.get("id") ?? "");
     if (!id) return Response.json({ error: "Entry id is required.", requestId }, { status: 400 });
     const entry = await patchDailyEntry(id, { isActive: false });
@@ -180,7 +255,7 @@ export async function DELETE(request: NextRequest) {
       route: "/api/daily-entries",
       method: "DELETE",
       action: "daily_entries.delete",
-      username: auth.session.username,
+      username,
       statusCode: 200,
       success: true,
       durationMs: Date.now() - started,
@@ -190,6 +265,36 @@ export async function DELETE(request: NextRequest) {
     });
     return Response.json({ entry, summary, requestId });
   } catch (error) {
+    if (isSummaryRecalculationWarning(error)) {
+      await logUserAction({
+        requestId,
+        route: "/api/daily-entries",
+        method: "DELETE",
+        action: "daily_entries.delete",
+        username,
+        statusCode: 200,
+        success: true,
+        durationMs: Date.now() - started,
+        responsePayload: {
+          requestId,
+          entryId: error.entry.id,
+          hasSummary: Boolean(error.summary),
+          summaryRecalculationError: error.message,
+        },
+        error,
+        userAgent: request.headers.get("user-agent"),
+      });
+      return Response.json(
+        {
+          entry: error.entry,
+          summary: error.summary,
+          summaryRecalculationError: error.message,
+          requestId,
+        },
+        { status: 200 },
+      );
+    }
+
     await logUserAction({
       requestId,
       route: "/api/daily-entries",
