@@ -10,15 +10,14 @@ import {
   Sparkles,
   Info,
   Droplets,
-  Flame,
-  Dumbbell,
-  Wheat,
+  Egg,
   Wine,
+  Zap,
   UserCheck,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { NutritionIcons } from "@/components/app/nutrition-icons";
+import { NutritionIcons, AvocadoIcon, BreadIcon } from "@/components/app/nutrition-icons";
 type EntryItem = {
   kind: "food" | "water" | "exercise" | "note";
   label: string;
@@ -193,10 +192,10 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
         {/* ENERGY CARD */}
         <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
           <SectionHeader
-            icon={<Flame size={18} className="text-orange-600" />}
+            icon={<Zap size={18} className="text-amber-500" />}
             caption="Energy Balance"
             title="Calorie Outcomes"
-            iconBg="bg-orange-50"
+            iconBg="bg-amber-50"
           />
 
           <div className="grid grid-cols-3 gap-3 text-center">
@@ -247,7 +246,7 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
         {/* NUTRITION & MACROS CARD */}
         <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
           <SectionHeader
-            icon={<Dumbbell size={18} className="text-indigo-600" />}
+            icon={<Egg size={18} className="text-indigo-600" />}
             caption="Intake Composition"
             title="Macro Averages"
             iconBg="bg-stone-100"
@@ -258,7 +257,7 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-indigo-400"><Dumbbell size={12} /></span>
+                  <span className="text-indigo-400"><Egg size={12} /></span>
                   Protein
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageProteinG}g</span>
@@ -272,12 +271,7 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-yellow-500">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2C12 2 6 9 6 14.5C6 17.985 8.686 21 12 21C15.314 21 18 17.985 18 14.5C18 9 12 2 12 2Z" />
-                      <path d="M9 14C9.5 12.5 11 11 12.5 11" strokeWidth="1.5" />
-                    </svg>
-                  </span>
+                  <span className="text-emerald-500"><AvocadoIcon size={12} /></span>
                   Fat
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageFatG}g</span>
@@ -291,7 +285,7 @@ export function AnalysisDashboard({ payload }: { payload: AnalysisReportPayload 
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 font-medium text-stone-700">
-                  <span className="text-amber-500"><Wheat size={12} /></span>
+                  <span className="text-orange-400"><BreadIcon size={12} /></span>
                   Carbs
                 </span>
                 <span className="font-bold text-stone-800">{stats.averageCarbsG}g</span>

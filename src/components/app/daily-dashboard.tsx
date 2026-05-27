@@ -5,7 +5,7 @@ import {
   BookOpen,
   ChartColumnIncreasing,
   Droplets,
-  Flame,
+  Zap,
   NotebookPen,
   Pencil,
   Trash2,
@@ -435,8 +435,8 @@ export function DailyDashboard({
         {/* 1. CALORIES */}
         <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-5 shadow-sm transition-all duration-300">
           <SectionHeader
-            icon={<Flame size={18} className={energyIconColor} />}
-            iconBg="bg-orange-50/60"
+            icon={<Zap size={18} className={energyIconColor} />}
+            iconBg="bg-amber-50/60"
             caption="DAILY ENERGY BALANCE"
             title="Energy Balance"
             action={
@@ -586,7 +586,7 @@ export function DailyDashboard({
                     <div className="font-semibold">Time</div>
                     <div className="font-semibold">Item</div>
                     <div className="flex items-center justify-end gap-1 text-stone-500">
-                      <Flame size={12} />
+                      <Zap size={12} className="text-amber-500" />
                       <span className="text-[10px] font-semibold normal-case tracking-normal">kcal</span>
                     </div>
                     <div className="flex items-center justify-end gap-1 text-stone-500">

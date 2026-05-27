@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, Droplets, Flame, Wheat, Wine } from "lucide-react";
+import { Droplets, Egg, Wine, Zap } from "lucide-react";
 
 type NutritionData = {
   calories?: number | null;
@@ -11,7 +11,7 @@ type NutritionData = {
   waterMl?: number | null;
 };
 
-function FatDropIcon({ size = 12 }: { size?: number }) {
+export function AvocadoIcon({ size = 12 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -23,8 +23,27 @@ function FatDropIcon({ size = 12 }: { size?: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 2C12 2 6 9 6 14.5C6 17.985 8.686 21 12 21C15.314 21 18 17.985 18 14.5C18 9 12 2 12 2Z" />
-      <path d="M9 14C9.5 12.5 11 11 12.5 11" strokeWidth="1.5" />
+      <path d="M12 2C8.5 2 6 7 6 13a6 6 0 0 0 12 0c0-6-2.5-11-6-11z" />
+      <circle cx="12" cy="14" r="2.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function BreadIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 21h10a2 2 0 0 0 2-2v-6a4 4 0 0 0-3-3.87 4 4 0 0 0-8 0A4 4 0 0 0 5 13v6a2 2 0 0 0 2 2z" />
+      <path d="M9 12l2-2" />
+      <path d="M13 10l2-2" />
     </svg>
   );
 }
@@ -35,10 +54,10 @@ const MACROS: {
   color: string;
   unit: string;
 }[] = [
-  { key: "calories", icon: ({ size = 12 }) => <Flame size={size} />, color: "text-orange-400", unit: "kcal" },
-  { key: "proteinG", icon: ({ size = 12 }) => <Dumbbell size={size} />, color: "text-indigo-400", unit: "g" },
-  { key: "fatG", icon: FatDropIcon, color: "text-yellow-500", unit: "g" },
-  { key: "carbsG", icon: ({ size = 12 }) => <Wheat size={size} />, color: "text-amber-500", unit: "g" },
+  { key: "calories", icon: ({ size = 12 }) => <Zap size={size} />, color: "text-amber-500", unit: "kcal" },
+  { key: "proteinG", icon: ({ size = 12 }) => <Egg size={size} />, color: "text-indigo-400", unit: "g" },
+  { key: "fatG", icon: AvocadoIcon, color: "text-emerald-500", unit: "g" },
+  { key: "carbsG", icon: BreadIcon, color: "text-orange-400", unit: "g" },
   { key: "alcoholG", icon: ({ size = 12 }) => <Wine size={size} />, color: "text-purple-400", unit: "g" },
   { key: "waterMl", icon: ({ size = 12 }) => <Droplets size={size} />, color: "text-sky-400", unit: "ml" },
 ];
