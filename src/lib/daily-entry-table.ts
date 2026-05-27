@@ -139,10 +139,6 @@ export function flattenEntriesForTable(entries: EntryTableEntry[]): EntryTableRo
     );
 }
 
-export function sumEntryTableMetric(rows: EntryTableRow[], metric: EntryTableMetric) {
-  return rows.reduce((sum, row) => sum + (row.measurements[metric].value ?? 0), 0);
-}
-
 export function formatEntryTableMetricValue(value: number | null, unit: string) {
   if (value === null || value === 0) return "";
   const display = Number.isInteger(value) ? String(value) : String(round(value, 1));

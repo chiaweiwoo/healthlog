@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flattenEntriesForTable, formatEntryTableMetricValue, sumEntryTableMetric } from "@/lib/daily-entry-table";
+import { flattenEntriesForTable, formatEntryTableMetricValue } from "@/lib/daily-entry-table";
 
 describe("daily-entry-table helpers", () => {
   it("flattens parsed items and prefers item time, then entry time, then created time", () => {
@@ -93,13 +93,11 @@ describe("daily-entry-table helpers", () => {
       },
     ]);
 
-    expect(sumEntryTableMetric(rows, "water")).toBe(500);
-    expect(sumEntryTableMetric(rows, "calories")).toBe(4);
-    expect(sumEntryTableMetric(rows, "carbs")).toBe(1);
     expect(rows[0]?.caloriesDisplayValue.value).toBe(4);
     expect(rows[0]?.waterDisplayValue.value).toBe(500);
     expect(rows[1]?.caloriesDisplayValue.value).toBe(-180);
     expect(rows[1]?.waterDisplayValue.value).toBeNull();
+    expect(rows[0]?.measurements.carbs.value).toBe(1);
     expect(rows[2]?.measurements.calories.value).toBeNull();
     expect(formatEntryTableMetricValue(rows[2]?.measurements.calories.value ?? null, "kcal")).toBe("");
     expect(formatEntryTableMetricValue(0, "ml")).toBe("");

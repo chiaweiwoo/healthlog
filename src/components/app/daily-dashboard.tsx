@@ -173,6 +173,22 @@ function getVisibleMeasurements(
     .filter((measurement) => measurement.value !== null && measurement.value !== 0);
 }
 
+function formatCompactTableValue(value: number | null) {
+  if (value === null || value === 0) return "";
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 10) / 10);
+}
+
+const ENERGY_TAB_COPY = {
+  intake: {
+    title: "Calories Intake",
+    body: "Uses Atwater factors from known macros. Water still counts from pure water entries and calorie-bearing drinks that include liquid volume.",
+  },
+  quota: {
+    title: "Calories Quota",
+    body: "TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.",
+  },
+} as const;
+
 type EnergyDetailsTab = "intake" | "quota";
 
 const MEASUREMENT_LABELS = {
@@ -586,20 +602,22 @@ export function DailyDashboard({
               </div>
             ) : null}
 
-            <div className="rounded-lg border border-stone-200 bg-white/90 p-3 pb-20">
+            <div className="rounded-lg border border-stone-200 bg-white/90 p-3">
               {entries2Rows.length ? (
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white text-sm">
                   <div
                     className="grid items-center gap-x-2 bg-stone-50/80 px-2 py-2 text-[11px] uppercase tracking-wide text-stone-500"
-                    style={{ gridTemplateColumns: "3rem minmax(0,1fr) 4.75rem 4.75rem" }}
+                    style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) minmax(0,3.35rem) minmax(0,3.35rem)" }}
                   >
                     <div className="font-semibold">Time</div>
                     <div className="font-semibold">Item</div>
-                    <div className="flex justify-end text-stone-500">
-                      <Flame size={13} />
+                    <div className="flex items-center justify-end gap-1 text-stone-500">
+                      <Flame size={12} />
+                      <span className="text-[10px] font-semibold normal-case tracking-normal">kcal</span>
                     </div>
-                    <div className="flex justify-end text-stone-500">
-                      <Droplets size={13} />
+                    <div className="flex items-center justify-end gap-1 text-stone-500">
+                      <Droplets size={12} />
+                      <span className="text-[10px] font-semibold normal-case tracking-normal">ml</span>
                     </div>
                   </div>
                   {entries2Rows.map((row) => {
@@ -609,7 +627,7 @@ export function DailyDashboard({
                       <div
                         key={row.id}
                         className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
-                        style={{ gridTemplateColumns: "3rem minmax(0,1fr) 4.75rem 4.75rem" }}
+                        style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) minmax(0,3.35rem) minmax(0,3.35rem)" }}
                       >
                         <div className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
                           {row.time}
@@ -683,10 +701,10 @@ export function DailyDashboard({
                           </FullTextDialog>
                         </div>
                         <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
-                          {formatEntryTableMetricValue(row.caloriesDisplayValue.value, row.caloriesDisplayValue.unit)}
+                          {formatCompactTableValue(row.caloriesDisplayValue.value)}
                         </div>
                         <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
-                          {formatEntryTableMetricValue(row.waterDisplayValue.value, row.waterDisplayValue.unit)}
+                          {formatCompactTableValue(row.waterDisplayValue.value)}
                         </div>
                       </div>
                     );
@@ -808,26 +826,13 @@ export function DailyDashboard({
 
             {energyDetailsTab === "intake" ? (
               <section className="space-y-3">
-                <InfoButton
-                  className="inline-flex h-auto w-auto items-center justify-start rounded-none bg-transparent p-0 text-left hover:bg-transparent"
-                  title="How intake is calculated"
-                  description={
-                    <>
-                      <p>Intake calories come from the general Atwater system when macro grams are available.</p>
-                      <ul className="mt-1 list-disc space-y-1 pl-4">
-                        <li>Protein: {atwaterFactors.protein} kcal per gram</li>
-                        <li>Fat: {atwaterFactors.fat} kcal per gram</li>
-                        <li>Carbs: {atwaterFactors.carbs} kcal per gram</li>
-                        <li>Alcohol: {atwaterFactors.alcohol} kcal per gram</li>
-                      </ul>
-                      <p className="mt-1">Water is counted from drinks and water entries that include liquid volume.</p>
-                    </>
-                  }
-                >
-                  <span className="cursor-pointer select-none border-b border-dashed border-stone-300 text-sm font-bold text-stone-900 hover:border-stone-500">
-                    Calories Intake
-                  </span>
-                </InfoButton>
+                <div className="rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2.5">
+                  <p className="text-sm font-semibold text-stone-900">{ENERGY_TAB_COPY.intake.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{ENERGY_TAB_COPY.intake.body}</p>
+                  <p className="mt-2 text-xs text-stone-500">
+                    Protein {atwaterFactors.protein} kcal/g, fat {atwaterFactors.fat} kcal/g, carbs {atwaterFactors.carbs} kcal/g, alcohol {atwaterFactors.alcohol} kcal/g.
+                  </p>
+                </div>
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
                     label="Calories"
@@ -875,28 +880,13 @@ export function DailyDashboard({
               </section>
             ) : (
               <section className="space-y-3">
-                <InfoButton
-                  className="inline-flex h-auto w-auto items-center justify-start rounded-none bg-transparent p-0 text-left hover:bg-transparent"
-                  title="How quota is calculated"
-                  description={
-                    <>
-                      <p>BMR uses the Mifflin-St Jeor formula from your body profile.</p>
-                      <p className="mt-1">NEAT comes from your chosen baseline lifestyle and represents conservative non-exercise movement only.</p>
-                      <p className="mt-1">TEF uses a macro-based estimate:</p>
-                      <ul className="mt-1 list-disc space-y-1 pl-4">
-                        <li>Protein: {Math.round(thermicEffectRates.protein * 100)}%</li>
-                        <li>Carbs: {Math.round(thermicEffectRates.carbs * 100)}%</li>
-                        <li>Fat: {Math.round(thermicEffectRates.fat * 100)}%</li>
-                        <li>Alcohol: {Math.round(thermicEffectRates.alcohol * 100)}%</li>
-                      </ul>
-                      <p className="mt-1">TDEE is calculated as BMR + NEAT + TEF + EAT.</p>
-                    </>
-                  }
-                >
-                  <span className="cursor-pointer select-none border-b border-dashed border-stone-300 text-sm font-bold text-stone-900 hover:border-stone-500">
-                    Calories Quota
-                  </span>
-                </InfoButton>
+                <div className="rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2.5">
+                  <p className="text-sm font-semibold text-stone-900">{ENERGY_TAB_COPY.quota.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{ENERGY_TAB_COPY.quota.body}</p>
+                  <p className="mt-2 text-xs text-stone-500">
+                    TEF rates: protein {Math.round(thermicEffectRates.protein * 100)}%, carbs {Math.round(thermicEffectRates.carbs * 100)}%, fat {Math.round(thermicEffectRates.fat * 100)}%, alcohol {Math.round(thermicEffectRates.alcohol * 100)}%.
+                  </p>
+                </div>
                 <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
                   <MetricRow
                     label="TDEE"
