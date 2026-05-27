@@ -137,6 +137,7 @@ function sanitizeProfilePatch(profile: Partial<Profile> | undefined) {
   }
   if (typeof profile.goal === "string" && profile.goal.trim()) patch.goal = profile.goal;
   if (typeof profile.country === "string" && profile.country.trim()) patch.country = profile.country;
+  if (typeof profile.city === "string") patch.city = profile.city;
   if (typeof profile.remarks === "string" && profile.remarks.trim()) patch.remarks = profile.remarks;
 
   return Object.keys(patch).length ? patch : undefined;
@@ -210,6 +211,7 @@ export async function getProfile(): Promise<Profile | null> {
   if (error) throw error;
   if (!data) return null;
 
+  const metadata = data.metadata && typeof data.metadata === "object" ? (data.metadata as Record<string, unknown>) : {};
   return profileSchema.parse({
     age: data.age,
     sex: data.sex,
@@ -218,15 +220,26 @@ export async function getProfile(): Promise<Profile | null> {
     activityLevel: data.activity_level,
     goal: data.goal,
     country: data.country ?? "Singapore",
+    city: typeof metadata.city === "string" ? metadata.city : null,
     remarks: data.remarks,
-    metadata: data.metadata ?? {},
+    metadata: metadata,
   });
 }
 
 export async function upsertProfile(profile: Partial<Profile>) {
   const supabase = getSupabaseAdmin();
   const existing = await getProfile();
-  const merged = { ...existing, ...profile, country: profile.country ?? existing?.country ?? "Singapore" };
+  const merged = {
+    ...existing,
+    ...profile,
+    country: profile.country ?? existing?.country ?? "Singapore",
+    city: profile.city !== undefined ? profile.city : existing?.city,
+  };
+
+  const metadata = {
+    ...(merged.metadata ?? {}),
+    city: merged.city ?? null,
+  };
 
   const { data, error } = await supabase
     .from("profile")
@@ -240,7 +253,7 @@ export async function upsertProfile(profile: Partial<Profile>) {
       goal: merged.goal ?? null,
       country: merged.country ?? "Singapore",
       remarks: merged.remarks ?? null,
-      metadata: merged.metadata ?? {},
+      metadata: metadata,
       updated_at: new Date().toISOString(),
     })
     .select()
