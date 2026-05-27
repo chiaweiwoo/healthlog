@@ -188,6 +188,15 @@ const MEASUREMENT_LABELS = {
   exercise: "Exercise",
 } as const;
 
+function QuotaLabel({ short, full }: { short: string; full: string }) {
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+      <span className="font-semibold text-stone-800">{short}</span>
+      <span className="text-xs font-medium text-stone-400">{full}</span>
+    </span>
+  );
+}
+
 export function DailyDashboard({
   initialDate,
   initialEntries,
@@ -816,49 +825,51 @@ export function DailyDashboard({
               </section>
             ) : (
               <section className="space-y-3">
-                <div className="flex items-center gap-2 px-1 text-xs text-stone-500">
-                  <span className="font-medium text-stone-600">TDEE = Total Daily Energy Expenditure</span>
-                  <InfoButton
-                    title="About TDEE"
-                    description={
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+                  <MetricRow
+                    label={<QuotaLabel short="TDEE" full="Total Daily Energy Expenditure" />}
+                    value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
+                    infoTitle="About TDEE"
+                    info={
                       <>
                         <p>TDEE combines BMR, baseline daily movement, thermic effect of food, and explicitly logged exercise.</p>
                         <p>It is an estimate of your daily energy out, not a precise measurement.</p>
                       </>
                     }
-                    className="h-5 w-5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-                  />
-                </div>
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-                  <MetricRow
-                    label="TDEE"
-                    value={summary?.tdee != null ? `${summary?.tdee} kcal` : "Profile needed"}
                     strong
                   />
                   <MetricRow
-                    label="BMR"
+                    label={<QuotaLabel short="BMR" full="Basal Metabolic Rate" />}
                     value={summary?.bmr != null ? `${summary.bmr} kcal` : "Profile needed"}
+                    infoTitle="About BMR"
+                    info={<p>Basal Metabolic Rate is the calories your body uses at rest.</p>}
                     percent={getPercent(output.bmr, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label="NEAT"
+                    label={<QuotaLabel short="NEAT" full="Non-Exercise Activity Thermogenesis" />}
                     value={output.baselineActivityCalories != null ? `${output.baselineActivityCalories} kcal` : "Profile needed"}
+                    infoTitle="About NEAT"
+                    info={<p>NEAT is estimated from your baseline lifestyle and excludes runs, gym, deliberate step sessions, and other explicitly logged exercise.</p>}
                     percent={getPercent(output.baselineActivityCalories, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label="TEF"
+                    label={<QuotaLabel short="TEF" full="Thermic Effect of Food" />}
                     value={`${output.tefCalories} kcal`}
+                    infoTitle="About TEF"
+                    info={<p>TEF is estimated dynamically from today&apos;s protein, carbs, fat, and alcohol intake.</p>}
                     percent={getPercent(output.tefCalories, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
                   />
                   <MetricRow
-                    label="EAT"
+                    label={<QuotaLabel short="EAT" full="Exercise Activity Thermogenesis" />}
                     value={`${summary?.exercise_calories ?? 0} kcal`}
+                    infoTitle="About EAT"
+                    info={<p>EAT comes from your explicitly logged exercise entries.</p>}
                     percent={getPercent(summary?.exercise_calories ?? 0, output.totalTdee)}
                     progressStyle="bg-emerald-300"
                     subordinate
@@ -911,6 +922,7 @@ export function DailyDashboard({
 
 function MetricRow({
   label,
+  infoTitle,
   value,
   info,
   caption,
@@ -920,7 +932,8 @@ function MetricRow({
   subordinate = false,
   progressStyle,
 }: {
-  label: string;
+  label: React.ReactNode;
+  infoTitle?: string;
   value: string;
   info?: React.ReactNode;
   caption?: string;
@@ -938,7 +951,7 @@ function MetricRow({
             {info ? (
               <InfoButton
                 className="inline-flex h-auto w-auto items-center justify-start rounded-none bg-transparent p-0 text-left hover:bg-transparent"
-                title={label}
+                title={infoTitle ?? (typeof label === "string" ? label : "Details")}
                 description={info}
               >
                 <span className={`cursor-pointer select-none border-b border-dashed border-stone-300 text-sm hover:border-stone-500 ${subordinate ? "text-stone-600" : "text-stone-900"} ${strong ? "font-semibold" : "font-medium"}`}>
