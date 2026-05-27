@@ -15,6 +15,8 @@ describe("daily entry time guard", () => {
         confidence: 0.9,
         warnings: [],
         remarks: null,
+        reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+        adminAlert: null,
       },
       { entryDate: "2026-05-25", clientToday: "2026-05-26" },
     );
@@ -31,6 +33,8 @@ describe("daily entry time guard", () => {
         confidence: 0.9,
         warnings: [],
         remarks: null,
+        reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+        adminAlert: null,
       },
       { entryDate: "2026-05-25", clientToday: "2026-05-26" },
     );
@@ -49,6 +53,8 @@ describe("daily entry time guard", () => {
         confidence: 0.8,
         warnings: [],
         remarks: null,
+        reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+        adminAlert: null,
       },
       { entryDate: "2026-05-26", clientToday: "2026-05-26" },
     );
@@ -68,6 +74,8 @@ describe("daily entry time guard", () => {
         confidence: 0.9,
         warnings: [],
         remarks: null,
+        reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+        adminAlert: null,
       },
       { entryDate: "2026-05-26", clientToday: "2026-05-26" },
     );

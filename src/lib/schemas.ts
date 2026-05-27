@@ -33,6 +33,18 @@ export const parsedDailyItemSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
+export const reasoningSchema = z.object({
+  assumptions: z.array(z.string()).default([]),
+  profileSignalsUsed: z.array(z.string()).default([]),
+  unresolvedAmbiguities: z.array(z.string()).default([]),
+}).default({ assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] });
+
+export const adminAlertSchema = z.object({
+  severity: z.enum(["warn", "critical"]),
+  code: z.string(),
+  message: z.string(),
+}).nullable().default(null);
+
 export const dailyParseResultSchema = z.object({
   occurredTime: timeSchema.optional(),
   actionType: z.enum(["create", "edit", "delete", "clarify"]).default("create"),
@@ -40,6 +52,8 @@ export const dailyParseResultSchema = z.object({
   confidence: z.number().min(0).max(1),
   warnings: z.array(warningSchema).default([]),
   remarks: z.string().nullable().optional(),
+  reasoning: reasoningSchema,
+  adminAlert: adminAlertSchema,
 });
 
 export const activityLevelSchema = z.enum(["sedentary", "light", "moderate", "active", "very_active"]);
@@ -125,9 +139,13 @@ export const bodyParseResultSchema = z.object({
   confidence: z.number().min(0).max(1),
   warnings: z.array(warningSchema).default([]),
   remarks: z.string().nullable().optional(),
+  reasoning: reasoningSchema,
+  adminAlert: adminAlertSchema,
 });
 
 export type Warning = z.infer<typeof warningSchema>;
+export type Reasoning = z.infer<typeof reasoningSchema>;
+export type AdminAlert = z.infer<typeof adminAlertSchema>;
 export type ParsedDailyItem = z.infer<typeof parsedDailyItemSchema>;
 export type DailyParseResult = z.infer<typeof dailyParseResultSchema>;
 export type Profile = z.infer<typeof profileSchema>;

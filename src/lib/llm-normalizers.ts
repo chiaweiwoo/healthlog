@@ -1,5 +1,5 @@
 import { parseISO } from "date-fns";
-import { Warning } from "@/lib/schemas";
+import { Warning, Reasoning, AdminAlert } from "@/lib/schemas";
 
 const INVALID_TIME_FALLBACK = "23:59";
 
@@ -148,6 +148,25 @@ function normalizeMemoryCategory(value: unknown) {
   if (["food", "cuisine"].includes(normalized)) return "food_context";
   if (["medical"].includes(normalized)) return "medical_context";
   return "other";
+}
+
+function normalizeReasoning(value: unknown): Reasoning {
+  const fallback: Reasoning = { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] };
+  if (!value || typeof value !== "object") return fallback;
+  const record = value as Record<string, unknown>;
+  return {
+    assumptions: Array.isArray(record.assumptions) ? record.assumptions.filter((s): s is string => typeof s === "string") : [],
+    profileSignalsUsed: Array.isArray(record.profileSignalsUsed) ? record.profileSignalsUsed.filter((s): s is string => typeof s === "string") : [],
+    unresolvedAmbiguities: Array.isArray(record.unresolvedAmbiguities) ? record.unresolvedAmbiguities.filter((s): s is string => typeof s === "string") : [],
+  };
+}
+
+function normalizeAdminAlert(value: unknown): AdminAlert {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const severity = record.severity === "critical" ? "critical" : record.severity === "warn" ? "warn" : null;
+  if (!severity || typeof record.code !== "string" || typeof record.message !== "string") return null;
+  return { severity, code: record.code, message: record.message };
 }
 
 function normalizeActivityLevel(value: unknown) {
@@ -324,6 +343,8 @@ export function normalizeDailyResult(raw: unknown) {
     confidence: normalizeConfidence(record.confidence, 0.6),
     warnings: normalizeWarnings(record.warnings),
     remarks: normalizeRemarks(record.remarks),
+    reasoning: normalizeReasoning(record.reasoning),
+    adminAlert: normalizeAdminAlert(record.adminAlert),
   };
 
   return withInvalidTimeWarning(normalized, record.occurredTime);
@@ -408,6 +429,8 @@ export function normalizeBodyResult(raw: unknown) {
     confidence: normalizeConfidence(record.confidence, 0.6),
     warnings: normalizeWarnings(record.warnings),
     remarks: normalizeRemarks(record.remarks),
+    reasoning: normalizeReasoning(record.reasoning),
+    adminAlert: normalizeAdminAlert(record.adminAlert),
   };
 }
 

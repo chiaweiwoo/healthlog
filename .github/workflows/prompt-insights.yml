@@ -1,0 +1,35 @@
+name: Prompt Insights
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days of llm_runs to analyse"
+        required: false
+        default: "7"
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run prompt-insights
+        run: node scripts/prompt-insights.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          INSIGHTS_DAYS: ${{ inputs.days }}
+          INSIGHTS_TRIGGERED_BY: "manual"

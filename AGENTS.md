@@ -218,9 +218,10 @@ name matches a priced Langfuse model definition.
 | `body_notes` | Raw body/profile note history plus parse status |
 | `daily_entries` | Raw notes plus validated parsed JSON |
 | `daily_summaries` | One row per date, recalculated from active entries; also stores `profile_snapshot` JSONB for the profile state used during recalculation |
-| `llm_runs` | Prompt/model/output audit table |
+| `llm_runs` | Prompt/model/output audit table; includes `admin_alert` (jsonb) top-level column for soft-guardrail flags |
 | `app_request_logs` | Request-level trace logs for auth and user actions |
 | `analysis_reports` | Placeholder for future weekly analysis |
+| `prompt_insights` | Digest rows written by the `prompt-insights` GitHub Action; one row per manual run |
 
 Migration lives in `supabase/migrations`.
 
@@ -316,6 +317,14 @@ CI should run lint, typecheck, tests, and production build.
 - **Problem**: Reusing the same card-heavy visual treatment for both intake and output wastes vertical space on mobile and blurs the conceptual difference between intake nutrients and TDEE components.
 - **Solution**: Keep the daily dashboard compact and operational. Intake should read as one grouped story about food and drinks. Output should read as one TDEE breakdown, with explanatory details available behind tap-friendly info affordances.
 - **Lesson**: On this app, mobile density and clarity beat decorative symmetry. Prefer list rows, fewer nested surfaces, and dialogs for deeper explanation.
+
+---
+
+## Outstanding Decisions
+
+- **prompt-insights prompt_version filtering**: The current `prompt-insights.mjs` script ingests all `llm_runs` rows in the window regardless of `prompt_version`. Rows before `2026-05-28-personalize-v1` do not have the `reasoning` field, so assumptions and profile signal aggregates will be sparse for early runs. Decision pending: filter by `prompt_version >= "2026-05-28-personalize-v1"` once enough new-version data has accumulated, so the digest only learns from structured output.
+
+---
 
 ### 8. Schema Drift Can Make Saved Notes Look Unsaved
 - **Problem**: Production can drift from repo migrations when code changes are

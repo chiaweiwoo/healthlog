@@ -181,6 +181,8 @@ describe("finalizeBodyNoteParsed incremental profile patches", () => {
       confidence: 0.9,
       warnings: [],
       remarks: null,
+      reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+      adminAlert: null,
     });
 
     expect(result.profile).toEqual(
@@ -260,6 +262,8 @@ describe("finalizeBodyNoteParsed incremental profile patches", () => {
         },
       ],
       remarks: null,
+      reasoning: { assumptions: [], profileSignalsUsed: [], unresolvedAmbiguities: [] },
+      adminAlert: null,
     });
 
     expect(result.profile).toEqual(
