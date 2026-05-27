@@ -115,3 +115,59 @@ export type ProfileMemoryItem = z.infer<typeof profileMemoryItemSchema>;
 export type ProfileMemoryCategory = z.infer<typeof profileMemoryCategorySchema>;
 export type ProfileOverrideKey = z.infer<typeof profileOverrideKeySchema>;
 export type ProfileOverrides = z.infer<typeof profileOverridesSchema>;
+
+export const analysisStatsSchema = z.object({
+  periodStart: isoDateSchema,
+  periodEnd: isoDateSchema,
+  completeDays: z.number().nonnegative(),
+  totalIntakeCalories: z.number().nonnegative(),
+  averageIntakeCalories: z.number().nonnegative(),
+  averageQuotaCalories: z.number().nonnegative().nullable(),
+  averageNetCalories: z.number().nullable(),
+  totalProteinG: z.number().nonnegative(),
+  averageProteinG: z.number().nonnegative(),
+  totalFatG: z.number().nonnegative(),
+  averageFatG: z.number().nonnegative(),
+  totalCarbsG: z.number().nonnegative(),
+  averageCarbsG: z.number().nonnegative(),
+  totalAlcoholG: z.number().nonnegative(),
+  averageAlcoholG: z.number().nonnegative(),
+  averageWaterMl: z.number().nonnegative(),
+  averageExerciseCalories: z.number().nonnegative(),
+  consistencyScore: z.number().min(0).max(1),
+});
+
+export const analysisEvidenceSchema = z.object({
+  topCalorieFoods: z.array(parsedDailyItemSchema),
+  alcoholContributors: z.array(parsedDailyItemSchema),
+  waterContributors: z.array(parsedDailyItemSchema),
+  exerciseContributors: z.array(parsedDailyItemSchema),
+  highCalorieLowProteinCandidates: z.array(parsedDailyItemSchema),
+});
+
+export const focusAreaSchema = z.object({
+  action: z.string(),
+  rationale: z.string(),
+});
+
+export const profileGapSchema = z.object({
+  parameter: z.string(),
+  whyItMatters: z.string(),
+  improveAdvice: z.string(),
+});
+
+export const analysisReportPayloadSchema = z.object({
+  stats: analysisStatsSchema,
+  evidence: analysisEvidenceSchema,
+  summary: z.string(),
+  rootCauses: z.array(z.string()),
+  focusAreas: z.array(focusAreaSchema),
+  profileGaps: z.array(profileGapSchema),
+  confidence: z.enum(["low", "medium", "high"]),
+});
+
+export type FocusArea = z.infer<typeof focusAreaSchema>;
+export type ProfileGap = z.infer<typeof profileGapSchema>;
+export type AnalysisStats = z.infer<typeof analysisStatsSchema>;
+export type AnalysisEvidence = z.infer<typeof analysisEvidenceSchema>;
+export type AnalysisReportPayload = z.infer<typeof analysisReportPayloadSchema>;

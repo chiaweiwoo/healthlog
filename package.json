@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "hash-password": "node scripts/hash-password.mjs",
-    "smoke:llm": "node --env-file=.env scripts/smoke-llm.mjs"
+    "smoke:llm": "node --env-file=.env scripts/smoke-llm.mjs",
+    "generate:analysis": "node --env-file=.env scripts/generate-analysis.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",

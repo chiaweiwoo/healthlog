@@ -358,3 +358,47 @@ export function normalizeBodyResult(raw: unknown) {
     remarks: normalizeRemarks(record.remarks),
   };
 }
+
+export function normalizeAnalysisReportResult(value: unknown) {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+  const summary = typeof record.summary === "string" ? record.summary.trim() : "";
+
+  const rootCauses = Array.isArray(record.rootCauses)
+    ? record.rootCauses.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean)
+    : Array.isArray(record.root_causes)
+      ? record.root_causes.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean)
+      : [];
+
+  const focusAreas = (Array.isArray(record.focusAreas) ? record.focusAreas : Array.isArray(record.focus_areas) ? record.focus_areas : [])
+    .map((item) => {
+      const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const action = typeof src.action === "string" ? src.action.trim() : "";
+      const rationale = typeof src.rationale === "string" ? src.rationale.trim() : "";
+      return { action, rationale };
+    })
+    .filter((item) => item.action.length > 0);
+
+  const profileGaps = (Array.isArray(record.profileGaps) ? record.profileGaps : Array.isArray(record.profile_gaps) ? record.profile_gaps : [])
+    .map((item) => {
+      const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const parameter = typeof src.parameter === "string" ? src.parameter.trim() : typeof src.field === "string" ? src.field.trim() : "";
+      const whyItMatters = typeof src.whyItMatters === "string" ? src.whyItMatters.trim() : typeof src.why_it_matters === "string" ? src.why_it_matters.trim() : "";
+      const improveAdvice = typeof src.improveAdvice === "string" ? src.improveAdvice.trim() : typeof src.improve_advice === "string" ? src.improve_advice.trim() : typeof src.improveWith === "string" ? src.improveWith.trim() : "";
+      return { parameter, whyItMatters, improveAdvice };
+    })
+    .filter((item) => item.parameter.length > 0);
+
+  const confidenceValue = typeof record.confidence === "string" ? record.confidence.toLowerCase().trim() : "low";
+  const confidence = ["low", "medium", "high"].includes(confidenceValue)
+    ? (confidenceValue as "low" | "medium" | "high")
+    : "low";
+
+  return {
+    summary,
+    rootCauses,
+    focusAreas,
+    profileGaps,
+    confidence,
+  };
+}

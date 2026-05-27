@@ -1,37 +1,52 @@
-import { BarChart3 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { AnalysisDashboard } from "@/components/app/analysis-dashboard";
+import { BarChart3, HelpCircle } from "lucide-react";
 
-export default function AnalysisPage() {
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-stone-950">Analysis</h1>
-        <p className="mt-1 text-sm text-stone-600">Weekly analysis coming later.</p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 size={18} className="text-emerald-700" />
-            Future weekly review
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 text-sm text-stone-600 sm:grid-cols-3">
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="font-medium text-stone-900">Nutrition trend</p>
-              <p className="mt-1">Calories, macros, and deficit patterns.</p>
-            </div>
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="font-medium text-stone-900">Exercise balance</p>
-              <p className="mt-1">Steps, workouts, and energy burn context.</p>
-            </div>
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="font-medium text-stone-900">Profile context</p>
-              <p className="mt-1">Profile changes, memory, and body-related context over time.</p>
+export const revalidate = 0; // Ensure the page is always dynamic
+
+export default async function AnalysisPage() {
+  const supabase = getSupabaseAdmin();
+
+  const { data: report, error } = await supabase
+    .from("analysis_reports")
+    .select("*")
+    .order("period_end", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching analysis report:", error);
+  }
+
+  if (!report || !report.payload || Object.keys(report.payload).length === 0) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
+        <div className="text-center py-12 px-6 rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-400">
+            <BarChart3 size={24} />
+          </div>
+          <div className="max-w-md mx-auto space-y-2">
+            <h2 className="text-base font-bold text-stone-900">7-Day Analysis Pending</h2>
+            <p className="text-xs text-stone-500 leading-relaxed">
+              Your 7-day nutritional and behavioral reviews are generated via a manual analysis pipeline.
+              Once the GitHub Actions workflow triggers, your latest insights, root causes, and focus areas will automatically appear here.
+            </p>
+          </div>
+          <div className="pt-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 border border-stone-200 px-3 py-1 text-[10px] font-medium text-stone-600">
+              <HelpCircle size={12} className="text-stone-400" />
+              <span>Trigger &quot;Analyze 7-day HealthLog&quot; via GitHub Actions</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main>
+      <AnalysisDashboard payload={report.payload} />
     </main>
   );
 }
