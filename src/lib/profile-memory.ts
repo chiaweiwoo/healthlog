@@ -1,4 +1,4 @@
-import { Profile, ProfileMemoryItem, ProfileOverrideKey, ProfileOverrides, activityLevelSchema } from "@/lib/schemas";
+import { Profile, ProfileMemoryItem, ProfileOverrideKey, ProfileOverrides, ProfileSnapshot, activityLevelSchema } from "@/lib/schemas";
 import { round } from "@/lib/utils";
 
 type ActivityLevel = ReturnType<typeof activityLevelSchema.parse>;
@@ -215,4 +215,64 @@ export function formatStatusLabel(status: DailyDependencyStatus) {
   if (status === "estimated") return "Estimated";
   if (status === "ready") return "Ready";
   return "Missing";
+}
+
+const essentialProfileFields = [
+  { key: "age", label: "Age" },
+  { key: "sex", label: "Sex" },
+  { key: "heightCm", label: "Height" },
+  { key: "weightKg", label: "Weight" },
+  { key: "activityLevel", label: "Baseline lifestyle" },
+] as const;
+
+export type EssentialProfileFieldKey = (typeof essentialProfileFields)[number]["key"];
+
+export function getMissingProfileEssentials(profile: Profile | null | undefined) {
+  return essentialProfileFields.filter(({ key }) => {
+    const value = profile?.[key];
+    if (key === "sex") return value !== "female" && value !== "male";
+    if (key === "activityLevel") return typeof value !== "string" || !activityLevelSchema.safeParse(value).success;
+    return typeof value !== "number" || !Number.isFinite(value) || value <= 0;
+  });
+}
+
+export function isProfileComplete(profile: Profile | null | undefined) {
+  return getMissingProfileEssentials(profile).length === 0;
+}
+
+export function buildProfileSnapshot(profile: Profile | null | undefined): ProfileSnapshot | null {
+  if (!profile) return null;
+
+  const overrides = getProfileOverrides(profile);
+  const bmr = deriveBmr(profile);
+  const neat = deriveNeat(profile);
+  const waterTarget = deriveWaterTarget(profile);
+  const toSnapshotStatus = (status: DailyDependencyStatus): "estimated" | "overridden" | "missing" =>
+    status === "overridden" || status === "estimated" ? status : "missing";
+
+  return {
+    age: profile.age ?? null,
+    sex: profile.sex ?? null,
+    heightCm: profile.heightCm ?? null,
+    weightKg: profile.weightKg ?? null,
+    activityLevel: profile.activityLevel ?? null,
+    bmr: {
+      value: bmr.value,
+      status: toSnapshotStatus(bmr.status),
+    },
+    neat: {
+      value: neat.value,
+      status: toSnapshotStatus(neat.status),
+    },
+    waterTarget: {
+      value: waterTarget.value,
+      status: toSnapshotStatus(waterTarget.status),
+    },
+    overrides: {
+      waterTargetMl: overrides.waterTargetMl ?? null,
+      bmr: overrides.bmr ?? null,
+      neatCalories: overrides.neatCalories ?? null,
+    },
+    snapshotAt: new Date().toISOString(),
+  };
 }

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildProfileMetadata, deriveBmr, deriveNeat, deriveWaterTarget, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
+import {
+  buildProfileMetadata,
+  buildProfileSnapshot,
+  deriveBmr,
+  deriveNeat,
+  deriveWaterTarget,
+  getMissingProfileEssentials,
+  getProfileMemory,
+  getProfileOverrides,
+  isProfileComplete,
+} from "@/lib/profile-memory";
 
 describe("profile-memory helpers", () => {
   it("prefers water target override, then weight, then sex fallback", () => {
@@ -84,5 +94,68 @@ describe("profile-memory helpers", () => {
     expect(getProfileOverrides(profile).neatCalories).toBe(190);
     expect(getProfileMemory(profile)).toHaveLength(1);
     expect(getProfileMemory(profile)[0]?.id).toBe("new-item");
+  });
+
+  it("treats only the five essentials as required for completeness", () => {
+    expect(isProfileComplete(null)).toBe(false);
+    expect(getMissingProfileEssentials(null).map((item) => item.key)).toEqual([
+      "age",
+      "sex",
+      "heightCm",
+      "weightKg",
+      "activityLevel",
+    ]);
+
+    expect(
+      isProfileComplete({
+        age: 32,
+        sex: "female",
+        heightCm: 162,
+        weightKg: 58,
+        activityLevel: "light",
+        country: "Singapore",
+        metadata: {},
+      }),
+    ).toBe(true);
+
+    expect(
+      isProfileComplete({
+        age: 32,
+        sex: "female",
+        heightCm: 162,
+        weightKg: 58,
+        activityLevel: "light",
+        goal: null,
+        country: "Singapore",
+        metadata: {},
+      }),
+    ).toBe(true);
+  });
+
+  it("builds a profile snapshot with derived values and normalized overrides", () => {
+    const snapshot = buildProfileSnapshot({
+      age: 32,
+      sex: "male",
+      heightCm: 175,
+      weightKg: 72,
+      activityLevel: "moderate",
+      country: "Singapore",
+      metadata: {
+        overrides: {
+          neatCalories: 220,
+        },
+      },
+    });
+
+    expect(snapshot).not.toBeNull();
+    expect(snapshot?.age).toBe(32);
+    expect(snapshot?.bmr.status).toBe("estimated");
+    expect(snapshot?.neat.status).toBe("overridden");
+    expect(snapshot?.overrides.waterTargetMl).toBeNull();
+    expect(snapshot?.snapshotAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("returns null snapshot when profile is missing", () => {
+    expect(buildProfileSnapshot(null)).toBeNull();
   });
 });

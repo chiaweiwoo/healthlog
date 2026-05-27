@@ -82,6 +82,28 @@ export const profileSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
+export const profileSnapshotDerivedSchema = z.object({
+  value: z.number().nullable(),
+  status: z.enum(["estimated", "overridden", "missing"]),
+});
+
+export const profileSnapshotSchema = z.object({
+  age: z.number().int().positive().nullable(),
+  sex: z.enum(["female", "male"]).nullable(),
+  heightCm: z.number().positive().nullable(),
+  weightKg: z.number().positive().nullable(),
+  activityLevel: activityLevelSchema.nullable(),
+  bmr: profileSnapshotDerivedSchema,
+  neat: profileSnapshotDerivedSchema,
+  waterTarget: profileSnapshotDerivedSchema,
+  overrides: z.object({
+    waterTargetMl: z.number().positive().nullable(),
+    bmr: z.number().positive().nullable(),
+    neatCalories: z.number().nonnegative().nullable(),
+  }),
+  snapshotAt: z.string().datetime(),
+});
+
 export const bodyMeasurementSchema = z.object({
   measuredAt: z.string().datetime().optional(),
   type: z.string(),
@@ -115,6 +137,7 @@ export type ProfileMemoryItem = z.infer<typeof profileMemoryItemSchema>;
 export type ProfileMemoryCategory = z.infer<typeof profileMemoryCategorySchema>;
 export type ProfileOverrideKey = z.infer<typeof profileOverrideKeySchema>;
 export type ProfileOverrides = z.infer<typeof profileOverridesSchema>;
+export type ProfileSnapshot = z.infer<typeof profileSnapshotSchema>;
 
 export const analysisStatsSchema = z.object({
   periodStart: isoDateSchema,

@@ -2,7 +2,7 @@ import "server-only";
 
 import { SummaryDisplayItem, summarizeDailyItems } from "@/lib/calculations";
 import { normalizeDailyParseResultTimes, resolveFailedEntryOccurredTime } from "@/lib/daily-entry-time-guard";
-import { buildProfileMetadata, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
+import { buildProfileMetadata, buildProfileSnapshot, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
 import {
   BodyParseResult,
   DailyParseResult,
@@ -425,6 +425,7 @@ export async function recalculateDailySummary(date: string) {
       confidence: summary.confidence,
       warnings,
       breakdown,
+      profile_snapshot: buildProfileSnapshot(profile),
       updated_at: new Date().toISOString(),
     })
     .select()
