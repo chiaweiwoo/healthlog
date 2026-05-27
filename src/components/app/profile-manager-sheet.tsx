@@ -1,6 +1,6 @@
 "use client";
 
-import { NotebookPen } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,17 @@ type ProfileNote = {
 
 type ProfileShape = Record<string, unknown> | null;
 
+type BodyMeasurement = {
+  id: string;
+  measured_at: string;
+  type: string;
+  value: number;
+  unit: string;
+  confidence: number;
+  remarks: string | null;
+  metadata: Record<string, unknown>;
+};
+
 type ChangeSummary = {
   action?: string;
   profileChanges: Array<{ field: string; before: unknown; after: unknown }>;
@@ -37,7 +48,7 @@ export function ProfileManagerSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   disabled?: boolean;
-  onSubmitted: (payload: { profile: ProfileShape; notes: ProfileNote[]; bodyNote?: ProfileNote; changeSummary?: ChangeSummary }) => void;
+  onSubmitted: (payload: { profile: ProfileShape; notes: ProfileNote[]; measurements: BodyMeasurement[]; bodyNote?: ProfileNote; changeSummary?: ChangeSummary }) => void;
 }) {
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -56,6 +67,7 @@ export function ProfileManagerSheet({
         | {
             profile?: ProfileShape;
             notes?: ProfileNote[];
+            measurements?: BodyMeasurement[];
             bodyNote?: ProfileNote;
             changeSummary?: ChangeSummary;
             error?: string;
@@ -72,6 +84,7 @@ export function ProfileManagerSheet({
       onSubmitted({
         profile: body?.profile ?? null,
         notes: body?.notes ?? [],
+        measurements: body?.measurements ?? [],
         bodyNote: body?.bodyNote,
         changeSummary: body?.changeSummary,
       });
@@ -105,7 +118,7 @@ export function ProfileManagerSheet({
             onChange={(event) => setNote(event.target.value)}
             disabled={isPending || disabled}
             className="h-32 resize-none rounded-lg border-stone-200 bg-white/80 text-sm"
-            placeholder="e.g. White-collar office job, mostly sitting. Set my water target to 3200 ml. I avoid shellfish. Delete my old gym context."
+            placeholder="Tell me about yourself - age, weight, height, goals, habits, dietary preferences... I'll update your profile automatically."
             autoFocus
           />
           <p className="text-[11px] leading-relaxed text-stone-400">
@@ -118,7 +131,7 @@ export function ProfileManagerSheet({
               disabled={isPending || !note.trim() || disabled}
               onClick={() => startTransition(submit)}
             >
-              <NotebookPen size={14} />
+              <MessageCircle size={14} />
               {isPending ? "Saving..." : "Update profile"}
             </Button>
             <Button

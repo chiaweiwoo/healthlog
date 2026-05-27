@@ -1,11 +1,11 @@
 import { ProfileDashboard } from "@/components/app/profile-dashboard";
-import { getProfile, listBodyNotes } from "@/lib/db";
+import { getProfile, listBodyMeasurements } from "@/lib/db";
 
 export default async function ProfilePage() {
-  const [profile, notes] = await Promise.all([
+  const [profile, measurements] = await Promise.all([
     getProfile().catch(() => null),
-    listBodyNotes().catch(() => []),
+    listBodyMeasurements().catch(() => []),
   ]);
 
-  return <ProfileDashboard initialProfile={profile} initialNotes={notes} />;
+  return <ProfileDashboard initialProfile={profile} initialMeasurements={measurements} />;
 }

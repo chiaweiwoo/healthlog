@@ -1,46 +1,28 @@
 "use client";
 
-import { Brain, NotebookPen, Scale, Sparkles, UserRound } from "lucide-react";
+import { Brain, ChevronDown, MessageCircle, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
-import { deriveBmr, deriveNeat, deriveWaterTarget, formatStatusLabel, getProfileMemory } from "@/lib/profile-memory";
-import type { Profile, ProfileMemoryItem } from "@/lib/schemas";
-import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
 import { ProfileManagerSheet } from "@/components/app/profile-manager-sheet";
-import { WarningDot } from "@/components/app/warning-dot";
+import { deriveBmr, deriveNeat, deriveWaterTarget, formatStatusLabel, getProfileMemory } from "@/lib/profile-memory";
+import type { Profile, ProfileMemoryCategory, ProfileMemoryItem } from "@/lib/schemas";
 
-type Warning = { code: string; message: string; improveWith?: string };
-
-type ProfileNote = {
+type BodyMeasurement = {
   id: string;
-  raw_note: string;
-  parse_status: "pending" | "parsed" | "failed";
-  parsed_payload?: {
-    action?: string;
-    profile?: Record<string, unknown>;
-    metadataUpserts?: Array<{ id?: string; label?: string; value?: string }>;
-    metadataDeletes?: string[];
-    overrides?: Record<string, unknown>;
-    overrideDeletes?: string[];
-  } | null;
-  warnings: Warning[];
-  parse_error: string | null;
-  created_at: string;
+  measured_at: string;
+  type: string;
+  value: number;
+  unit: string;
+  confidence: number;
+  remarks: string | null;
+  metadata: Record<string, unknown>;
 };
 
-type ChangeSummary = {
-  action?: string;
-  profileChanges: Array<{ field: string; before: unknown; after: unknown }>;
-  overrideChanges: Array<{ key: string; before: unknown; after: unknown }>;
-  memoryChanges: Array<{ id: string; before: unknown; after: unknown }>;
-  addedMeasurements: Array<{ id: string; type: string; value: number; unit: string; measuredAt: string }>;
-};
-
-type ReadinessRow = {
+type DerivedRow = {
   label: string;
   value: string;
-  status: "ready" | "missing" | "estimated" | "overridden";
-  reason: string;
+  status: string;
+  caption: string;
 };
 
 const activityLabels: Record<string, string> = {
@@ -51,81 +33,105 @@ const activityLabels: Record<string, string> = {
   very_active: "Physical day",
 };
 
-const memoryCategoryLabels: Record<ProfileMemoryItem["category"], string> = {
-  lifestyle: "Lifestyle",
-  diet: "Diet",
+const memoryCategoryLabels: Record<ProfileMemoryCategory, string> = {
   exercise_context: "Exercise context",
-  food_context: "Food context",
+  diet: "Diet / Food context",
+  food_context: "Diet / Food context",
   medical_context: "Medical context",
+  lifestyle: "Lifestyle",
   preference: "Preference",
-  other: "Other memory",
+  other: "Other",
 };
 
 export function ProfileDashboard({
   initialProfile,
-  initialNotes,
+  initialMeasurements,
 }: {
   initialProfile: Profile | null;
-  initialNotes: ProfileNote[];
+  initialMeasurements: BodyMeasurement[];
 }) {
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  const [notes, setNotes] = useState<ProfileNote[]>(initialNotes);
+  const [measurements, setMeasurements] = useState<BodyMeasurement[]>(initialMeasurements);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [lastChange, setLastChange] = useState<ChangeSummary | null>(null);
+  const [measurementsOpen, setMeasurementsOpen] = useState(false);
 
   const waterTarget = deriveWaterTarget(profile);
   const bmr = deriveBmr(profile);
   const neat = deriveNeat(profile);
 
-  const readinessRows: ReadinessRow[] = [
+  const essentialRows = [
     {
-      label: "Water target",
-      value: waterTarget.value != null ? `${waterTarget.value} ml/day` : "Missing",
-      status: waterTarget.status,
-      reason: waterTarget.reason,
+      label: "Age",
+      value: profile?.age ? String(profile.age) : "Missing",
+      caption: undefined,
     },
+    {
+      label: "Sex",
+      value: profile?.sex ? capitalize(profile.sex) : "Missing",
+      caption: undefined,
+    },
+    {
+      label: "Height",
+      value: profile?.heightCm ? `${profile.heightCm} cm` : "Missing",
+      caption: undefined,
+    },
+    {
+      label: "Weight",
+      value: profile?.weightKg ? `${profile.weightKg} kg` : "Missing",
+      caption: undefined,
+    },
+    {
+      label: "Baseline lifestyle",
+      value: profile?.activityLevel ? (activityLabels[profile.activityLevel] ?? profile.activityLevel) : "Missing",
+      caption: "Used for NEAT only, excluding explicitly logged exercise.",
+    },
+  ];
+
+  const derivedRows: DerivedRow[] = [
     {
       label: "BMR",
       value: bmr.value != null ? `${bmr.value} kcal` : "Missing",
-      status: bmr.status,
-      reason: bmr.reason,
+      status: formatStatusLabel(bmr.status),
+      caption: bmr.reason,
     },
     {
       label: "NEAT",
       value: neat.value != null ? `${neat.value} kcal` : "Missing",
-      status: neat.status,
-      reason: neat.reason,
+      status: formatStatusLabel(neat.status),
+      caption: neat.reason,
     },
-  ];
-
-  const requiredRows = [
-    { label: "Age", value: profile?.age ? String(profile.age) : "Missing", missingReason: "Needed for BMR." },
-    { label: "Sex", value: profile?.sex ?? "Missing", missingReason: "Needed for BMR and sex fallback hydration." },
-    { label: "Height", value: profile?.heightCm ? `${profile.heightCm} cm` : "Missing", missingReason: "Needed for BMR." },
-    { label: "Weight", value: profile?.weightKg ? `${profile.weightKg} kg` : "Missing", missingReason: "Needed for BMR and water target." },
     {
-      label: "Baseline lifestyle",
-      value: profile?.activityLevel ? activityLabels[profile.activityLevel] ?? profile.activityLevel : "Missing",
-      missingReason: "Needed for NEAT because it estimates non-exercise movement.",
+      label: "Water target",
+      value: waterTarget.value != null ? `${waterTarget.value} ml/day` : "Missing",
+      status: formatStatusLabel(waterTarget.status),
+      caption: waterTarget.reason,
     },
   ];
 
-  const helpfulRows = [
-    { label: "Goal", value: profile?.goal ?? "Not set" },
-    { label: "Country", value: profile?.country ?? "Singapore" },
-    { label: "Remarks", value: profile?.remarks ?? "None" },
-  ];
+  const latestMeasurements = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: BodyMeasurement[] = [];
+    for (const measurement of measurements) {
+      if (seen.has(measurement.type)) continue;
+      seen.add(measurement.type);
+      rows.push(measurement);
+    }
+    return rows;
+  }, [measurements]);
 
   const groupedMemory = useMemo(() => {
     const memory = getProfileMemory(profile);
-    return Object.entries(
-      memory.reduce<Record<string, ProfileMemoryItem[]>>((acc, item) => {
-        const key = item.category;
-        acc[key] ??= [];
-        acc[key].push(item);
-        return acc;
-      }, {}),
-    ) as Array<[ProfileMemoryItem["category"], ProfileMemoryItem[]]>;
+    const groups = new Map<string, ProfileMemoryItem[]>();
+    for (const item of memory) {
+      const label = memoryCategoryLabels[item.category];
+      const list = groups.get(label) ?? [];
+      list.push(item);
+      groups.set(label, list);
+    }
+
+    return Array.from(groups.entries())
+      .map(([label, items]) => [label, items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]));
   }, [profile]);
 
   return (
@@ -133,57 +139,73 @@ export function ProfileDashboard({
       <div className="space-y-4">
         <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm">
           <SectionHeader
-            icon={<Sparkles size={18} className="text-emerald-600" />}
-            iconBg="bg-emerald-50/70"
-            caption="PROFILE FOR DAILY"
-            title="Daily readiness"
+            icon={<UserRound size={18} className="text-stone-600" />}
+            iconBg="bg-stone-100/70"
+            caption="ESSENTIALS"
+            title="Profile for Daily"
             action={
               <InfoButton
-                title="Why Daily needs profile inputs"
-                description={
-                  <div className="space-y-2">
-                    <p>Daily uses profile data for three estimated pieces: water target, BMR, and NEAT.</p>
-                    <ul className="list-disc space-y-1 pl-4">
-                      <li>Water target prefers weight, with a sex fallback if needed.</li>
-                      <li>BMR needs age, sex, height, and weight unless you override it.</li>
-                      <li>NEAT needs baseline lifestyle and BMR unless you override it.</li>
-                    </ul>
-                    <p>TEF comes from today&apos;s food, and EAT comes from logged exercise on Daily.</p>
-                  </div>
-                }
+                title="Why this matters"
+                description="Daily needs these basics to estimate BMR, water target, energy output, and analysis quality."
               />
             }
           />
-          <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            {readinessRows.map((row) => (
-              <ProfileRow
-                key={row.label}
-                label={row.label}
-                value={row.value}
-                status={formatStatusLabel(row.status)}
-                caption={row.reason}
-              />
-            ))}
-          </div>
-        </section>
 
-        <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm">
-          <SectionHeader
-            icon={<UserRound size={18} className="text-stone-500" />}
-            iconBg="bg-stone-100/70"
-            caption="PROFILE MEMORY"
-            title="Required for Daily"
-          />
           <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            {requiredRows.map((row) => (
+            {essentialRows.map((row) => (
               <ProfileRow
                 key={row.label}
                 label={row.label}
                 value={row.value}
                 status={row.value === "Missing" ? "Missing" : "Provided"}
-                caption={row.value === "Missing" ? row.missingReason : undefined}
+                caption={row.caption}
               />
             ))}
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+            {derivedRows.map((row) => (
+              <ProfileRow key={row.label} label={row.label} value={row.value} status={row.status} caption={row.caption} />
+            ))}
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+            <button
+              type="button"
+              onClick={() => setMeasurementsOpen((current) => !current)}
+              className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+              aria-expanded={measurementsOpen}
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-900">Latest body measurements</p>
+                <p className="mt-0.5 text-xs text-stone-400">
+                  {latestMeasurements.length
+                    ? "Newest value for each measurement type."
+                    : "No body measurements saved yet."}
+                </p>
+              </div>
+              <ChevronDown
+                size={16}
+                className={`shrink-0 text-stone-400 transition-transform ${measurementsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {measurementsOpen ? (
+              latestMeasurements.length ? (
+                <div className="border-t border-stone-200">
+                  {latestMeasurements.map((measurement) => (
+                    <ProfileRow
+                      key={measurement.id}
+                      label={formatMeasurementType(measurement.type)}
+                      value={`${measurement.value} ${measurement.unit}`}
+                      status={formatMeasuredAt(measurement.measured_at)}
+                      caption={measurement.remarks ?? undefined}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="border-t border-stone-200 px-3 py-3 text-sm text-stone-500">No measurements yet.</div>
+              )
+            ) : null}
           </div>
         </section>
 
@@ -191,148 +213,70 @@ export function ProfileDashboard({
           <SectionHeader
             icon={<Brain size={18} className="text-indigo-500" />}
             iconBg="bg-indigo-50/70"
-            caption="DAILY ESTIMATES"
-            title="Derived and overrides"
-          />
-          <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            <ProfileRow label="Water target" value={readinessRows[0].value} status={formatStatusLabel(waterTarget.status)} caption={waterTarget.reason} />
-            <ProfileRow label="BMR" value={readinessRows[1].value} status={formatStatusLabel(bmr.status)} caption={bmr.reason} />
-            <ProfileRow label="NEAT" value={readinessRows[2].value} status={formatStatusLabel(neat.status)} caption={neat.reason} />
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm">
-          <SectionHeader
-            icon={<Scale size={18} className="text-sky-500" />}
-            iconBg="bg-sky-50/70"
-            caption="HELPFUL CONTEXT"
+            caption="CONTEXT"
             title="Profile knowledge"
           />
-          <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
-            {helpfulRows.map((row) => (
-              <ProfileRow key={row.label} label={row.label} value={row.value} status={row.value === "None" || row.value === "Not set" ? "Optional" : "Provided"} />
-            ))}
-            {groupedMemory.length ? (
-              groupedMemory.flatMap(([category, items]) =>
-                items.map((item, index) => (
-                  <ProfileRow
-                    key={item.id}
-                    label={index === 0 ? memoryCategoryLabels[category] : " "}
-                    value={`${item.label}: ${item.value}`}
-                    status="Memory"
-                    fullTextTitle={item.label}
-                  />
-                )),
-              )
-            ) : (
-              <ProfileRow
-                label="Other memory"
-                value="No extra profile memory yet"
-                status="Optional"
-                caption="Add lifestyle, diet, food context, or preference notes through the profile manager."
-              />
-            )}
-          </div>
-          {lastChange && (lastChange.profileChanges.length || lastChange.overrideChanges.length || lastChange.memoryChanges.length) ? (
-            <div className="mt-3 rounded-lg border border-stone-200 bg-white/85 p-3 text-sm text-stone-600">
-              <p className="font-semibold text-stone-900">Latest update</p>
-              <div className="mt-2 space-y-1">
-                {lastChange.profileChanges.map((change) => (
-                  <p key={change.field}>
-                    {change.field}: {String(change.after ?? "Cleared")}
-                  </p>
-                ))}
-                {lastChange.overrideChanges.map((change) => (
-                  <p key={change.key}>
-                    {change.key}: {String(change.after ?? "Cleared")}
-                  </p>
-                ))}
-                {lastChange.memoryChanges.map((change) => (
-                  <p key={change.id}>
-                    Memory {change.after ? "updated" : "deleted"}: {change.id}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </section>
 
-        <section className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm">
-          <SectionHeader
-            icon={<NotebookPen size={18} className="text-stone-500" />}
-            iconBg="bg-stone-100/70"
-            caption="AUDIT TRAIL"
-            title="Recent profile notes"
-          />
-          <div className="mt-3 space-y-2">
-            {notes.length ? (
-              notes.map((note) => (
-                <article key={note.id} className="rounded-lg border border-stone-200 bg-white/90 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <FullTextDialog
-                        title="Profile note"
-                        text={note.raw_note}
-                        className="block"
-                        previewClassName="break-words text-sm font-semibold text-stone-900"
-                      />
-                      <p className="mt-1 text-xs text-stone-400">{new Date(note.created_at).toLocaleString()}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <StatusBadge status={note.parse_status} />
-                      <WarningDot warnings={note.warnings} label="Profile note warnings" />
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-stone-500">{describeNoteChange(note)}</p>
-                  {note.parse_error ? <p className="mt-2 text-xs text-amber-700">{note.parse_error}</p> : null}
-                </article>
-              ))
-            ) : (
-              <div className="rounded-lg border border-dashed border-stone-200 bg-white/60 p-4 text-sm text-stone-500">
-                No profile notes yet.
-              </div>
-            )}
+          <div className="mt-3 overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+            <ProfileRow
+              label="Goal"
+              value={profile?.goal?.trim() ? profile.goal : "Not set"}
+              status={profile?.goal?.trim() ? "Provided" : "Optional"}
+            />
           </div>
+
+          {groupedMemory.length ? (
+            <div className="mt-4 space-y-3">
+              {groupedMemory.map(([label, items]) => (
+                <section key={label} className="overflow-hidden rounded-lg border border-stone-200 bg-white/90">
+                  <div className="border-b border-stone-200 px-3 py-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{label}</p>
+                  </div>
+                  <div className="divide-y divide-stone-200">
+                    {items.map((item) => (
+                      <div key={item.id} className="px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-stone-700">{item.label}</p>
+                            <p className="mt-0.5 break-words text-sm font-semibold text-stone-900">{item.value}</p>
+                          </div>
+                          <span className="shrink-0 text-[11px] text-stone-400">{formatShortDate(item.updatedAt)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-dashed border-stone-200 bg-white/70 px-4 py-5 text-sm text-stone-500">
+              No context added yet. Tap the chat button to add goals, habits, dietary preferences, or lifestyle context.
+            </div>
+          )}
         </section>
       </div>
 
       <button
         type="button"
-        aria-label="Open profile manager"
+        aria-label="Talk to profile"
+        title="Talk to profile"
         onClick={() => setManagerOpen(true)}
-        className="fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition-all duration-150 hover:bg-emerald-700 active:scale-95 sm:right-6"
+        className="fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all duration-150 hover:bg-indigo-700 active:scale-95 sm:right-6"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }}
       >
-        <NotebookPen size={22} />
+        <MessageCircle size={22} />
       </button>
 
       <ProfileManagerSheet
         open={managerOpen}
         onOpenChange={setManagerOpen}
-        onSubmitted={({ profile: nextProfile, notes: nextNotes, changeSummary }) => {
+        onSubmitted={({ profile: nextProfile, measurements: nextMeasurements }) => {
           setProfile((nextProfile as Profile | null) ?? null);
-          setNotes(nextNotes);
-          setLastChange(changeSummary ?? null);
+          setMeasurements(nextMeasurements);
         }}
       />
     </main>
   );
-}
-
-function describeNoteChange(note: ProfileNote) {
-  if (note.parse_status === "failed") return "Saved, but this note still needs clarification.";
-  if (note.parse_status === "pending") return "Processing profile manager update.";
-
-  const parsed = note.parsed_payload;
-  const segments: string[] = [];
-  if (parsed?.action) segments.push(parsed.action.replace(/_/g, " "));
-  const profileFields = parsed?.profile ? Object.keys(parsed.profile).filter((key) => key !== "metadata") : [];
-  if (profileFields.length) segments.push(`profile: ${profileFields.join(", ")}`);
-  if (parsed?.metadataUpserts?.length) segments.push(`memory: ${parsed.metadataUpserts.length} updated`);
-  if (parsed?.metadataDeletes?.length) segments.push(`memory: ${parsed.metadataDeletes.length} deleted`);
-  if (parsed?.overrides && Object.keys(parsed.overrides).length) segments.push(`overrides: ${Object.keys(parsed.overrides).join(", ")}`);
-  if (parsed?.overrideDeletes?.length) segments.push(`override cleared: ${parsed.overrideDeletes.join(", ")}`);
-  return segments.length ? segments.join(" • ") : "Profile manager update applied.";
 }
 
 function ProfileRow({
@@ -340,13 +284,11 @@ function ProfileRow({
   value,
   status,
   caption,
-  fullTextTitle,
 }: {
   label: string;
   value: string;
   status: string;
   caption?: string;
-  fullTextTitle?: string;
 }) {
   const statusStyle =
     status === "Missing"
@@ -355,7 +297,9 @@ function ProfileRow({
         ? "bg-sky-50 text-sky-700"
         : status === "Estimated"
           ? "bg-stone-100 text-stone-700"
-          : "bg-emerald-50 text-emerald-700";
+          : status === "Provided"
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-stone-100 text-stone-600";
 
   return (
     <div className="border-b border-stone-200 px-3 py-2.5 last:border-b-0">
@@ -365,16 +309,7 @@ function ProfileRow({
           {caption ? <p className="mt-0.5 text-xs text-stone-400">{caption}</p> : null}
         </div>
         <div className="min-w-0 text-right">
-          {fullTextTitle ? (
-            <FullTextDialog
-              title={fullTextTitle}
-              text={value}
-              previewClassName="break-words text-sm font-semibold text-stone-900"
-              className="inline-block max-w-[180px]"
-            />
-          ) : (
-            <p className="break-words text-sm font-semibold text-stone-900">{value}</p>
-          )}
+          <p className="break-words text-sm font-semibold text-stone-900">{value}</p>
           <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${statusStyle}`}>{status}</span>
         </div>
       </div>
@@ -411,15 +346,29 @@ function SectionHeader({
   );
 }
 
-function StatusBadge({ status }: { status: ProfileNote["parse_status"] }) {
-  const styles =
-    status === "parsed"
-      ? "bg-emerald-50 text-emerald-700"
-      : status === "failed"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-stone-100 text-stone-700";
+function formatMeasurementType(value: string) {
+  return value
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map(capitalize)
+    .join(" ");
+}
 
-  const label = status === "parsed" ? "Applied" : status === "failed" ? "Needs detail" : "Processing";
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
-  return <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${styles}`}>{label}</span>;
+function formatShortDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatMeasuredAt(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
