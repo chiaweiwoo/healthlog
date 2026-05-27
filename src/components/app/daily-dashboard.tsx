@@ -588,7 +588,7 @@ export function DailyDashboard({
                         className="grid items-start gap-x-2 border-t border-stone-200 px-2 py-2 first:border-t-0"
                         style={{ gridTemplateColumns: "2.8rem minmax(0,1fr) minmax(0,3.35rem) minmax(0,3.35rem)" }}
                       >
-                        <div className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
+                        <div className="pt-0.5 text-[12px] font-medium tabular-nums text-stone-500">
                           {row.time}
                         </div>
                         <div className="min-w-0 overflow-hidden">
@@ -659,10 +659,10 @@ export function DailyDashboard({
                             </div>
                           </FullTextDialog>
                         </div>
-                        <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
+                        <div className="pt-0.5 text-right text-[13px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
                           {formatCompactTableValue(row.caloriesDisplayValue.value)}
                         </div>
-                        <div className="pt-0.5 text-right text-sm font-semibold tabular-nums text-stone-700 whitespace-nowrap">
+                        <div className="pt-0.5 text-right text-[13px] font-medium tabular-nums text-stone-600 whitespace-nowrap">
                           {formatCompactTableValue(row.waterDisplayValue.value)}
                         </div>
                       </div>
