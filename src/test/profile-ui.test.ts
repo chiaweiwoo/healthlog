@@ -15,6 +15,8 @@ vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: getSupabaseAdminMock,
 }));
 
+vi.mock("server-only", () => ({}));
+
 describe("profile-driven setup UI", () => {
   beforeEach(() => {
     getProfileMock.mockReset();
