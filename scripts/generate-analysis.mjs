@@ -7,6 +7,8 @@ import { z } from "zod";
 const PROMPT_VERSION = "2026-05-27-analysis-v2";
 const MODEL_NAME = "gemini-3.5-flash";
 
+const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 7;
+
 // 1. Validate Environment Variables
 const requiredEnv = [
   "SUPABASE_URL",
@@ -54,12 +56,12 @@ function getTodayString(tz = getUserTimezone()) {
   return formatter.format(new Date());
 }
 
-function getPast7DaysRange(todayStr) {
+function getPastDaysRange(todayStr, periodDays = ANALYSIS_PERIOD_DAYS) {
   const dates = [];
   const [year, month, day] = todayStr.split("-").map(Number);
   // Midnight SGT/UTC to avoid date wrapping errors
   const todayDate = new Date(Date.UTC(year, month - 1, day));
-  for (let i = 7; i >= 1; i--) {
+  for (let i = periodDays; i >= 1; i--) {
     const d = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000);
     dates.push(d.toISOString().split("T")[0]);
   }
@@ -231,12 +233,12 @@ function normalizeUsageMetadata(usageMetadata) {
 async function run() {
   try {
     const todayStr = getTodayString();
-    const past7Days = getPast7DaysRange(todayStr);
+    const past7Days = getPastDaysRange(todayStr);
     const startDate = past7Days[0];
     const endDate = past7Days[past7Days.length - 1];
 
-    console.log(`[7-Day Analysis] Today (Local User Time): ${todayStr}`);
-    console.log(`[7-Day Analysis] Target Period: ${startDate} to ${endDate}`);
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Today (Local User Time): ${todayStr}`);
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Target Period: ${startDate} to ${endDate}`);
 
     // 3. Fetch Profile
     const { data: dbProfile, error: profileErr } = await supabase
@@ -272,10 +274,10 @@ async function run() {
     const completeDays = Object.keys(parsedEntriesByDate).sort();
     const completeDaysCount = completeDays.length;
 
-    console.log(`[7-Day Analysis] Found ${completeDaysCount} complete day(s) with active parsed entries.`);
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Found ${completeDaysCount} complete day(s) with active parsed entries.`);
 
     if (completeDaysCount === 0) {
-      console.warn("[7-Day Analysis] No complete days found in the target period. Exiting.");
+      console.warn(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] No complete days found in the target period. Exiting.`);
       process.exit(0);
     }
 
@@ -328,7 +330,7 @@ async function run() {
     const averageAlcoholG = Math.round((totalAlcoholG / completeDaysCount) * 10) / 10;
     const averageWaterMl = Math.round(totalWaterMl / completeDaysCount);
     const averageExerciseCalories = Math.round(totalExerciseCalories / completeDaysCount);
-    const consistencyScore = Math.round((completeDaysCount / 7) * 100) / 100;
+    const consistencyScore = Math.round((completeDaysCount / ANALYSIS_PERIOD_DAYS) * 100) / 100;
 
     const stats = {
       periodStart: startDate,
@@ -470,9 +472,10 @@ async function run() {
         value: m.value
       }))
     };
+    const thresholdDays = Math.ceil(ANALYSIS_PERIOD_DAYS / 2);
 
     const prompt = `You are a personal health log analyst.
-Review the following 7-day health and fitness logs for a single user.
+Review the following ${ANALYSIS_PERIOD_DAYS}-day health and fitness logs for a single user.
 Do not recalculate or compute any sums or averages. The statistics have been computed deterministically and are 100% correct.
 Your job is to provide behavioral interpretation, root-cause analysis, action areas, and diagnostic feedback on profile completeness.
 
@@ -481,8 +484,8 @@ CRITICAL GUARDRAIL: Do not generate medical diagnoses, make clinical claims, or 
 === USER PROFILE & GOAL ===
 ${JSON.stringify(profileSummary, null, 2)}
 
-=== 7-DAY DETERMINISTIC STATISTICS ===
-- Complete days logged: ${completeDaysCount} of 7 target days (Consistency: ${consistencyScore * 100}%)
+=== ${ANALYSIS_PERIOD_DAYS}-DAY DETERMINISTIC STATISTICS ===
+- Complete days logged: ${completeDaysCount} of ${ANALYSIS_PERIOD_DAYS} target days (Consistency: ${consistencyScore * 100}%)
 - Intake Stats: ${JSON.stringify(stats, null, 2)}
 
 === ANOMALIES & CONTRIBUTORS EVIDENCE ===
@@ -493,14 +496,14 @@ ${JSON.stringify(profileSummary, null, 2)}
 - High-Calorie/Low-Protein Candidates (>300 kcal, <10g protein): ${JSON.stringify(highCalorieLowProteinCandidates, null, 2)}
 
 === CRITICAL REQUIREMENT FOR LIMITED DATA ===
-- If the number of complete days is LESS THAN 4 (we have ${completeDaysCount} days), the overall data is highly limited.
+- If the number of complete days is LESS THAN ${thresholdDays} (we have ${completeDaysCount} days), the overall data is highly limited.
 - In this case, you MUST set the confidence field to "low".
 - You MUST also explicitly address this limited logging in the "summary" and under "profileGaps" or "rootCauses", recommending specific logging habits to gain a full weekly picture.
 
 === OUTPUT FORMAT ===
 You must return a raw JSON object only. No markdown wrappers. Follow this exact JSON structure:
 {
-  "summary": "Short, clear plain-language summary of the week's nutritional outcome. Focus heavily on how outcomes relate directly to the user's goals (e.g. fat loss, maintenance, muscle gain, hydration). Highlight the limited data if complete days are < 4.",
+  "summary": "Short, clear plain-language summary of the week's nutritional outcome. Focus heavily on how outcomes relate directly to the user's goals (e.g. fat loss, maintenance, muscle gain, hydration). Highlight the limited data if complete days are < ${thresholdDays}.",
   "rootCauses": [
     "Evidence-backed driver 1 (e.g. 'High calorie surplus on Tuesday driven by 1200 kcal burger entry')",
     "Evidence-backed driver 2 (e.g. 'Low protein average due to low protein content in top calorie items')"
@@ -520,12 +523,12 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
 }
 `;
 
-    console.log(`[7-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);
     const started = Date.now();
     let trace = null;
     if (langfuse) {
       trace = langfuse.trace({
-        name: "healthlog-7day-analysis",
+        name: `healthlog-${ANALYSIS_PERIOD_DAYS}day-analysis`,
         metadata: { model: MODEL_NAME, promptVersion: PROMPT_VERSION, completeDaysCount },
       });
     }
@@ -540,15 +543,15 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
 
     const responseText = result.text ?? "{}";
     const latencyMs = Date.now() - started;
-    console.log(`[7-Day Analysis] Gemini response received in ${latencyMs}ms.`);
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Gemini response received in ${latencyMs}ms.`);
 
     const parsedResponse = JSON.parse(responseText.trim().replace(/^```json\s*/, "").replace(/\s*```$/, ""));
     const normalizedInsights = normalizeAnalysisReportResult(parsedResponse);
     
     // Construct final combined analysis report payload
     let confidenceText = normalizedInsights.confidence;
-    if (completeDaysCount < 4) {
-      console.log("[7-Day Analysis] Forcing 'low' confidence due to limited data (<4 complete days).");
+    if (completeDaysCount < thresholdDays) {
+      console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Forcing 'low' confidence due to limited data (<${thresholdDays} complete days).`);
       confidenceText = "low";
     }
     const numericConfidence = mapConfidenceTextToNumeric(confidenceText);
@@ -617,15 +620,15 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
       });
 
     if (saveError) {
-      console.error("[7-Day Analysis] Failed to save analysis report to Supabase:", saveError);
+      console.error(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Failed to save analysis report to Supabase:`, saveError);
       throw saveError;
     }
 
-    console.log("[7-Day Analysis] Successfully generated and stored the 7-day analysis report!");
+    console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Successfully generated and stored the ${ANALYSIS_PERIOD_DAYS}-day analysis report!`);
     process.exit(0);
 
   } catch (error) {
-    console.error("[7-Day Analysis] Error running analysis script:", error);
+    console.error(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Error running analysis script:`, error);
     process.exit(1);
   }
 }

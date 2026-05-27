@@ -1,7 +1,12 @@
-name: Analyze 7-day HealthLog
+name: Analyze HealthLog Period
 
 on:
   workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to analyze'
+        required: true
+        default: '7'
 
 jobs:
   analyze:
@@ -29,3 +34,4 @@ jobs:
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_BASE_URL: ${{ secrets.LANGFUSE_BASE_URL }}
+          ANALYSIS_PERIOD_DAYS: ${{ github.event.inputs.days }}

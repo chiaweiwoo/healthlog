@@ -4,13 +4,16 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { Profile, AnalysisStats, AnalysisEvidence, ParsedDailyItem } from "@/lib/schemas";
 import { deriveFoodNutrition } from "@/lib/calculations";
 
-// Helper to get past 7 calendar days before a given date
-export function getPast7DaysRange(todayStr: string): string[] {
+// Configurable sliding window size for the analysis reports
+export const ANALYSIS_PERIOD_DAYS = 7;
+
+// Helper to get past calendar days range before a given date
+export function getPastDaysRange(todayStr: string, periodDays: number = ANALYSIS_PERIOD_DAYS): string[] {
   const dates: string[] = [];
   const [year, month, day] = todayStr.split("-").map(Number);
   // Using Date.UTC to prevent any timezone shifts during calculation
   const todayDate = new Date(Date.UTC(year, month - 1, day));
-  for (let i = 7; i >= 1; i--) {
+  for (let i = periodDays; i >= 1; i--) {
     const d = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000);
     dates.push(d.toISOString().split("T")[0]);
   }
@@ -22,7 +25,7 @@ export async function getRealTimeAnalysisStats(
   todayStr: string
 ): Promise<{ stats: AnalysisStats; evidence: AnalysisEvidence }> {
   const supabase = getSupabaseAdmin();
-  const past7Days = getPast7DaysRange(todayStr);
+  const past7Days = getPastDaysRange(todayStr, ANALYSIS_PERIOD_DAYS);
   const startDate = past7Days[0];
   const endDate = past7Days[past7Days.length - 1];
 
@@ -117,7 +120,7 @@ interface SummaryDbRow {
   const averageAlcoholG = Math.round((totalAlcoholG / divisor) * 10) / 10;
   const averageWaterMl = Math.round(totalWaterMl / divisor);
   const averageExerciseCalories = Math.round(totalExerciseCalories / divisor);
-  const consistencyScore = Math.round((completeDaysCount / 7) * 100) / 100;
+  const consistencyScore = Math.round((completeDaysCount / ANALYSIS_PERIOD_DAYS) * 100) / 100;
 
   const stats: AnalysisStats = {
     periodStart: startDate,

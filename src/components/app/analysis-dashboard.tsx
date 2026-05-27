@@ -43,7 +43,11 @@ export function AnalysisDashboard({
   const [activeTab, setActiveTab] = useState<"stats" | "ai">("stats");
   const [showEvidence, setShowEvidence] = useState(false);
 
-  const isLowData = stats.completeDays < 4;
+  const totalDaysInPeriod = stats.periodStart && stats.periodEnd
+    ? Math.round((new Date(stats.periodEnd).getTime() - new Date(stats.periodStart).getTime()) / (24 * 60 * 60 * 1000)) + 1
+    : 7;
+
+  const isLowData = stats.completeDays < Math.ceil(totalDaysInPeriod / 2);
 
   // Formatting dates
   const formatDate = (dateStr: string) => {
@@ -89,7 +93,7 @@ export function AnalysisDashboard({
       <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">7-day review</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{totalDaysInPeriod}-day review</span>
             <h1 className="text-lg font-bold leading-tight text-stone-900 flex items-center gap-1.5">
               <Calendar size={18} className="text-stone-500" />
               {formatDate(stats.periodStart)} - {formatDate(stats.periodEnd)}
@@ -107,11 +111,11 @@ export function AnalysisDashboard({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-stone-500">
             <span>Tracking Consistency</span>
-            <span className="font-semibold text-stone-700">{stats.completeDays} of 7 days logged</span>
+            <span className="font-semibold text-stone-700">{stats.completeDays} of {totalDaysInPeriod} days logged</span>
           </div>
           
           <div className="flex gap-1.5">
-            {Array.from({ length: 7 }).map((_, index) => {
+            {Array.from({ length: totalDaysInPeriod }).map((_, index) => {
               const isActive = index < stats.completeDays;
               return (
                 <div
@@ -153,7 +157,7 @@ export function AnalysisDashboard({
           }`}
         >
           <BarChart3 size={14} />
-          <span>7-Day Stats</span>
+          <span>{totalDaysInPeriod}-Day Stats</span>
         </button>
         <button
           onClick={() => setActiveTab("ai")}
@@ -552,16 +556,16 @@ export function AnalysisDashboard({
                 <Sparkles size={24} className="animate-pulse" />
               </div>
               <div className="max-w-md mx-auto space-y-2">
-                <h2 className="text-base font-bold text-stone-900">7-Day AI Insights Pending</h2>
+                <h2 className="text-base font-bold text-stone-900">{totalDaysInPeriod}-Day AI Insights Pending</h2>
                 <p className="text-xs text-stone-500 leading-relaxed">
-                  Your 7-day nutritional and behavioral reviews are generated via a manual analysis pipeline.
+                  Your {totalDaysInPeriod}-day nutritional and behavioral reviews are generated via a manual analysis pipeline.
                   Once the GitHub Actions workflow triggers, your latest insights, root causes, and focus areas will automatically appear in this tab.
                 </p>
               </div>
               <div className="pt-2">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 border border-stone-200 px-3 py-1 text-[10px] font-medium text-stone-600">
                   <HelpCircle size={12} className="text-stone-400" />
-                  <span>Trigger &quot;Analyze 7-day HealthLog&quot; via GitHub Actions</span>
+                  <span>Trigger &quot;Analyze {totalDaysInPeriod}-day HealthLog&quot; via GitHub Actions</span>
                 </div>
               </div>
             </div>
