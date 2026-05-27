@@ -557,13 +557,6 @@ export function DailyDashboard({
               icon={<BookOpen size={18} className="text-stone-400" />}
               caption="TODAY'S LOG"
               title="Entries"
-              action={
-                entries.length > 0 ? (
-                  <span className="inline-flex h-5 items-center justify-center rounded-full bg-stone-100 px-2.5 text-[10px] font-bold text-stone-500 border border-stone-200/50">
-                    {entries.length}
-                  </span>
-                ) : null
-              }
             />
           </div>
 
