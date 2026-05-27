@@ -15,11 +15,11 @@ export function buildProfileResetBackup(input) {
   return {
     exportedAt: new Date().toISOString(),
     profile: input.profile ?? null,
-    bodyNotes: input.bodyNotes ?? [],
+    profileNotes: input.profileNotes ?? [],
     bodyMeasurements: input.bodyMeasurements ?? [],
     analysisReports: input.analysisReports ?? [],
     counts: {
-      bodyNotes: input.bodyNotes?.length ?? 0,
+      profileNotes: input.profileNotes?.length ?? 0,
       bodyMeasurements: input.bodyMeasurements?.length ?? 0,
       analysisReports: input.analysisReports?.length ?? 0,
     },
@@ -49,17 +49,17 @@ async function main() {
 
   const [
     { data: profile, error: profileError },
-    { data: bodyNotes, error: bodyNotesError },
+    { data: profileNotes, error: profileNotesError },
     { data: bodyMeasurements, error: bodyMeasurementsError },
     { data: analysisReports, error: analysisReportsError },
   ] = await Promise.all([
     supabase.from("profile").select("*").eq("id", "current").maybeSingle(),
-    supabase.from("body_notes").select("*").order("created_at", { ascending: false }),
+    supabase.from("profile_notes").select("*").order("created_at", { ascending: false }),
     supabase.from("body_measurements").select("*").order("measured_at", { ascending: false }),
     supabase.from("analysis_reports").select("*").order("created_at", { ascending: false }),
   ]);
 
-  for (const error of [profileError, bodyNotesError, bodyMeasurementsError, analysisReportsError]) {
+  for (const error of [profileError, profileNotesError, bodyMeasurementsError, analysisReportsError]) {
     if (error) throw error;
   }
 
@@ -69,7 +69,7 @@ async function main() {
     JSON.stringify(
       buildProfileResetBackup({
         profile,
-        bodyNotes,
+        profileNotes,
         bodyMeasurements,
         analysisReports,
       }),
@@ -81,7 +81,7 @@ async function main() {
 
   const deletes = await Promise.all([
     supabase.from("profile").delete().eq("id", "current"),
-    supabase.from("body_notes").delete().not("id", "is", null),
+    supabase.from("profile_notes").delete().not("id", "is", null),
     supabase.from("body_measurements").delete().not("id", "is", null),
     supabase.from("analysis_reports").delete().not("id", "is", null),
   ]);
@@ -91,7 +91,7 @@ async function main() {
   }
 
   console.log(`Profile backup written to ${backupPath}`);
-  console.log("Cleared healthlog.profile(current), body_notes, body_measurements, and analysis_reports.");
+  console.log("Cleared healthlog.profile(current), profile_notes, body_measurements, and analysis_reports.");
 }
 
 if (isDirectRun) {

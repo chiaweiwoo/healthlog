@@ -215,7 +215,7 @@ name matches a priced Langfuse model definition.
 |---|---|
 | `profile` | Single `id='current'` row for current profile/goals |
 | `body_measurements` | Timestamped measurements |
-| `body_notes` | Raw body/profile note history plus parse status |
+| `profile_notes` | Raw body/profile note history plus parse status |
 | `daily_entries` | Raw notes plus validated parsed JSON |
 | `daily_summaries` | One row per date, recalculated from active entries; also stores `profile_snapshot` JSONB for the profile state used during recalculation |
 | `llm_runs` | Prompt/model/output audit table; includes `admin_alert` (jsonb) top-level column for soft-guardrail flags |
@@ -250,7 +250,7 @@ CI should run lint, typecheck, tests, and production build.
 - Profile page is the setup/control center. It uses two primary cards: Essential Fields and Flexible Memory, and it is never blocked even when setup is incomplete.
 - Profile editing is conversational only via an indigo `MessageCircle` FAB. Do not reintroduce inline field editors on the Profile page.
 - Daily and Analysis must block with a centered setup overlay until these essentials are present: age, sex, height, weight, and baseline lifestyle (`activityLevel`).
-- `body_notes` stays in the database as the audit trail, but the Profile UI no longer shows a recent-notes history section.
+- `profile_notes` stays in the database as the audit trail, but the Profile UI no longer shows a recent-notes history section.
 - Use `daily_summaries.profile_snapshot` to store essentials, derived BMR/NEAT/water target values, override values, and `snapshotAt` during recalculation.
 - Daily note persistence is primary. If recalculation fails after a raw note row
   or parsed row has already been saved, return the saved entry with a warning
@@ -259,7 +259,7 @@ CI should run lint, typecheck, tests, and production build.
   Fall back to Supabase API/Postgres logs until the table is repaired.
 - Use `npm run check:schema` after schema-dependent changes or when production
   request IDs suggest the live DB shape may not match the repo assumptions.
-- When resetting profile state for testing, back up the current `profile` row first, then clear only `profile`, `body_notes`, `body_measurements`, and `analysis_reports`. Do not clear `daily_entries`, `daily_summaries`, `app_request_logs`, or `llm_runs`.
+- When resetting profile state for testing, back up the current `profile` row first, then clear only `profile`, `profile_notes`, `body_measurements`, and `analysis_reports`. Do not clear `daily_entries`, `daily_summaries`, `app_request_logs`, or `llm_runs`.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
 - **Section card pattern**: all major dashboard sections use a shared `SectionHeader` component (icon box + 10px uppercase caption + `text-base font-bold` title + optional right action). Cards use `bg-stone-50/60` with `border-stone-200` and a neutral shadow. Icon boxes get a subtle section-themed tint (orange-50 for energy, sky-50 for hydration, stone-50 for entries).

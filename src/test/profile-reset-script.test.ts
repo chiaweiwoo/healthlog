@@ -13,17 +13,17 @@ describe("reset-profile-data helpers", () => {
 
     const backup = buildProfileResetBackup({
       profile: { id: "current", age: 32 },
-      bodyNotes: [{ id: "n1" }],
+      profileNotes: [{ id: "n1" }],
       bodyMeasurements: [{ id: "m1" }, { id: "m2" }],
       analysisReports: [{ id: "a1" }],
     });
 
     expect(backup.profile).toEqual({ id: "current", age: 32 });
-    expect(backup.bodyNotes).toHaveLength(1);
+    expect(backup.profileNotes).toHaveLength(1);
     expect(backup.bodyMeasurements).toHaveLength(2);
     expect(backup.analysisReports).toHaveLength(1);
     expect(backup.counts).toEqual({
-      bodyNotes: 1,
+      profileNotes: 1,
       bodyMeasurements: 2,
       analysisReports: 1,
     });

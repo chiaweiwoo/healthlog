@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extractJsonObject } from "@/lib/json";
-import { normalizeBodyResult, normalizeDailyResult } from "@/lib/llm-normalizers";
-import { bodyParseResultSchema, dailyParseResultSchema } from "@/lib/schemas";
+import { normalizeProfileNoteResult, normalizeDailyResult } from "@/lib/llm-normalizers";
+import { profileNoteParseResultSchema, dailyParseResultSchema } from "@/lib/schemas";
 
 describe("extractJsonObject", () => {
   it("returns raw objects untouched", () => {
@@ -140,9 +140,9 @@ describe("normalizeDailyResult", () => {
   });
 });
 
-describe("normalizeBodyResult", () => {
+describe("normalizeProfileNoteResult", () => {
   it("rescues confidence and remarks drift for body profile updates", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       profile: {
         sex: "male",
@@ -170,7 +170,7 @@ describe("normalizeBodyResult", () => {
       remarks: [],
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.action).toBe("update");
     expect(parsed.profile?.sex).toBe("male");
     expect(parsed.profile?.age).toBe(38);
@@ -181,7 +181,7 @@ describe("normalizeBodyResult", () => {
   });
 
   it("maps medication and injury context into medical memory", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       metadataUpserts: [
         {
@@ -199,13 +199,13 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.metadataUpserts[0]?.category).toBe("medical_context");
     expect(parsed.metadataUpserts[1]?.category).toBe("medical_context");
   });
 
   it("keeps age, height, and weight as scalar profile fields", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       profile: {
         age: "33",
@@ -219,7 +219,7 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.profile?.age).toBe(33);
     expect(parsed.profile?.heightCm).toBe(172);
     expect(parsed.profile?.weightKg).toBe(68.5);
@@ -227,7 +227,7 @@ describe("normalizeBodyResult", () => {
   });
 
   it("treats an empty profile object as no scalar patch", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       profile: {},
       measurements: [],
@@ -236,12 +236,12 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.profile).toBeUndefined();
   });
 
   it("keeps partial profile patches sparse instead of filling nulls", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       profile: {
         age: "33",
@@ -252,7 +252,7 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.profile).toEqual(
       expect.objectContaining({
         age: 33,
@@ -265,7 +265,7 @@ describe("normalizeBodyResult", () => {
   });
 
   it("treats bmr-only updates as additive overrides without scalar clears", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       profile: {},
       overrides: {
@@ -277,7 +277,7 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.profile).toBeUndefined();
     expect(parsed.overrides?.bmr).toBe(1800);
     expect(parsed.metadataDeletes).toEqual([]);
@@ -285,7 +285,7 @@ describe("normalizeBodyResult", () => {
   });
 
   it("does not turn unrelated notes into profile memory when no structured fields are present", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "clarify",
       metadataUpserts: [],
       measurements: [],
@@ -299,7 +299,7 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.action).toBe("clarify");
     expect(parsed.metadataUpserts).toHaveLength(0);
     expect(parsed.metadataDeletes).toEqual([]);
@@ -308,7 +308,7 @@ describe("normalizeBodyResult", () => {
   });
 
   it("generates deterministic fallback memory ids from category and label", () => {
-    const normalized = normalizeBodyResult({
+    const normalized = normalizeProfileNoteResult({
       action: "update",
       metadataUpserts: [
         {
@@ -323,7 +323,7 @@ describe("normalizeBodyResult", () => {
       remarks: null,
     });
 
-    const parsed = bodyParseResultSchema.parse(normalized);
+    const parsed = profileNoteParseResultSchema.parse(normalized);
     expect(parsed.metadataUpserts[0]?.id).toBe("memory-medical-context-medication");
   });
 });

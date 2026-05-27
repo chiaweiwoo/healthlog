@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { getErrorMessage, logUserAction } from "@/lib/action-logs";
 import { requireApiSession } from "@/lib/auth";
 import {
-  createPendingBodyNote,
-  finalizeBodyNoteFailed,
-  finalizeBodyNoteParsed,
+  createPendingProfileNote,
+  finalizeProfileNoteFailed,
+  finalizeProfileNoteParsed,
   getProfile,
   listBodyMeasurements,
-  listBodyNotes,
+  listProfileNotes,
 } from "@/lib/db";
-import { parseBodyNote } from "@/lib/llm";
+import { parseProfileNote } from "@/lib/llm";
 import { invalidateAnalysisCache } from "@/lib/analysis-invalidation";
 
 
@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const auth = await requireApiSession(request);
   if (!auth.ok) return auth.response;
-  const [profile, measurements, notes] = await Promise.all([getProfile(), listBodyMeasurements(), listBodyNotes()]);
+  const [profile, measurements, notes] = await Promise.all([getProfile(), listBodyMeasurements(), listProfileNotes()]);
   await logUserAction({
     requestId,
-    route: "/api/body-notes",
+    route: "/api/profile-notes",
     method: "GET",
-    action: "body_notes.list",
+    action: "profile_notes.list",
     username: auth.session.username,
     statusCode: 200,
     success: true,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const rawNote = String(body.rawNote ?? "").trim();
     if (!rawNote) return Response.json({ error: "Note is required.", requestId }, { status: 400 });
 
-    let bodyNote = await createPendingBodyNote(rawNote);
+    let profileNote = await createPendingProfileNote(rawNote);
     const currentProfile = await getProfile();
     let parsedWarningsCount = 0;
     let profile = currentProfile;
@@ -57,26 +57,26 @@ export async function POST(request: NextRequest) {
       addedMeasurements: Array<{ id: string; type: string; value: number; unit: string; measuredAt: string }>;
     } = { profileChanges: [], overrideChanges: [], memoryChanges: [], addedMeasurements: [] };
     try {
-      const parsed = await parseBodyNote({ note: rawNote, currentProfile });
+      const parsed = await parseProfileNote({ note: rawNote, currentProfile });
       parsedWarningsCount = parsed.warnings.length;
-      const result = await finalizeBodyNoteParsed(bodyNote.id, rawNote, parsed);
-      bodyNote = result.note;
+      const result = await finalizeProfileNoteParsed(profileNote.id, rawNote, parsed);
+      profileNote = result.note;
       profile = result.profile;
       measurements = result.measurements;
       changeSummary = result.changeSummary;
     } catch (parseError) {
-      const result = await finalizeBodyNoteFailed(bodyNote.id, parseError);
-      bodyNote = result.note;
+      const result = await finalizeProfileNoteFailed(profileNote.id, parseError);
+      profileNote = result.note;
       profile = result.profile;
       measurements = result.measurements;
       changeSummary = result.changeSummary;
     }
-    const notes = await listBodyNotes();
+    const notes = await listProfileNotes();
     await logUserAction({
       requestId,
-      route: "/api/body-notes",
+      route: "/api/profile-notes",
       method: "POST",
-      action: "body_notes.create",
+      action: "profile_notes.create",
       username: auth.session.username,
       statusCode: 200,
       success: true,
@@ -87,18 +87,18 @@ export async function POST(request: NextRequest) {
         hasProfile: Boolean(profile),
         measurementCount: measurements.length,
         warningsCount: parsedWarningsCount,
-        parseStatus: bodyNote.parse_status,
+        parseStatus: profileNote.parse_status,
       },
       userAgent: request.headers.get("user-agent"),
     });
     invalidateAnalysisCache();
-    return Response.json({ profile, measurements, notes, bodyNote, changeSummary, requestId });
+    return Response.json({ profile, measurements, notes, profileNote, changeSummary, requestId });
   } catch (error) {
     await logUserAction({
       requestId,
-      route: "/api/body-notes",
+      route: "/api/profile-notes",
       method: "POST",
-      action: "body_notes.create",
+      action: "profile_notes.create",
       statusCode: 500,
       success: false,
       durationMs: Date.now() - started,

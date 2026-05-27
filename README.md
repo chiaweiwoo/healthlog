@@ -8,7 +8,7 @@ and deficit or surplus.
 The app also keeps request-level debug traces in Supabase so production issues can
 be tied back to a `requestId` and a server-side log row. LLM parse attempts are
 also recorded in `llm_runs`, and raw body/profile notes are preserved in
-`body_notes`.
+`profile_notes`.
 
 ## Stack
 
@@ -51,7 +51,7 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 
 - User actions and auth-related API requests are written to `healthlog.app_request_logs`
 - Every Gemini parse attempt is written to `healthlog.llm_runs`
-- Raw body/profile notes are written to `healthlog.body_notes`
+- Raw body/profile notes are written to `healthlog.profile_notes`
 - Error responses may include a `requestId`
 - Use that `requestId` to find the matching log row in Supabase when debugging production issues
 - If `app_request_logs` is missing, treat that as a production deployment bug and fall back to Supabase API/Postgres logs until it is repaired

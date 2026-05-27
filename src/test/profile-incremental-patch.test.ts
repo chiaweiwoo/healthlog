@@ -24,7 +24,7 @@ type ProfileRow = {
 
 function buildSupabaseStub(state: {
   profileRow: ProfileRow | null;
-  bodyNoteRow: Record<string, unknown>;
+  profileNoteRow: Record<string, unknown>;
   measurementRows?: Array<Record<string, unknown>>;
 }) {
   const measurements = state.measurementRows ?? [];
@@ -99,18 +99,18 @@ function buildSupabaseStub(state: {
         };
       }
 
-      if (table === "body_notes") {
+      if (table === "profile_notes") {
         return {
           update: (payload: Record<string, unknown>) => ({
             eq: () => ({
               select: () => ({
                 single: async () => {
-                  state.bodyNoteRow = {
-                    ...state.bodyNoteRow,
+                  state.profileNoteRow = {
+                    ...state.profileNoteRow,
                     ...payload,
                   };
                   return {
-                    data: state.bodyNoteRow,
+                    data: state.profileNoteRow,
                     error: null,
                   };
                 },
@@ -125,7 +125,7 @@ function buildSupabaseStub(state: {
   };
 }
 
-describe("finalizeBodyNoteParsed incremental profile patches", () => {
+describe("finalizeProfileNoteParsed incremental profile patches", () => {
   beforeEach(() => {
     vi.resetModules();
     getSupabaseAdminMock.mockReset();
@@ -160,15 +160,15 @@ describe("finalizeBodyNoteParsed incremental profile patches", () => {
             ],
           },
         },
-        bodyNoteRow: {
-          id: "body-1",
+        profileNoteRow: {
+          id: "profile-1",
           parse_status: "pending",
         },
       }),
     );
 
-    const { finalizeBodyNoteParsed } = await import("@/lib/db");
-    const result = await finalizeBodyNoteParsed("body-1", "Set my BMR to 1800", {
+    const { finalizeProfileNoteParsed } = await import("@/lib/db");
+    const result = await finalizeProfileNoteParsed("profile-1", "Set my BMR to 1800", {
       action: "update",
       profile: {},
       metadataUpserts: [],
@@ -238,15 +238,15 @@ describe("finalizeBodyNoteParsed incremental profile patches", () => {
             ],
           },
         },
-        bodyNoteRow: {
-          id: "body-2",
+        profileNoteRow: {
+          id: "profile-2",
           parse_status: "pending",
         },
       }),
     );
 
-    const { finalizeBodyNoteParsed } = await import("@/lib/db");
-    const result = await finalizeBodyNoteParsed("body-2", "I like Diablo 4", {
+    const { finalizeProfileNoteParsed } = await import("@/lib/db");
+    const result = await finalizeProfileNoteParsed("profile-2", "I like Diablo 4", {
       action: "clarify",
       profile: {},
       metadataUpserts: [],

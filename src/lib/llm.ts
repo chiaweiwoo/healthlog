@@ -7,8 +7,8 @@ import { z, type ZodType } from "zod";
 import { getEnv, requireEnv } from "@/lib/env";
 import { extractJsonObject } from "@/lib/json";
 import { DEFAULT_COUNTRY } from "@/lib/config";
-import { normalizeBodyResult, normalizeDailyResult } from "@/lib/llm-normalizers";
-import { bodyParseResultSchema, dailyParseResultSchema, Profile } from "@/lib/schemas";
+import { normalizeProfileNoteResult, normalizeDailyResult } from "@/lib/llm-normalizers";
+import { profileNoteParseResultSchema, dailyParseResultSchema, Profile } from "@/lib/schemas";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 type LlmScenario = "daily_quick" | "daily_grounded" | "body";
@@ -359,7 +359,7 @@ New note: ${input.note}
   });
 }
 
-export async function parseBodyNote(input: { note: string; currentProfile: Profile | null }) {
+export async function parseProfileNote(input: { note: string; currentProfile: Profile | null }) {
   const prompt = `
 You are a constrained profile manager for a private health log.
 
@@ -534,8 +534,8 @@ New note: ${input.note}
       note: input.note,
       hasCurrentProfile: Boolean(input.currentProfile),
     },
-    normalizer: normalizeBodyResult,
-    schema: bodyParseResultSchema,
+    normalizer: normalizeProfileNoteResult,
+    schema: profileNoteParseResultSchema,
   });
 }
 

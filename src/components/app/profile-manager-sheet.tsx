@@ -58,7 +58,7 @@ export function ProfileManagerSheet({
     if (!rawNote) return;
     const toastId = toast.loading("Updating profile...");
     try {
-      const response = await fetch("/api/body-notes", {
+      const response = await fetch("/api/profile-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawNote }),

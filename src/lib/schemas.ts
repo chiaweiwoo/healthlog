@@ -129,7 +129,7 @@ export const bodyMeasurementSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
-export const bodyParseResultSchema = z.object({
+export const profileNoteParseResultSchema = z.object({
   action: z.enum(["add", "update", "delete", "clarify", "no_change"]).default("update"),
   profile: profileSchema.partial().optional(),
   metadataUpserts: z.array(profileMemoryItemSchema).default([]),
@@ -150,7 +150,7 @@ export type AdminAlert = z.infer<typeof adminAlertSchema>;
 export type ParsedDailyItem = z.infer<typeof parsedDailyItemSchema>;
 export type DailyParseResult = z.infer<typeof dailyParseResultSchema>;
 export type Profile = z.infer<typeof profileSchema>;
-export type BodyParseResult = z.infer<typeof bodyParseResultSchema>;
+export type ProfileNoteParseResult = z.infer<typeof profileNoteParseResultSchema>;
 export type ParseStatus = z.infer<typeof parseStatusSchema>;
 export type ProfileMemoryItem = z.infer<typeof profileMemoryItemSchema>;
 export type ProfileMemoryCategory = z.infer<typeof profileMemoryCategorySchema>;

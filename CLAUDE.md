@@ -8,7 +8,7 @@ any other repository from this thread.
 
 ## Hard Invariants
 
-- Store raw daily/body notes before deriving structured state.
+- Store raw daily/profile notes before deriving structured state.
 - Gemini never directly mutates Supabase.
 - Do not require a user-provided Gemini model name; route models in code.
 - Use JSONB for evolving structures and scalar columns for stable query fields.

@@ -4,7 +4,7 @@ import { SummaryDisplayItem, summarizeDailyItems } from "@/lib/calculations";
 import { normalizeDailyParseResultTimes, resolveFailedEntryOccurredTime } from "@/lib/daily-entry-time-guard";
 import { buildProfileMetadata, buildProfileSnapshot, getProfileMemory, getProfileOverrides } from "@/lib/profile-memory";
 import {
-  BodyParseResult,
+  ProfileNoteParseResult,
   DailyParseResult,
   ParsedDailyItem,
   ParseStatus,
@@ -12,6 +12,7 @@ import {
   ProfileOverrideKey,
   Warning,
   profileSchema,
+  ProfileMemoryItem,
 } from "@/lib/schemas";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -48,11 +49,11 @@ export type BodyMeasurementRow = {
   metadata: Record<string, unknown>;
 };
 
-export type BodyNoteRow = {
+export type ProfileNoteRow = {
   id: string;
   raw_note: string;
   parse_status: ParseStatus;
-  parsed_payload: BodyParseResult | null;
+  parsed_payload: ProfileNoteParseResult | null;
   applied_profile: Partial<Profile> | null;
   applied_measurements: Array<Record<string, unknown>>;
   confidence: number;
@@ -141,16 +142,16 @@ function sanitizeProfilePatch(profile: Partial<Profile> | undefined) {
   return Object.keys(patch).length ? patch : undefined;
 }
 
-function hasProfileOverrideValues(overrides: BodyParseResult["overrides"]) {
+function hasProfileOverrideValues(overrides: ProfileNoteParseResult["overrides"]) {
   if (!overrides) return false;
   return ["waterTargetMl", "bmr", "neatCalories"].some((key) => typeof overrides[key as keyof typeof overrides] === "number");
 }
 
-function buildBodyNoteChangeSummary(
+function buildProfileNoteChangeSummary(
   previousProfile: Profile | null,
   nextProfile: Profile | null,
   addedMeasurements: BodyMeasurementRow[],
-  parsed: BodyParseResult,
+  parsed: ProfileNoteParseResult,
 ) {
   const fields: Array<keyof Profile> = ["age", "sex", "heightCm", "weightKg", "activityLevel", "goal", "country", "remarks"];
   const profileChanges = fields
@@ -249,7 +250,7 @@ export async function upsertProfile(profile: Partial<Profile>) {
   return data;
 }
 
-async function applyProfileManagerResult(parsed: BodyParseResult, noteId: string) {
+async function applyProfileManagerResult(parsed: ProfileNoteParseResult, noteId: string) {
   const existing = await getProfile();
   const profilePatch = sanitizeProfilePatch(parsed.profile);
   const hasOverrides = hasProfileOverrideValues(parsed.overrides);
@@ -261,7 +262,7 @@ async function applyProfileManagerResult(parsed: BodyParseResult, noteId: string
   const metadata = buildProfileMetadata({
     existing: existing?.metadata ?? {},
     overrides: parsed.overrides,
-    memoryUpserts: parsed.metadataUpserts.map((item) => ({
+    memoryUpserts: parsed.metadataUpserts.map((item: ProfileMemoryItem) => ({
       ...item,
       sourceNoteId: item.sourceNoteId ?? noteId,
       updatedAt: item.updatedAt ?? new Date().toISOString(),
@@ -550,17 +551,17 @@ export async function listBodyMeasurements() {
   return (data ?? []) as BodyMeasurementRow[];
 }
 
-export async function listBodyNotes() {
+export async function listProfileNotes() {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase.from("body_notes").select("*").order("created_at", { ascending: false }).limit(30);
+  const { data, error } = await supabase.from("profile_notes").select("*").order("created_at", { ascending: false }).limit(30);
   if (error) throw error;
-  return (data ?? []) as BodyNoteRow[];
+  return (data ?? []) as ProfileNoteRow[];
 }
 
-export async function createPendingBodyNote(rawNote: string) {
+export async function createPendingProfileNote(rawNote: string) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
-    .from("body_notes")
+    .from("profile_notes")
     .insert({
       raw_note: rawNote,
       parse_status: "pending",
@@ -576,19 +577,19 @@ export async function createPendingBodyNote(rawNote: string) {
     .single();
 
   if (error) throw error;
-  return data as BodyNoteRow;
+  return data as ProfileNoteRow;
 }
 
-export async function finalizeBodyNoteParsed(id: string, rawNote: string, parsed: BodyParseResult) {
+export async function finalizeProfileNoteParsed(id: string, rawNote: string, parsed: ProfileNoteParseResult) {
   const previousProfile = await getProfile();
   const measurementsToInsert = parsed.measurements.filter((measurement) => measurement.type !== "height");
   const nextProfile = await applyProfileManagerResult(parsed, id);
   const insertedMeasurements = await addBodyMeasurements(measurementsToInsert);
-  const changeSummary = buildBodyNoteChangeSummary(previousProfile, nextProfile, insertedMeasurements, parsed);
+  const changeSummary = buildProfileNoteChangeSummary(previousProfile, nextProfile, insertedMeasurements, parsed);
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
-    .from("body_notes")
+    .from("profile_notes")
     .update({
       parse_status: "parsed",
       parsed_payload: parsed,
@@ -614,18 +615,18 @@ export async function finalizeBodyNoteParsed(id: string, rawNote: string, parsed
   if (error) throw error;
 
   return {
-    note: data as BodyNoteRow,
+    note: data as ProfileNoteRow,
     profile: nextProfile,
     measurements: await listBodyMeasurements(),
     changeSummary,
   };
 }
 
-export async function finalizeBodyNoteFailed(id: string, error: unknown) {
+export async function finalizeProfileNoteFailed(id: string, error: unknown) {
   const supabase = getSupabaseAdmin();
   const message = asErrorMessage(error);
   const { data, error: updateError } = await supabase
-    .from("body_notes")
+    .from("profile_notes")
     .update({
       parse_status: "failed",
       parsed_payload: null,
@@ -642,7 +643,7 @@ export async function finalizeBodyNoteFailed(id: string, error: unknown) {
     .single();
   if (updateError) throw updateError;
   return {
-    note: data as BodyNoteRow,
+    note: data as ProfileNoteRow,
     profile: await getProfile(),
     measurements: await listBodyMeasurements(),
     changeSummary: { action: "clarify", profileChanges: [], overrideChanges: [], memoryChanges: [], addedMeasurements: [] },

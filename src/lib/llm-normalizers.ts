@@ -354,7 +354,7 @@ export function normalizeDailyResult(raw: unknown) {
   return withInvalidTimeWarning(normalized, record.occurredTime);
 }
 
-export function normalizeBodyResult(raw: unknown) {
+export function normalizeProfileNoteResult(raw: unknown) {
   const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const profile = record.profile && typeof record.profile === "object" ? (record.profile as Record<string, unknown>) : undefined;
   const measurements = Array.isArray(record.measurements) ? record.measurements : [];
