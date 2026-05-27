@@ -354,12 +354,15 @@ Return JSON only. No markdown. No prose.
 
 The note may mix English and Chinese. Preserve original wording where useful.
 
-Allowed action values: add, update, delete, clarify, no_change.
+Allowed action values: add, update, clarify, no_change.
 This page is only for profile, lifestyle, context, and health-log memory.
 Do not log daily food, drinks, water, or exercise here. If the note is mainly a daily log, return action "clarify" with warnings.
 Do not diagnose or provide medical advice.
 Uncertain facts should become warnings or remarks, not hard facts.
-Delete requests must target a specific known field, override, or memory item.
+Treat every profile chat as a non-destructive patch.
+Do not output null for unknown or unspecified fields.
+Do not delete or clear existing profile fields, overrides, or memory from normal chat.
+If the note is unrelated to health logging or analysis, return action "clarify" with warnings and leave profile, overrides, memory, and measurements empty.
 
 Allowed activityLevel values: sedentary, light, moderate, active, very_active.
 Interpret activityLevel as conservative non-exercise baseline lifestyle only.
@@ -389,7 +392,8 @@ Before finalizing, self-check that:
 - activityLevel uses only the allowed enum values
 - updates stay inside HealthLog profile/context scope
 - logged workouts are not folded into activityLevel
-- deletions are specific rather than broad
+- unspecified fields are omitted rather than set to null
+- updates only touch the fields clearly supported by the note
 - unrelated notes become clarify warnings instead of profile memory
 
 Return JSON matching:
@@ -412,9 +416,8 @@ metadataUpserts items can include:
 - label
 - value
 
-metadataDeletes is an array of memory ids to remove.
 overrides can include waterTargetMl, bmr, neatCalories.
-overrideDeletes can include waterTargetMl, bmr, neatCalories.
+For normal profile chat, keep metadataDeletes and overrideDeletes as empty arrays.
 
 Measurements can include:
 - measuredAt
@@ -498,16 +501,18 @@ Example injury JSON:
   "remarks": null
 }
 
-Example delete JSON:
+Example override-only JSON:
 {
-  "action": "delete",
+  "action": "update",
   "profile": {},
   "metadataUpserts": [],
-  "metadataDeletes": ["gym-context"],
-  "overrides": {},
-  "overrideDeletes": ["neatCalories"],
+  "metadataDeletes": [],
+  "overrides": {
+    "bmr": 1800
+  },
+  "overrideDeletes": [],
   "measurements": [],
-  "confidence": 0.8,
+  "confidence": 0.88,
   "warnings": [],
   "remarks": null
 }

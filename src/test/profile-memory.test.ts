@@ -96,6 +96,84 @@ describe("profile-memory helpers", () => {
     expect(getProfileMemory(profile)[0]?.id).toBe("new-item");
   });
 
+  it("updates an existing memory item when category and label match", () => {
+    const metadata = buildProfileMetadata({
+      existing: {
+        memory: [
+          {
+            id: "medication-existing",
+            category: "medical_context",
+            label: "Medication",
+            value: "Taking metformin daily.",
+            updatedAt: "2026-05-25T00:00:00.000Z",
+          },
+        ],
+      },
+      memoryUpserts: [
+        {
+          id: "memory-medical_context-medication",
+          category: "medical_context",
+          label: "Medication",
+          value: "Taking metformin twice daily.",
+          updatedAt: "2026-05-26T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const profile = { country: "Singapore", metadata };
+    expect(getProfileMemory(profile)).toHaveLength(1);
+    expect(getProfileMemory(profile)[0]).toEqual(
+      expect.objectContaining({
+        id: "medication-existing",
+        value: "Taking metformin twice daily.",
+      }),
+    );
+  });
+
+  it("preserves existing memory when a new note has no relevant memory upserts", () => {
+    const metadata = buildProfileMetadata({
+      existing: {
+        memory: [
+          {
+            id: "injury-1",
+            category: "medical_context",
+            label: "Injury limitation",
+            value: "Avoiding running due to ankle sprain.",
+            updatedAt: "2026-05-25T00:00:00.000Z",
+          },
+        ],
+      },
+      memoryUpserts: [],
+      memoryDeletes: [],
+    });
+
+    const profile = { country: "Singapore", metadata };
+    expect(getProfileMemory(profile)).toHaveLength(1);
+    expect(getProfileMemory(profile)[0]?.id).toBe("injury-1");
+  });
+
+  it("appends new memory with a stable unique id when no matching item exists", () => {
+    const metadata = buildProfileMetadata({
+      existing: {
+        memory: [],
+      },
+      memoryUpserts: [
+        {
+          id: "memory-medical_context-medication",
+          category: "medical_context",
+          label: "Medication",
+          value: "Taking metformin daily.",
+          sourceNoteId: "body-1",
+          updatedAt: "2026-05-25T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const profile = { country: "Singapore", metadata };
+    expect(getProfileMemory(profile)).toHaveLength(1);
+    expect(getProfileMemory(profile)[0]?.id).toBe("memory-medical_context-medication");
+  });
+
   it("treats only the five essentials as required for completeness", () => {
     expect(isProfileComplete(null)).toBe(false);
     expect(getMissingProfileEssentials(null).map((item) => item.key)).toEqual([

@@ -226,6 +226,64 @@ describe("normalizeBodyResult", () => {
     expect(parsed.measurements).toHaveLength(0);
   });
 
+  it("treats an empty profile object as no scalar patch", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      profile: {},
+      measurements: [],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.profile).toBeUndefined();
+  });
+
+  it("keeps partial profile patches sparse instead of filling nulls", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      profile: {
+        age: "33",
+      },
+      measurements: [],
+      confidence: 0.85,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.profile).toEqual(
+      expect.objectContaining({
+        age: 33,
+      }),
+    );
+    expect(parsed.profile).not.toHaveProperty("sex");
+    expect(parsed.profile).not.toHaveProperty("heightCm");
+    expect(parsed.profile).not.toHaveProperty("weightKg");
+    expect(parsed.profile).not.toHaveProperty("activityLevel");
+  });
+
+  it("treats bmr-only updates as additive overrides without scalar clears", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      profile: {},
+      overrides: {
+        bmr: "1800",
+      },
+      measurements: [],
+      confidence: 0.9,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.profile).toBeUndefined();
+    expect(parsed.overrides?.bmr).toBe(1800);
+    expect(parsed.metadataDeletes).toEqual([]);
+    expect(parsed.overrideDeletes).toEqual([]);
+  });
+
   it("does not turn unrelated notes into profile memory when no structured fields are present", () => {
     const normalized = normalizeBodyResult({
       action: "clarify",
@@ -244,6 +302,28 @@ describe("normalizeBodyResult", () => {
     const parsed = bodyParseResultSchema.parse(normalized);
     expect(parsed.action).toBe("clarify");
     expect(parsed.metadataUpserts).toHaveLength(0);
+    expect(parsed.metadataDeletes).toEqual([]);
+    expect(parsed.overrideDeletes).toEqual([]);
     expect(parsed.warnings[0]?.code).toBe("profile_context_not_relevant");
+  });
+
+  it("generates deterministic fallback memory ids from category and label", () => {
+    const normalized = normalizeBodyResult({
+      action: "update",
+      metadataUpserts: [
+        {
+          category: "medical_context",
+          label: "Medication",
+          value: "Taking metformin daily.",
+        },
+      ],
+      measurements: [],
+      confidence: 0.8,
+      warnings: [],
+      remarks: null,
+    });
+
+    const parsed = bodyParseResultSchema.parse(normalized);
+    expect(parsed.metadataUpserts[0]?.id).toBe("memory-medical-context-medication");
   });
 });

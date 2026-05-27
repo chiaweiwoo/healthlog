@@ -28,6 +28,26 @@ function asRecord(value: unknown) {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
+function normalizeMemoryKeyPart(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]+/g, "")
+    .trim();
+}
+
+function buildMemorySemanticKey(item: Pick<ProfileMemoryItem, "category" | "label">) {
+  return `${item.category}::${normalizeMemoryKeyPart(item.label)}`;
+}
+
+function buildStableMemoryId(item: Pick<ProfileMemoryItem, "category" | "label" | "sourceNoteId">) {
+  const category = item.category.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const label = normalizeMemoryKeyPart(item.label).replace(/\s+/g, "-").slice(0, 48) || "item";
+  const suffix = item.sourceNoteId?.trim() ? `-${item.sourceNoteId.trim()}` : "";
+  return `memory-${category}-${label}${suffix}`;
+}
+
 function parseMemoryItem(value: unknown): ProfileMemoryItem | null {
   const record = asRecord(value);
   if (!record.id || !record.label || !record.value || !record.category || !record.updatedAt) return null;
@@ -196,11 +216,26 @@ export function buildProfileMetadata(input: {
   }
 
   const deleteIds = new Set(input.memoryDeletes ?? []);
-  const memoryMap = new Map<string, ProfileMemoryItem>(
-    (current.memory ?? []).filter((item) => !deleteIds.has(item.id)).map((item) => [item.id, item]),
-  );
+  const filteredMemory = (current.memory ?? []).filter((item) => !deleteIds.has(item.id));
+  const memoryMap = new Map<string, ProfileMemoryItem>(filteredMemory.map((item) => [item.id, item]));
+  const semanticKeyToId = new Map(filteredMemory.map((item) => [buildMemorySemanticKey(item), item.id]));
+
   for (const item of input.memoryUpserts ?? []) {
-    memoryMap.set(item.id, item);
+    const semanticKey = buildMemorySemanticKey(item);
+    const matchedId = semanticKeyToId.get(semanticKey);
+    let resolvedId = matchedId ?? item.id ?? buildStableMemoryId(item);
+
+    if (!matchedId && memoryMap.has(resolvedId)) {
+      resolvedId = buildStableMemoryId(item);
+    }
+
+    const nextItem = {
+      ...item,
+      id: resolvedId,
+    };
+
+    memoryMap.set(resolvedId, nextItem);
+    semanticKeyToId.set(semanticKey, resolvedId);
   }
 
   return {

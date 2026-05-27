@@ -79,6 +79,35 @@ function asErrorMessage(error: unknown) {
   return "Unexpected parsing error.";
 }
 
+function sanitizeProfilePatch(profile: Partial<Profile> | undefined) {
+  if (!profile) return undefined;
+
+  const patch: Partial<Profile> = {};
+  if (typeof profile.age === "number" && Number.isFinite(profile.age) && profile.age > 0) patch.age = profile.age;
+  if (profile.sex === "female" || profile.sex === "male") patch.sex = profile.sex;
+  if (typeof profile.heightCm === "number" && Number.isFinite(profile.heightCm) && profile.heightCm > 0) patch.heightCm = profile.heightCm;
+  if (typeof profile.weightKg === "number" && Number.isFinite(profile.weightKg) && profile.weightKg > 0) patch.weightKg = profile.weightKg;
+  if (
+    profile.activityLevel === "sedentary" ||
+    profile.activityLevel === "light" ||
+    profile.activityLevel === "moderate" ||
+    profile.activityLevel === "active" ||
+    profile.activityLevel === "very_active"
+  ) {
+    patch.activityLevel = profile.activityLevel;
+  }
+  if (typeof profile.goal === "string" && profile.goal.trim()) patch.goal = profile.goal;
+  if (typeof profile.country === "string" && profile.country.trim()) patch.country = profile.country;
+  if (typeof profile.remarks === "string" && profile.remarks.trim()) patch.remarks = profile.remarks;
+
+  return Object.keys(patch).length ? patch : undefined;
+}
+
+function hasProfileOverrideValues(overrides: BodyParseResult["overrides"]) {
+  if (!overrides) return false;
+  return ["waterTargetMl", "bmr", "neatCalories"].some((key) => typeof overrides[key as keyof typeof overrides] === "number");
+}
+
 function buildBodyNoteChangeSummary(
   previousProfile: Profile | null,
   nextProfile: Profile | null,
@@ -184,26 +213,27 @@ export async function upsertProfile(profile: Partial<Profile>) {
 
 async function applyProfileManagerResult(parsed: BodyParseResult, noteId: string) {
   const existing = await getProfile();
+  const profilePatch = sanitizeProfilePatch(parsed.profile);
+  const hasOverrides = hasProfileOverrideValues(parsed.overrides);
+
+  if (!existing && !profilePatch && !parsed.metadataUpserts.length && !hasOverrides) {
+    return existing;
+  }
+
   const metadata = buildProfileMetadata({
     existing: existing?.metadata ?? {},
     overrides: parsed.overrides,
-    overrideDeletes: parsed.overrideDeletes,
     memoryUpserts: parsed.metadataUpserts.map((item) => ({
       ...item,
       sourceNoteId: item.sourceNoteId ?? noteId,
       updatedAt: item.updatedAt ?? new Date().toISOString(),
     })),
-    memoryDeletes: parsed.metadataDeletes,
   });
 
   const nextProfilePatch: Partial<Profile> = {
-    ...(parsed.profile ?? {}),
+    ...(profilePatch ?? {}),
     metadata,
   };
-
-  if (!existing && !parsed.profile && !parsed.metadataUpserts.length && !parsed.metadataDeletes.length && !parsed.overrides && !parsed.overrideDeletes.length) {
-    return existing;
-  }
 
   await upsertProfile(nextProfilePatch);
   return getProfile();

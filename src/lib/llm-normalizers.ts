@@ -134,6 +134,10 @@ function normalizeProfileAction(value: unknown) {
   return "update";
 }
 
+function hasOwn(record: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
 function normalizeMemoryCategory(value: unknown) {
   if (typeof value !== "string") return "other";
   const normalized = value.toLowerCase().trim().replace(/\s+/g, "_");
@@ -144,6 +148,84 @@ function normalizeMemoryCategory(value: unknown) {
   if (["food", "cuisine"].includes(normalized)) return "food_context";
   if (["medical"].includes(normalized)) return "medical_context";
   return "other";
+}
+
+function normalizeActivityLevel(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  return (
+    {
+      sedentary: "sedentary",
+      low: "light",
+      light: "light",
+      moderate: "moderate",
+      active: "active",
+      very_active: "very_active",
+      veryactive: "very_active",
+      high: "very_active",
+    } as const
+  )[value.toLowerCase().replace(/\s+/g, "_") as keyof {
+    sedentary: "sedentary";
+    low: "light";
+    light: "light";
+    moderate: "moderate";
+    active: "active";
+    very_active: "very_active";
+    veryactive: "very_active";
+    high: "very_active";
+  }];
+}
+
+function normalizeMemoryIdPart(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function buildSparseProfilePatch(profile: Record<string, unknown>) {
+  const patch: Record<string, unknown> = {};
+
+  if (hasOwn(profile, "age")) {
+    const age = normalizeNumber(profile.age);
+    if (age != null) patch.age = age;
+  }
+
+  const sexSource = hasOwn(profile, "sex") ? profile.sex : hasOwn(profile, "gender") ? profile.gender : undefined;
+  if (sexSource === "male" || sexSource === "female") {
+    patch.sex = sexSource;
+  }
+
+  if (hasOwn(profile, "heightCm") || hasOwn(profile, "height")) {
+    const heightCm = normalizeNumber(profile.heightCm ?? profile.height);
+    if (heightCm != null) patch.heightCm = heightCm;
+  }
+
+  if (hasOwn(profile, "weightKg") || hasOwn(profile, "weight")) {
+    const weightKg = normalizeNumber(profile.weightKg ?? profile.weight);
+    if (weightKg != null) patch.weightKg = weightKg;
+  }
+
+  if (hasOwn(profile, "activityLevel")) {
+    const activityLevel = normalizeActivityLevel(profile.activityLevel);
+    if (activityLevel) patch.activityLevel = activityLevel;
+  }
+
+  if (hasOwn(profile, "goal") && typeof profile.goal === "string" && profile.goal.trim()) {
+    patch.goal = profile.goal;
+  }
+
+  if (hasOwn(profile, "country") && typeof profile.country === "string" && profile.country.trim()) {
+    patch.country = profile.country;
+  }
+
+  if (hasOwn(profile, "remarks")) {
+    const remarks = normalizeRemarks(profile.remarks);
+    if (remarks != null) patch.remarks = remarks;
+  }
+
+  return Object.keys(patch).length ? patch : undefined;
 }
 
 function inferMemoryCategory(label: string | null, value: string | null, fallback: ReturnType<typeof normalizeMemoryCategory>) {
@@ -256,11 +338,6 @@ export function normalizeBodyResult(raw: unknown) {
     : Array.isArray(record.memory)
       ? record.memory
       : [];
-  const metadataDeletes = Array.isArray(record.metadataDeletes)
-    ? record.metadataDeletes
-    : Array.isArray(record.deleteMemory)
-      ? record.deleteMemory
-      : [];
   const overrides =
     record.overrides && typeof record.overrides === "object"
       ? (record.overrides as Record<string, unknown>)
@@ -270,49 +347,9 @@ export function normalizeBodyResult(raw: unknown) {
 
   return {
     action: normalizeProfileAction(record.action ?? record.actionType),
-    profile: profile
-      ? {
-          age: normalizeNumber(profile.age),
-          sex:
-            profile.sex === "male" || profile.sex === "female"
-              ? profile.sex
-              : profile.gender === "male" || profile.gender === "female"
-                ? profile.gender
-                : null,
-          heightCm: normalizeNumber(profile.heightCm ?? profile.height),
-          weightKg: normalizeNumber(profile.weightKg ?? profile.weight),
-          activityLevel:
-            typeof profile.activityLevel === "string"
-              ? (
-                  {
-                    sedentary: "sedentary",
-                    low: "light",
-                    light: "light",
-                    moderate: "moderate",
-                    active: "active",
-                    very_active: "very_active",
-                    veryactive: "very_active",
-                    high: "very_active",
-                  } as const
-                )[profile.activityLevel.toLowerCase().replace(/\s+/g, "_") as keyof {
-                  sedentary: "sedentary";
-                  low: "light";
-                  light: "light";
-                  moderate: "moderate";
-                  active: "active";
-                  very_active: "very_active";
-                  veryactive: "very_active";
-                  high: "very_active";
-                }] ?? null
-              : null,
-          goal: typeof profile.goal === "string" ? profile.goal : null,
-          country: typeof profile.country === "string" ? profile.country : "Singapore",
-          remarks: normalizeRemarks(profile.remarks),
-          metadata: profile,
-        }
-      : undefined,
+    profile: profile ? buildSparseProfilePatch(profile) : undefined,
     metadataUpserts: metadataUpserts
-      .map((item, index) => {
+      .map((item) => {
         const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
         const label =
           typeof source.label === "string"
@@ -332,9 +369,11 @@ export function normalizeBodyResult(raw: unknown) {
                 : null;
         if (!label || !value) return null;
         const fallbackCategory = normalizeMemoryCategory(source.category);
+        const category = inferMemoryCategory(label, value, fallbackCategory);
+        const generatedId = `memory-${normalizeMemoryIdPart(category)}-${normalizeMemoryIdPart(label) || "item"}`;
         return {
-          id: typeof source.id === "string" ? source.id : `memory-${index + 1}`,
-          category: inferMemoryCategory(label, value, fallbackCategory),
+          id: typeof source.id === "string" && source.id.trim() ? source.id : generatedId,
+          category,
           label,
           value,
           sourceNoteId: typeof source.sourceNoteId === "string" ? source.sourceNoteId : undefined,
@@ -345,7 +384,7 @@ export function normalizeBodyResult(raw: unknown) {
         };
       })
       .filter(Boolean),
-    metadataDeletes: metadataDeletes.filter((item): item is string => typeof item === "string" && item.trim().length > 0),
+    metadataDeletes: [],
     overrides: {
       waterTargetMl: normalizeNumber(
         overrides.waterTargetMl ?? overrides.water_target_ml ?? overrides.waterTarget ?? overrides.water_ml,
@@ -353,12 +392,7 @@ export function normalizeBodyResult(raw: unknown) {
       bmr: normalizeNumber(overrides.bmr ?? overrides.basalMetabolicRate) ?? undefined,
       neatCalories: normalizeNumber(overrides.neatCalories ?? overrides.neat ?? overrides.neat_calories) ?? undefined,
     },
-    overrideDeletes: Array.isArray(record.overrideDeletes)
-      ? record.overrideDeletes.filter(
-          (item): item is "waterTargetMl" | "bmr" | "neatCalories" =>
-            item === "waterTargetMl" || item === "bmr" || item === "neatCalories",
-        )
-      : [],
+    overrideDeletes: [],
     measurements: measurements.map((item) => {
       const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       return {
