@@ -3,12 +3,11 @@
 import { format } from "date-fns";
 import {
   BookOpen,
+  ChartColumnIncreasing,
   Droplets,
   Flame,
   NotebookPen,
   Pencil,
-  RotateCcw,
-  ScrollText,
   Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -20,7 +19,6 @@ import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip } from "@/components/ui/tooltip";
 import { atwaterFactors, getOutputBreakdown, thermicEffectRates } from "@/lib/calculations";
 import {
   flattenEntriesForTable,
@@ -404,23 +402,12 @@ export function DailyDashboard({
     <main className="mx-auto max-w-2xl px-3 py-4 pb-28 sm:px-4 sm:py-6">
       <div className="space-y-4">
 
-        {/* Header: date + Today button + date picker */}
+        {/* Header: date + date picker */}
         <div className="flex items-center justify-between gap-3 py-1.5 md:py-2">
           <h2 className="text-xl font-bold tracking-tight text-stone-900 font-sans">
             {format(parseDateOnly(selectedDate), "EEEE, d MMM yyyy")}
           </h2>
           <div className="flex items-center gap-2">
-            <Tooltip content={<p>Back to today</p>}>
-              <button
-                type="button"
-                aria-label="Back to today"
-                onClick={() => setSelectedDateOverride(null)}
-                disabled={selectedDate === browserToday || isPending}
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-sm transition-colors hover:bg-stone-50 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <RotateCcw size={14} />
-              </button>
-            </Tooltip>
             <DatePickerDialog
               value={selectedDate}
               onChange={(value) => setSelectedDateOverride(value)}
@@ -438,32 +425,18 @@ export function DailyDashboard({
             caption="DAILY ENERGY BALANCE"
             title="Energy Balance"
             action={
-              <div className="flex items-center gap-1.5">
-                <InfoButton
-                  title="How deficit is calculated"
-                  description={
-                    <div className="space-y-2">
-                      <p>Your energy balance is calculated as **Quota (TDEE)** minus **In (Intake)**.</p>
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li><strong>Deficit (Green)</strong>: You spent more energy than you consumed. Aligns with weight loss.</li>
-                        <li><strong>Surplus (Amber)</strong>: You consumed more energy than you spent. Aligns with weight gain.</li>
-                      </ul>
-                    </div>
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label="Show energy details"
-                  title="Show energy details"
-                  onClick={() => {
-                    setEnergyDetailsTab("intake");
-                    setEnergyDetailsOpen(true);
-                  }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 hover:text-stone-800"
-                >
-                  <ScrollText size={15} />
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-label="Show energy details"
+                title="Show energy details"
+                onClick={() => {
+                  setEnergyDetailsTab("intake");
+                  setEnergyDetailsOpen(true);
+                }}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-sm transition hover:bg-stone-50 hover:text-stone-800"
+              >
+                <ChartColumnIncreasing size={15} />
+              </button>
             }
           />
           {/* Prominent metric */}
@@ -510,26 +483,6 @@ export function DailyDashboard({
             iconBg="bg-sky-50/60"
             caption="DAILY HYDRATION"
             title="Water Intake"
-            action={
-              <InfoButton
-                title="Daily Hydration Recommendations"
-                description={
-                  <div className="space-y-2 text-stone-750">
-                    <p>Proper hydration is essential for cellular function, digestion, energy levels, and overall wellness.</p>
-                    <p><strong>Your recommendation:</strong></p>
-                    <ul className="list-disc pl-4 space-y-1 text-xs">
-                      {profile?.weightKg ? (
-                        <li>Based on your body profile weight of <strong>{profile.weightKg} kg</strong>, your recommended water target is scaled at 35 ml/kg: <strong>{targetWaterMl} ml</strong> per day.</li>
-                      ) : (
-                        <li>Set up your profile details (weight, sex) in the <strong>Profile</strong> tab to get a personalized recommendation scaled at 35 ml/kg of body weight.</li>
-                      )}
-                      <li>Standard fallback targets: 3,000 ml for men, 2,200 ml for women, and 2,500 ml general baseline.</li>
-                    </ul>
-                    <p className="text-xs text-stone-500 mt-1">Note: Water contribution is counted from pure water entries as well as the liquid volume of calorie-bearing drinks (e.g. teas, juice, milk).</p>
-                  </div>
-                }
-              />
-            }
           />
 
           <div className="space-y-2 pt-1">
