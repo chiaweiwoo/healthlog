@@ -214,7 +214,7 @@ name matches a priced Langfuse model definition.
 | `body_measurements` | Timestamped measurements |
 | `body_notes` | Raw body/profile note history plus parse status |
 | `daily_entries` | Raw notes plus validated parsed JSON |
-| `daily_summaries` | One row per date, recalculated from active entries |
+| `daily_summaries` | One row per date, recalculated from active entries; also stores `profile_snapshot` JSONB for the profile state used during recalculation |
 | `llm_runs` | Prompt/model/output audit table |
 | `app_request_logs` | Request-level trace logs for auth and user actions |
 | `analysis_reports` | Placeholder for future weekly analysis |
@@ -242,6 +242,12 @@ CI should run lint, typecheck, tests, and production build.
 - Prefer compact, list-first mobile summaries over decorative metric cards when density matters
 - Compact mobile tables should bias width toward the middle content column. Time and numeric measurement columns can be kept tight because labels like `19:48` and `1000 kcal` are short; avoid truncating item names too aggressively just to preserve extra side-column whitespace.
 - Daily dashboard is a single-column mobile-first feed (Calories → Water → Entries, max-w-2xl). New entries use a floating action button (FAB) opening a dialog — do not reintroduce an inline textarea form at the bottom of the page.
+- Profile page is the setup/control center. It uses two primary cards: Essential Fields and Flexible Memory, and it is never blocked even when setup is incomplete.
+- Profile editing is conversational only via an indigo `MessageCircle` FAB. Do not reintroduce inline field editors on the Profile page.
+- Daily and Analysis must block with a centered setup overlay until these essentials are present: age, sex, height, weight, and baseline lifestyle (`activityLevel`).
+- `body_notes` stays in the database as the audit trail, but the Profile UI no longer shows a recent-notes history section.
+- Use `daily_summaries.profile_snapshot` to store essentials, derived BMR/NEAT/water target values, override values, and `snapshotAt` during recalculation.
+- When resetting profile state for testing, back up the current `profile` row first, then clear only `profile`, `body_notes`, `body_measurements`, and `analysis_reports`. Do not clear `daily_entries`, `daily_summaries`, `app_request_logs`, or `llm_runs`.
 - Prefer icons over text labels when the icon meaning is unambiguous in context (chevron for expand/collapse, pencil for edit, trash for delete, RotateCcw for back-to-today, FileText for raw note). Do not add redundant text labels beside them. Color alone is sufficient to convey status states (green = good, amber = warning) — avoid adding text badges that restate what the color already says.
 - Treat intake as one concept: food, calorie-bearing drinks, and water belong to the same daily intake story
 - **Section card pattern**: all major dashboard sections use a shared `SectionHeader` component (icon box + 10px uppercase caption + `text-base font-bold` title + optional right action). Cards use `bg-stone-50/60` with `border-stone-200` and a neutral shadow. Icon boxes get a subtle section-themed tint (orange-50 for energy, sky-50 for hydration, stone-50 for entries).

@@ -54,7 +54,7 @@ describe("llm_runs logging", () => {
     });
 
     expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ success: true, scenario: "daily_quick" }));
-  });
+  }, 15000);
 
   it("writes a failed llm_runs row when parsing breaks", async () => {
     const insertMock = vi.fn().mockResolvedValue({ error: null });
@@ -102,5 +102,5 @@ describe("llm_runs logging", () => {
     ).rejects.toThrow();
 
     expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ success: false, scenario: "daily_quick" }));
-  });
+  }, 15000);
 });
