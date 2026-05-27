@@ -25,6 +25,8 @@ export type EntryTableRow = {
   label: string;
   time: string;
   warnings: Warning[];
+  caloriesDisplayValue: EntryTableMeasurement;
+  waterDisplayValue: EntryTableMeasurement;
   measurements: Record<EntryTableMetric, EntryTableMeasurement>;
 };
 
@@ -103,22 +105,37 @@ export function flattenEntriesForTable(entries: EntryTableEntry[]): EntryTableRo
   return entries
     .filter((entry) => entry.is_active && entry.parse_status === "parsed")
     .flatMap((entry) =>
-      entry.parsed_items.map((item, index) => ({
-        id: `${entry.id}:${index}`,
-        entryId: entry.id,
-        label: item.label,
-        time: normalizeTime(item.occurredTime) ?? normalizeTime(entry.occurred_time) ?? format(new Date(entry.created_at), "HH:mm"),
-        warnings: item.warnings ?? [],
-        measurements: {
-          calories: getMeasurement(item, "calories"),
-          water: getMeasurement(item, "water"),
-          protein: getMeasurement(item, "protein"),
-          fat: getMeasurement(item, "fat"),
-          carbs: getMeasurement(item, "carbs"),
-          alcohol: getMeasurement(item, "alcohol"),
-          exercise: getMeasurement(item, "exercise"),
-        },
-      })),
+      entry.parsed_items.map((item, index) => {
+        const caloriesMeasurement = getMeasurement(item, "calories");
+        const waterMeasurement = getMeasurement(item, "water");
+        const proteinMeasurement = getMeasurement(item, "protein");
+        const fatMeasurement = getMeasurement(item, "fat");
+        const carbsMeasurement = getMeasurement(item, "carbs");
+        const alcoholMeasurement = getMeasurement(item, "alcohol");
+        const exerciseMeasurement = getMeasurement(item, "exercise");
+
+        return {
+          id: `${entry.id}:${index}`,
+          entryId: entry.id,
+          label: item.label,
+          time: normalizeTime(item.occurredTime) ?? normalizeTime(entry.occurred_time) ?? format(new Date(entry.created_at), "HH:mm"),
+          warnings: item.warnings ?? [],
+          caloriesDisplayValue: {
+            value: exerciseMeasurement.value != null ? -exerciseMeasurement.value : caloriesMeasurement.value,
+            unit: "kcal",
+          },
+          waterDisplayValue: waterMeasurement,
+          measurements: {
+            calories: caloriesMeasurement,
+            water: waterMeasurement,
+            protein: proteinMeasurement,
+            fat: fatMeasurement,
+            carbs: carbsMeasurement,
+            alcohol: alcoholMeasurement,
+            exercise: exerciseMeasurement,
+          },
+        };
+      }),
     );
 }
 

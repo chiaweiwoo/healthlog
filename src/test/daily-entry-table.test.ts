@@ -55,7 +55,7 @@ describe("daily-entry-table helpers", () => {
     expect(rows[2]?.time).toBe("11:04");
   });
 
-  it("sums selected metrics and excludes unknown values", () => {
+  it("builds fixed calorie and water display values and excludes unknown values", () => {
     const rows = flattenEntriesForTable([
       {
         id: "entry-1",
@@ -74,6 +74,14 @@ describe("daily-entry-table helpers", () => {
             nutrition: { calories: 5, proteinG: 0, fatG: 0, carbsG: 1, alcoholG: 0 },
           },
           {
+            kind: "exercise",
+            label: "Walk",
+            confidence: 1,
+            warnings: [],
+            metadata: {},
+            exerciseCalories: 180,
+          },
+          {
             kind: "food",
             label: "Unknown meal",
             confidence: 0.7,
@@ -88,8 +96,13 @@ describe("daily-entry-table helpers", () => {
     expect(sumEntryTableMetric(rows, "water")).toBe(500);
     expect(sumEntryTableMetric(rows, "calories")).toBe(4);
     expect(sumEntryTableMetric(rows, "carbs")).toBe(1);
-    expect(rows[1]?.measurements.calories.value).toBeNull();
-    expect(formatEntryTableMetricValue(rows[1]?.measurements.calories.value ?? null, "kcal")).toBe("");
+    expect(rows[0]?.caloriesDisplayValue.value).toBe(4);
+    expect(rows[0]?.waterDisplayValue.value).toBe(500);
+    expect(rows[1]?.caloriesDisplayValue.value).toBe(-180);
+    expect(rows[1]?.waterDisplayValue.value).toBeNull();
+    expect(rows[2]?.measurements.calories.value).toBeNull();
+    expect(formatEntryTableMetricValue(rows[2]?.measurements.calories.value ?? null, "kcal")).toBe("");
+    expect(formatEntryTableMetricValue(0, "ml")).toBe("");
   });
 
   it("omits inactive and unparsed entries", () => {
