@@ -10,6 +10,8 @@ import {
   listBodyNotes,
 } from "@/lib/db";
 import { parseBodyNote } from "@/lib/llm";
+import { invalidateAnalysisCache } from "@/lib/analysis-invalidation";
+
 
 export async function GET(request: NextRequest) {
   const started = Date.now();
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
       },
       userAgent: request.headers.get("user-agent"),
     });
+    invalidateAnalysisCache();
     return Response.json({ profile, measurements, notes, bodyNote, changeSummary, requestId });
   } catch (error) {
     await logUserAction({

@@ -3,6 +3,8 @@ import { getErrorMessage, logUserAction } from "@/lib/action-logs";
 import { requireApiSession } from "@/lib/auth";
 import { getDailySummary, recalculateAllDailySummaries, recalculateDailySummary } from "@/lib/db";
 import { isoDateSchema } from "@/lib/schemas";
+import { invalidateAnalysisCache } from "@/lib/analysis-invalidation";
+
 
 export async function POST(request: NextRequest) {
   const started = Date.now();
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
         responsePayload: { requestId, recalculatedCount: summaries.length },
         userAgent: request.headers.get("user-agent"),
       });
+      invalidateAnalysisCache();
       return Response.json({ summaries, requestId });
     }
 
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest) {
       responsePayload: { requestId, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });
+    invalidateAnalysisCache();
     return Response.json({ summary, requestId });
   } catch (error) {
     await logUserAction({

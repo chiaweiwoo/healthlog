@@ -1,9 +1,10 @@
 import { AnalysisDashboard } from "@/components/app/analysis-dashboard";
 import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
-import { BarChart3, HelpCircle } from "lucide-react";
 import { getProfile } from "@/lib/db";
 import { isProfileComplete } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getCachedRealTimeAnalysisStats } from "@/lib/analysis-cache";
+import { format } from "date-fns";
 
 export const revalidate = 0; // Ensure the page is always dynamic
 
@@ -11,7 +12,7 @@ export default async function AnalysisPage() {
   const profile = await getProfile().catch(() => null);
   const profileComplete = isProfileComplete(profile);
 
-  if (!profileComplete) {
+  if (!profileComplete || !profile) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-8">
         <ProfileSetupOverlay
@@ -23,6 +24,43 @@ export default async function AnalysisPage() {
     );
   }
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  
+  // 1. Calculate dynamic cached real-time stats and contributor evidence from DB
+  const { stats, evidence } = await getCachedRealTimeAnalysisStats(profile, todayStr).catch((err) => {
+    console.error("Error calculating real-time stats:", err);
+    return {
+      stats: {
+        periodStart: todayStr,
+        periodEnd: todayStr,
+        completeDays: 0,
+        totalIntakeCalories: 0,
+        averageIntakeCalories: 0,
+        averageQuotaCalories: null,
+        averageNetCalories: null,
+        totalProteinG: 0,
+        averageProteinG: 0,
+        totalFatG: 0,
+        averageFatG: 0,
+        totalCarbsG: 0,
+        averageCarbsG: 0,
+        totalAlcoholG: 0,
+        averageAlcoholG: 0,
+        averageWaterMl: 0,
+        averageExerciseCalories: 0,
+        consistencyScore: 0,
+      },
+      evidence: {
+        topCalorieFoods: [],
+        alcoholContributors: [],
+        waterContributors: [],
+        exerciseContributors: [],
+        highCalorieLowProteinCandidates: [],
+      },
+    };
+  });
+
+  // 2. Fetch the latest compiled AI report if available
   const supabase = getSupabaseAdmin();
   const { data: report, error } = await supabase
     .from("analysis_reports")
@@ -36,34 +74,14 @@ export default async function AnalysisPage() {
     console.error("Error fetching analysis report:", error);
   }
 
-  if (!report || !report.payload || Object.keys(report.payload).length === 0) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
-        <div className="text-center py-12 px-6 rounded-xl border border-stone-200 bg-stone-50/60 shadow-sm space-y-4">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-400">
-            <BarChart3 size={24} />
-          </div>
-          <div className="max-w-md mx-auto space-y-2">
-            <h2 className="text-base font-bold text-stone-900">7-Day Analysis Pending</h2>
-            <p className="text-xs text-stone-500 leading-relaxed">
-              Your 7-day nutritional and behavioral reviews are generated via a manual analysis pipeline.
-              Once the GitHub Actions workflow triggers, your latest insights, root causes, and focus areas will automatically appear here.
-            </p>
-          </div>
-          <div className="pt-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 border border-stone-200 px-3 py-1 text-[10px] font-medium text-stone-600">
-              <HelpCircle size={12} className="text-stone-400" />
-              <span>Trigger &quot;Analyze 7-day HealthLog&quot; via GitHub Actions</span>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
+  // Always render the AnalysisDashboard, passing both local real-time stats/evidence and the optional AI report details
   return (
     <main>
-      <AnalysisDashboard payload={report.payload} />
+      <AnalysisDashboard 
+        stats={stats} 
+        evidence={evidence} 
+        report={report?.payload || null} 
+      />
     </main>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db";
 import { parseDailyNote } from "@/lib/llm";
 import { isoDateSchema } from "@/lib/schemas";
+import { invalidateAnalysisCache } from "@/lib/analysis-invalidation";
 
 export async function GET(request: NextRequest) {
   const started = Date.now();
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
       },
       userAgent: request.headers.get("user-agent"),
     });
+    invalidateAnalysisCache();
     return Response.json({ entry, summary, requestId });
   } catch (error) {
     if (isSummaryRecalculationWarning(error)) {
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
         error,
         userAgent: request.headers.get("user-agent"),
       });
+      invalidateAnalysisCache();
       return Response.json(
         {
           entry: error.entry,
@@ -189,6 +192,7 @@ export async function PATCH(request: NextRequest) {
       responsePayload: { requestId, entryId: entry.id, parseStatus: entry.parse_status, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });
+    invalidateAnalysisCache();
     return Response.json({ entry, summary, requestId });
   } catch (error) {
     if (isSummaryRecalculationWarning(error)) {
@@ -211,6 +215,7 @@ export async function PATCH(request: NextRequest) {
         error,
         userAgent: request.headers.get("user-agent"),
       });
+      invalidateAnalysisCache();
       return Response.json(
         {
           entry: error.entry,
@@ -263,6 +268,7 @@ export async function DELETE(request: NextRequest) {
       responsePayload: { requestId, entryId: entry.id, hasSummary: Boolean(summary) },
       userAgent: request.headers.get("user-agent"),
     });
+    invalidateAnalysisCache();
     return Response.json({ entry, summary, requestId });
   } catch (error) {
     if (isSummaryRecalculationWarning(error)) {
@@ -284,6 +290,7 @@ export async function DELETE(request: NextRequest) {
         error,
         userAgent: request.headers.get("user-agent"),
       });
+      invalidateAnalysisCache();
       return Response.json(
         {
           entry: error.entry,

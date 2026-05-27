@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Energy Card Options</title>
+    <style>
+      :root {
+        --bg: #f5f2eb;
+        --surface: #fbfaf7;
+        --surface-strong: #ffffff;
+        --border: #e6e0d7;
+        --text: #141414;
+        --muted: #9d978e;
+        --success: #2f9c6d;
+        --water: #3b9ee7;
+        --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 430px;
+        margin: 0 auto;
+        padding: 28px 14px 40px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .intro {
+        margin: 0 0 20px;
+        color: #6d685f;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .label {
+        margin: 2px 2px -8px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #7f796f;
+        letter-spacing: 0;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .headline {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .icon-box {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        border: 1px solid #ece6dc;
+        background: var(--surface-strong);
+        flex: 0 0 auto;
+      }
+
+      .icon-energy {
+        color: #31b578;
+      }
+
+      .icon-water {
+        color: #ff4769;
+      }
+
+      .section-caption {
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .section-title {
+        margin-top: 4px;
+        font-size: 20px;
+        font-weight: 850;
+        line-height: 1.1;
+      }
+
+      .action {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        border: 1px solid #e6e0d7;
+        background: var(--surface-strong);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        color: #6e685e;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .energy-status {
+        margin-top: 22px;
+        font-size: 24px;
+        font-weight: 850;
+        color: var(--success);
+      }
+
+      .rule {
+        height: 1px;
+        margin: 22px 0;
+        background: #ede7de;
+      }
+
+      .pair {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .pair-left {
+        font-size: 20px;
+        font-weight: 850;
+      }
+
+      .pair-right {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--muted);
+        text-align: right;
+      }
+
+      .pair-sub {
+        margin-top: 10px;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--success);
+      }
+
+      .pair-sub.surplus {
+        color: #d18a20;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .split-block + .split-block {
+        border-left: 1px solid #ece7de;
+        padding-left: 16px;
+      }
+
+      .split-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .split-value {
+        margin-top: 10px;
+        font-size: 20px;
+        font-weight: 850;
+      }
+
+      .unit {
+        font-size: 14px;
+        font-weight: 500;
+        color: #6f6a61;
+      }
+
+      .bar {
+        height: 12px;
+        margin-top: 18px;
+        background: #eeebe5;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+      }
+
+      .energy-fill {
+        width: 97%;
+        background: #48b786;
+      }
+
+      .water-fill {
+        width: 41%;
+        background: var(--water);
+      }
+
+      .note {
+        margin-top: 10px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #736d64;
+      }
+
+      .swatch {
+        display: inline-block;
+        min-width: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Energy Card Options</h1>
+      <p class="intro">
+        A quick visual compare for trimming the Energy card toward the simpler Water rhythm, while still keeping deficit or surplus visible.
+      </p>
+
+      <div class="stack">
+        <div class="label">Reference: current Water rhythm</div>
+        <section class="card">
+          <div class="header">
+            <div class="headline">
+              <div class="icon-box icon-water">○○</div>
+              <div>
+                <div class="section-caption">Daily Hydration</div>
+                <div class="section-title">Water Intake</div>
+              </div>
+            </div>
+            <div class="action">▥</div>
+          </div>
+          <div class="rule"></div>
+          <div class="pair">
+            <div class="pair-left">1,500 <span class="unit">ml</span></div>
+            <div class="pair-right">41% of 3,675 ml</div>
+          </div>
+          <div class="bar"><span class="water-fill"></span></div>
+        </section>
+
+        <div class="label">Option A: Water-style, recommended</div>
+        <section class="card">
+          <div class="header">
+            <div class="headline">
+              <div class="icon-box icon-energy">◌</div>
+              <div>
+                <div class="section-caption">Daily Energy Balance</div>
+                <div class="section-title">Energy Balance</div>
+              </div>
+            </div>
+            <div class="action">▥</div>
+          </div>
+          <div class="rule"></div>
+          <div class="pair">
+            <div class="pair-left">2,063 <span class="unit">kcal</span></div>
+            <div class="pair-right">97% of 2,121 kcal</div>
+          </div>
+          <div class="pair-sub">58 kcal Deficit</div>
+          <div class="bar"><span class="energy-fill"></span></div>
+          <div class="note">Closest to Water. One main number, one context number, one outcome line.</div>
+        </section>
+
+        <div class="label">Option B: Water-style, plainer quota wording</div>
+        <section class="card">
+          <div class="header">
+            <div class="headline">
+              <div class="icon-box icon-energy">◌</div>
+              <div>
+                <div class="section-caption">Daily Energy Balance</div>
+                <div class="section-title">Energy Balance</div>
+              </div>
+            </div>
+            <div class="action">▥</div>
+          </div>
+          <div class="rule"></div>
+          <div class="pair">
+            <div class="pair-left">2,063 <span class="unit">kcal</span></div>
+            <div class="pair-right">2,121 kcal quota</div>
+          </div>
+          <div class="pair-sub">58 kcal Deficit</div>
+          <div class="bar"><span class="energy-fill"></span></div>
+          <div class="note">Softer and less mathematical. Easier to scan, but you lose the immediate ratio read.</div>
+        </section>
+
+        <div class="label">Option C: Keep status first, trim the rest</div>
+        <section class="card">
+          <div class="header">
+            <div class="headline">
+              <div class="icon-box icon-energy">◌</div>
+              <div>
+                <div class="section-caption">Daily Energy Balance</div>
+                <div class="section-title">Energy Balance</div>
+              </div>
+            </div>
+            <div class="action">▥</div>
+          </div>
+          <div class="energy-status">58 kcal Deficit</div>
+          <div class="rule"></div>
+          <div class="pair">
+            <div class="pair-left">2,063 <span class="unit">kcal</span></div>
+            <div class="pair-right">97% of 2,121 kcal</div>
+          </div>
+          <div class="bar"><span class="energy-fill"></span></div>
+          <div class="note">Still cleaner than the current split card, but keeps the status as the headline.</div>
+        </section>
+
+        <div class="label">Option D: Old split, but tighter</div>
+        <section class="card">
+          <div class="header">
+            <div class="headline">
+              <div class="icon-box icon-energy">◌</div>
+              <div>
+                <div class="section-caption">Daily Energy Balance</div>
+                <div class="section-title">Energy Balance</div>
+              </div>
+            </div>
+            <div class="action">▥</div>
+          </div>
+          <div class="energy-status">58 kcal Deficit</div>
+          <div class="rule"></div>
+          <div class="split">
+            <div class="split-block">
+              <div class="split-label">In</div>
+              <div class="split-value">2063 <span class="unit">kcal</span></div>
+            </div>
+            <div class="split-block">
+              <div class="split-label">Quota</div>
+              <div class="split-value">2121 <span class="unit">kcal</span></div>
+            </div>
+          </div>
+          <div class="bar"><span class="energy-fill"></span></div>
+          <div class="note">Closest to current. Less clutter than now, but still more structural chrome than Water.</div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
