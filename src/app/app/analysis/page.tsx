@@ -3,7 +3,7 @@ import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
 import { getProfile } from "@/lib/db";
 import { isProfileComplete } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getCachedRealTimeAnalysisStats } from "@/lib/analysis-cache";
+import { getRealTimeAnalysisStats } from "@/lib/analysis";
 import { format } from "date-fns";
 
 export const revalidate = 0; // Ensure the page is always dynamic
@@ -26,8 +26,8 @@ export default async function AnalysisPage() {
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   
-  // 1. Calculate dynamic cached real-time stats and contributor evidence from DB
-  const { stats, evidence } = await getCachedRealTimeAnalysisStats(profile, todayStr).catch((err) => {
+  // 1. Calculate real-time stats and contributor evidence from DB dynamically (no cache)
+  const { stats, evidence } = await getRealTimeAnalysisStats(profile, todayStr).catch((err) => {
     console.error("Error calculating real-time stats:", err);
     return {
       stats: {
