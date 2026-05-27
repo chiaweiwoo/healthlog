@@ -1,11 +1,16 @@
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { AnalysisDashboard } from "@/components/app/analysis-dashboard";
+import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
 import { BarChart3, HelpCircle } from "lucide-react";
+import { getProfile } from "@/lib/db";
+import { isProfileComplete } from "@/lib/profile-memory";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const revalidate = 0; // Ensure the page is always dynamic
 
 export default async function AnalysisPage() {
   const supabase = getSupabaseAdmin();
+  const profile = await getProfile().catch(() => null);
+  const profileComplete = isProfileComplete(profile);
 
   const { data: report, error } = await supabase
     .from("analysis_reports")
@@ -17,6 +22,18 @@ export default async function AnalysisPage() {
 
   if (error) {
     console.error("Error fetching analysis report:", error);
+  }
+
+  if (!profileComplete) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <ProfileSetupOverlay
+          title="Analysis needs your profile"
+          body="Set up your basic info first so analysis can calculate accurate targets and recommendations."
+          secondary="Head to Profile and tell the app about yourself to unlock analysis."
+        />
+      </main>
+    );
   }
 
   if (!report || !report.payload || Object.keys(report.payload).length === 0) {

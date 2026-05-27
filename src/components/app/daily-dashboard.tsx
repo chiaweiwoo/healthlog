@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { DatePickerDialog } from "@/components/app/date-picker-dialog";
 import { FullTextDialog } from "@/components/app/full-text-dialog";
 import { InfoButton } from "@/components/app/info-button";
+import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
 import { QuickNoteSheet } from "@/components/app/quick-note-sheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -218,11 +219,13 @@ export function DailyDashboard({
   initialEntries,
   initialSummary,
   profile,
+  profileComplete,
 }: {
   initialDate: string;
   initialEntries: Entry[];
   initialSummary: Summary;
   profile: Profile | null;
+  profileComplete: boolean;
 }) {
   const browserToday = useSyncExternalStore(
     () => () => {},
@@ -414,6 +417,13 @@ export function DailyDashboard({
 
   return (
     <main className="mx-auto max-w-2xl px-3 py-4 pb-28 sm:px-4 sm:py-6">
+      {!profileComplete ? (
+        <ProfileSetupOverlay
+          title="Let's get you set up!"
+          body="Daily needs your basic info to calculate calories, water targets, and energy output."
+          secondary="It only takes a minute - tell the Profile page about yourself."
+        />
+      ) : null}
       <div className="space-y-4">
 
         {/* Header: date + date picker */}
