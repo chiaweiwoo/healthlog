@@ -1,19 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Calendar,
   AlertTriangle,
   Sparkles,
   Info,
-  ChevronDown,
-  ChevronUp,
   Flame,
   Dumbbell,
   Droplets,
   PieChart,
 } from "lucide-react";
-import { NutritionIcons } from "@/components/app/nutrition-icons";
 import {
   AnalysisStats,
   AnalysisEvidence,
@@ -73,7 +70,6 @@ export type DailyHistoryItem = {
 
 export function AnalysisDashboard({
   stats,
-  evidence,
   report,
   dailyHistory = [],
 }: {
@@ -82,8 +78,6 @@ export function AnalysisDashboard({
   report: AIReportPayload | null;
   dailyHistory?: DailyHistoryItem[];
 }) {
-  const [showEvidence, setShowEvidence] = useState(false);
-
   const totalDaysInPeriod = 14;
   const isLowData = stats.completeDays < 7;
 
@@ -557,101 +551,6 @@ export function AnalysisDashboard({
           </div>
         </div>
       )}
-
-      {/* 3. COLLAPSIBLE NUTRIENT EVIDENCE (BOTTOM DRAWER) */}
-      <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3 shadow-sm">
-        <button
-          onClick={() => setShowEvidence(!showEvidence)}
-          className="w-full flex items-center justify-between py-1 px-1.5 text-xs font-bold text-stone-600"
-        >
-          <span className="flex items-center gap-1.5">
-            <Info size={14} className="text-stone-400" />
-            Detailed Food & Exercise Logs Review
-          </span>
-          {showEvidence ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-
-        {showEvidence && (
-          <div className="mt-3 border-t border-stone-200 pt-3 space-y-4 text-xs">
-            {/* Top Calorie Foods */}
-            <div className="space-y-1.5">
-              <p className="font-bold text-stone-800">Top Calorie Entries</p>
-              {evidence.topCalorieFoods && evidence.topCalorieFoods.length > 0 ? (
-                <div className="space-y-2">
-                  {evidence.topCalorieFoods.map((item, idx) => (
-                    <div key={idx} className="bg-white border border-stone-200/40 rounded p-2 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-stone-700">{item.label}</span>
-                        <span className="font-bold text-stone-600">{item.nutrition?.calories} kcal</span>
-                      </div>
-                      {item.nutrition && <NutritionIcons data={item.nutrition} />}
-                      <p className="text-[10px] text-stone-400 italic">{item.remarks}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-stone-400 italic">No food entries logged.</p>
-              )}
-            </div>
-
-            {/* High-Calorie/Low-Protein Candidates */}
-            {evidence.highCalorieLowProteinCandidates && evidence.highCalorieLowProteinCandidates.length > 0 && (
-              <div className="space-y-1.5 pt-2">
-                <p className="font-bold text-amber-700">Empty-Calorie Warnings (&gt;300 kcal, &lt;10g Protein)</p>
-                <div className="space-y-2">
-                  {evidence.highCalorieLowProteinCandidates.map((item, idx) => (
-                    <div key={idx} className="bg-amber-50/30 border border-amber-200/40 rounded p-2 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-stone-700">{item.label}</span>
-                        <span className="font-bold text-amber-700">{item.nutrition?.calories} kcal</span>
-                      </div>
-                      {item.nutrition && <NutritionIcons data={item.nutrition} />}
-                      <p className="text-[10px] text-stone-400 italic">{item.remarks}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Alcohol contributors */}
-            {evidence.alcoholContributors && evidence.alcoholContributors.length > 0 && (
-              <div className="space-y-1.5 pt-2">
-                <p className="font-bold text-stone-800">Alcohol Contributors</p>
-                <div className="space-y-2">
-                  {evidence.alcoholContributors.map((item, idx) => (
-                    <div key={idx} className="bg-white border border-stone-200/40 rounded p-2 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-stone-700">{item.label}</span>
-                        <span className="font-bold text-purple-600">{item.nutrition?.alcoholG}g alc</span>
-                      </div>
-                      {item.nutrition && <NutritionIcons data={item.nutrition} />}
-                      <p className="text-[10px] text-stone-400 italic">{item.remarks}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Exercise contributors */}
-            {evidence.exerciseContributors && evidence.exerciseContributors.length > 0 && (
-              <div className="space-y-1.5 pt-2">
-                <p className="font-bold text-stone-800">Exercise Events</p>
-                <div className="space-y-2">
-                  {evidence.exerciseContributors.map((item, idx) => (
-                    <div key={idx} className="bg-white border border-stone-200/40 rounded p-2 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-stone-700">{item.label}</span>
-                        <span className="font-bold text-emerald-600">-{item.exerciseCalories} kcal</span>
-                      </div>
-                      <p className="text-[10px] text-stone-400 italic">{item.remarks}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
     </div>
   );
