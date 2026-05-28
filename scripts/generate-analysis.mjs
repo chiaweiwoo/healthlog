@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v3";
+const PROMPT_VERSION = "2026-05-28-analysis-v4";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -154,29 +154,29 @@ const profileGapSchema = z.object({
 const waterAnalysisSchema = z.object({
   isGood: z.boolean(),
   assessment: z.string().min(1),
-  insights: z.string().min(1),
-  recommendation: z.string().min(1),
+  insights: z.string(),
+  recommendation: z.string(),
 });
 
 const calorieAnalysisSchema = z.object({
   outcome: z.enum(["deficit", "surplus", "maintenance"]),
   assessment: z.string().min(1),
   alerts: z.array(z.string().min(1)),
-  insights: z.string().min(1),
-  recommendation: z.string().min(1),
+  insights: z.string(),
+  recommendation: z.string(),
 });
 
 const proteinAnalysisSchema = z.object({
   assessment: z.string().min(1),
   alerts: z.array(z.string().min(1)),
-  insights: z.string().min(1),
-  recommendation: z.string().min(1),
+  insights: z.string(),
+  recommendation: z.string(),
 });
 
 const macroAnalysisSchema = z.object({
   assessment: z.string().min(1),
-  insights: z.string().min(1),
-  recommendation: z.string().min(1),
+  insights: z.string(),
+  recommendation: z.string(),
 });
 
 const analysisReportPayloadSchema = z.object({
@@ -634,34 +634,40 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   "confidence": "low" | "medium" | "high",
   "waterAnalysis": {
     "isGood": true,
-    "assessment": "Short status label (e.g. 'Optimal Hydration', 'Dehydrated')",
-    "insights": "Evaluation of average daily water intake and patterns.",
-    "recommendation": "Actionable coaching recommendation."
+    "assessment": "1-2 word status label (e.g. 'Good', 'Low', 'High')",
+    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
+    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
   },
   "calorieAnalysis": {
     "outcome": "deficit" | "surplus" | "maintenance",
-    "assessment": "Short status label (e.g. 'Optimal Deficit', 'Excessive Surplus')",
+    "assessment": "1-2 word status label (e.g. 'Good', 'Watch', 'Steady')",
     "alerts": [
-      "Calorie spike or anomaly alert 1",
-      "Calorie spike or anomaly alert 2"
+      "At most one short alert phrase, or []"
     ],
-    "insights": "Detailed analysis of TDEE vs daily calorie intake.",
-    "recommendation": "Actionable calorie target advice."
+    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
+    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
   },
   "proteinAnalysis": {
-    "assessment": "Short status label (e.g. 'Optimal', 'Insufficient')",
+    "assessment": "1-2 word status label (e.g. 'Good', 'Low')",
     "alerts": [
-      "Protein timing or quantity warning 1"
+      "At most one short alert phrase, or []"
     ],
-    "insights": "Evaluation of daily average protein intake relative to requirements.",
-    "recommendation": "Coaching recommendation on swaps or timing."
+    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
+    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
   },
   "macroAnalysis": {
-    "assessment": "Short status label (e.g. 'Balanced Ratio', 'High Fat Ratio')",
-    "insights": "Deep dive into macro energy distribution ratio.",
-    "recommendation": "Specific actionable ratio target advice."
+    "assessment": "1-2 word status label (e.g. 'Balanced', 'Watch')",
+    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
+    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
   }
 }
+
+STYLE RULES:
+- Be crisp. Avoid filler, motivational fluff, and textbook explanations.
+- Write like a smart coach giving a fast read, not an article.
+- Prefer one specific implication over broad advice.
+- Mention the most important number or ratio in each category.
+- If a category is fine, say why briefly and stop.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

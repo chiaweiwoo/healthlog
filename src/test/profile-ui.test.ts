@@ -185,20 +185,20 @@ describe("profile-driven setup UI", () => {
         },
         report: null,
         dailyHistory: [
-          { date: "2026-05-14", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-15", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-16", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-17", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-18", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-19", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-20", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-21", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-22", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-23", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-24", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-25", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-26", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
-          { date: "2026-05-27", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 2000 },
+          { date: "2026-05-14", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-15", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-16", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-17", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-18", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-19", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-20", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-21", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-22", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-23", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-24", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-25", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-26", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+          { date: "2026-05-27", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
         ],
       }),
     );
@@ -207,9 +207,10 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("data-testid=\"analysis-row-protein\"");
     expect(html).toContain("data-testid=\"analysis-row-water\"");
     expect(html).toContain("data-testid=\"analysis-row-macros\"");
-    expect(html).toContain("Average 3570 ml against a 2000 ml target (179%).");
+    expect(html).toContain("3570 ml/day");
+    expect(html).toContain("3200 ml");
     expect(html).toContain("Carb 24%  Fat 9%  Protein 67%");
-    expect(html).not.toContain("High energy intake averages observed.</span>");
+    expect(html).toContain("High energy intake averages observed.");
     expect(html).not.toContain("rounded-lg border border-indigo-100/60 bg-indigo-50/20");
   });
 });

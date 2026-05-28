@@ -64,8 +64,7 @@ type AnalysisRowItem = {
   iconClassName: string;
   status: string;
   tone: StatusTone;
-  metric: string;
-  note?: string;
+  body: ReactNode;
   bar?: ReactNode;
 };
 
@@ -82,18 +81,25 @@ function formatDate(dateStr: string) {
   }
 }
 
-function compactSentence(...parts: Array<string | null | undefined>) {
-  return parts
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
 function sanitizeNote(text: string | null | undefined) {
   if (!text) return null;
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return null;
   return normalized;
+}
+
+function firstSentence(text: string | null | undefined) {
+  const normalized = sanitizeNote(text);
+  if (!normalized) return null;
+  const match = normalized.match(/^.*?[.!?](?:\s|$)/);
+  return (match ? match[0] : normalized).trim();
+}
+
+function trimClause(text: string | null | undefined, maxLength = 96) {
+  const normalized = firstSentence(text);
+  if (!normalized) return null;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
 function toneClasses(tone: StatusTone) {
@@ -136,7 +142,7 @@ function AnalysisStatusRow({
             <Icon size={15} className={cn("mt-0.5 shrink-0", item.iconClassName)} />
             <h2 className="text-sm font-semibold text-stone-900">{item.title}</h2>
           </div>
-          <p className="text-sm font-medium leading-snug text-stone-700">{item.metric}</p>
+          <div className="text-sm leading-relaxed text-stone-700">{item.body}</div>
         </div>
         <span
           className={cn(
@@ -147,9 +153,6 @@ function AnalysisStatusRow({
           {item.status}
         </span>
       </div>
-      {item.note ? (
-        <p className={cn("pl-[23px] text-sm leading-snug", toneClasses(item.tone))}>{item.note}</p>
-      ) : null}
       {item.bar ? <div className="pl-[23px]">{item.bar}</div> : null}
     </section>
   );
@@ -165,6 +168,15 @@ export function AnalysisDashboard({
   dailyHistory?: DailyHistoryItem[];
 }) {
   const totalDaysInPeriod = 14;
+  const currentWaterTarget = useMemo(() => {
+    for (let idx = dailyHistory.length - 1; idx >= 0; idx -= 1) {
+      const candidate = dailyHistory[idx]?.waterTarget;
+      if (typeof candidate === "number" && Number.isFinite(candidate) && candidate > 0) {
+        return candidate;
+      }
+    }
+    return null;
+  }, [dailyHistory]);
 
   const fallbackAI = useMemo(() => {
     if (!stats) return null;
@@ -188,14 +200,15 @@ export function AnalysisDashboard({
       ? "Continue incorporating high-quality lean protein sources throughout your meals."
       : "Consider adding lean protein sources (e.g., egg whites, chicken breast, or tofu) to your main meals.";
 
-    const isWaterGood = stats.averageWaterMl >= 2000;
+    const hydrationTarget = currentWaterTarget ?? 2000;
+    const isWaterGood = stats.averageWaterMl >= hydrationTarget * 0.9;
     const waterAssessment = isWaterGood ? "Sufficient" : "Dehydrated";
     const waterInsights = isWaterGood
-      ? `Average water intake of ${stats.averageWaterMl}ml is supportive of digestive and metabolic function.`
-      : `Average water intake of ${stats.averageWaterMl}ml is under the standard 2000ml goal. Try tracking fluids more consistently.`;
+      ? `Hydration is landing above your current target of ${hydrationTarget} ml.`
+      : `Hydration is below your current target of ${hydrationTarget} ml.`;
     const waterRecommendation = isWaterGood
-      ? "Maintain this hydration pattern by keeping a water bottle nearby."
-      : "Try to drink a full glass of water upon waking and before each major meal.";
+      ? "Keep this level steady across the full week."
+      : "Add a repeatable drinking cue earlier in the day.";
 
     const totalMacrosG =
       (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
@@ -233,7 +246,7 @@ export function AnalysisDashboard({
         recommendation: macroRecommendation,
       },
     };
-  }, [stats]);
+  }, [currentWaterTarget, stats]);
 
   const waterAnalysis = report?.waterAnalysis || fallbackAI?.waterAnalysis;
   const calorieAnalysis = report?.calorieAnalysis || fallbackAI?.calorieAnalysis;
@@ -282,16 +295,10 @@ export function AnalysisDashboard({
           : stats.averageNetCalories <= 0
             ? `${Math.abs(stats.averageNetCalories)} kcal deficit`
             : `${stats.averageNetCalories} kcal surplus`;
-      const calorieMetric = compactSentence(
-        `Intake ${stats.averageIntakeCalories} kcal.`,
-        `Target ${stats.averageQuotaCalories ?? "N/A"} kcal.`,
-        calorieNet,
-      );
-      const calorieNote = sanitizeNote(
-        calorieTone === "watch"
-          ? calorieAnalysis.alerts?.[0] || calorieAnalysis.recommendation || calorieAnalysis.insights
-          : calorieAnalysis.recommendation || calorieAnalysis.insights,
-      );
+      const calorieFollowup =
+        trimClause(calorieAnalysis.alerts?.[0]) ||
+        trimClause(calorieAnalysis.recommendation) ||
+        trimClause(calorieAnalysis.insights);
 
       rows.push({
         key: "calories",
@@ -300,13 +307,37 @@ export function AnalysisDashboard({
         iconClassName: "text-orange-500",
         status: calorieStatus,
         tone: calorieTone,
-        metric: calorieMetric,
-        note: calorieNote ?? undefined,
+        body: (
+          <p>
+            You averaged{" "}
+            <span className={cn("font-semibold", toneClasses(calorieTone))}>{calorieNet}</span>{" "}
+            with intake at{" "}
+            <span className="font-semibold text-stone-900">{stats.averageIntakeCalories} kcal</span>
+            {stats.averageQuotaCalories != null ? (
+              <>
+                {" "}against a target of{" "}
+                <span className="font-semibold text-stone-900">{stats.averageQuotaCalories} kcal</span>.
+              </>
+            ) : (
+              "."
+            )}
+            {calorieFollowup ? (
+              <>
+                {" "}
+                <span className={cn("font-medium", toneClasses(calorieTone))}>{calorieFollowup}</span>
+              </>
+            ) : null}
+          </p>
+        ),
       });
     }
 
     if (proteinAnalysis) {
       const isProteinGood = stats.averageProteinG >= 100;
+      const proteinFollowup =
+        trimClause(proteinAnalysis.recommendation) ||
+        trimClause(proteinAnalysis.alerts?.[0]) ||
+        trimClause(proteinAnalysis.insights);
       rows.push({
         key: "protein",
         title: "Protein intake",
@@ -314,20 +345,29 @@ export function AnalysisDashboard({
         iconClassName: "text-stone-600",
         status: isProteinGood ? "Good" : "Low",
         tone: isProteinGood ? "good" : "watch",
-        metric: `Average protein is ${stats.averageProteinG} g per day.`,
-        note: sanitizeNote(
-          isProteinGood ? proteinAnalysis.recommendation : proteinAnalysis.alerts?.[0] || proteinAnalysis.recommendation,
-        ) ?? undefined,
+        body: (
+          <p>
+            You averaged{" "}
+            <span className={cn("font-semibold", toneClasses(isProteinGood ? "good" : "watch"))}>
+              {stats.averageProteinG} g/day
+            </span>
+            .{" "}
+            {proteinFollowup ? <span className={cn("font-medium", toneClasses(isProteinGood ? "good" : "watch"))}>{proteinFollowup}</span> : null}
+          </p>
+        ),
       });
     }
 
     if (waterAnalysis) {
-      const waterTarget = 2000;
+      const waterTarget = currentWaterTarget ?? 2000;
       const completionRate = Math.round((stats.averageWaterMl / waterTarget) * 100);
       const waterTone: StatusTone =
         completionRate < 90 ? "watch" : completionRate > 140 ? "neutral" : "good";
       const waterStatus =
         completionRate < 90 ? "Low" : completionRate > 140 ? "High" : "Good";
+      const waterFollowup =
+        trimClause(waterAnalysis.insights) ||
+        trimClause(waterAnalysis.recommendation);
       rows.push({
         key: "water",
         title: "Water intake",
@@ -335,16 +375,35 @@ export function AnalysisDashboard({
         iconClassName: "text-sky-500",
         status: waterStatus,
         tone: waterTone,
-        metric: `Average ${stats.averageWaterMl} ml against a ${waterTarget} ml target (${completionRate}%).`,
-        note: sanitizeNote(
-          waterTone === "good" ? waterAnalysis.recommendation : waterAnalysis.insights,
-        ) ?? undefined,
+        body: (
+          <p>
+            You averaged{" "}
+            <span className={cn("font-semibold", toneClasses(waterTone))}>{stats.averageWaterMl} ml/day</span>{" "}
+            against a target of{" "}
+            <span className="font-semibold text-stone-900">{waterTarget} ml</span>{" "}
+            ({completionRate}%).
+            {waterFollowup ? (
+              <>
+                {" "}
+                <span className={cn("font-medium", toneClasses(waterTone))}>{waterFollowup}</span>
+              </>
+            ) : null}
+          </p>
+        ),
       });
     }
 
     if (macroAnalysis) {
       const macroBalanced =
         macroAnalysis.assessment === "Balanced" || macroAnalysis.assessment === "Healthy";
+      const dominantMacro = [
+        { label: "carbs", value: macroMetrics.carbsPct },
+        { label: "fat", value: macroMetrics.fatPct },
+        { label: "protein", value: macroMetrics.proteinPct },
+      ].sort((a, b) => b.value - a.value)[0];
+      const macroFollowup =
+        trimClause(macroAnalysis.insights) ||
+        trimClause(macroAnalysis.recommendation);
       rows.push({
         key: "macros",
         title: "Nutrient ratios",
@@ -352,11 +411,20 @@ export function AnalysisDashboard({
         iconClassName: "text-emerald-500",
         status: macroBalanced ? "Balanced" : "Watch",
         tone: macroBalanced ? "neutral" : "watch",
-        metric: `Carbs ${macroMetrics.carbsPct}%, fat ${macroMetrics.fatPct}%, protein ${macroMetrics.proteinPct}%.`,
-        note:
-          sanitizeNote(
-            macroBalanced ? macroAnalysis.insights : macroAnalysis.recommendation || macroAnalysis.insights,
-          ) ?? undefined,
+        body: (
+          <p>
+            Split is{" "}
+            <span className="font-semibold text-stone-900">
+              {macroMetrics.carbsPct}% carbs, {macroMetrics.fatPct}% fat, {macroMetrics.proteinPct}% protein
+            </span>
+            .{" "}
+            <span className={cn("font-medium", toneClasses(macroBalanced ? "neutral" : "watch"))}>
+              {macroBalanced
+                ? `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is leading, but the mix still looks reasonable.`
+                : macroFollowup || `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is doing most of the work here.`}
+            </span>
+          </p>
+        ),
         bar: (
           <div className="space-y-1.5">
             <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-stone-200/80">
@@ -373,7 +441,7 @@ export function AnalysisDashboard({
     }
 
     return rows;
-  }, [calorieAnalysis, macroAnalysis, macroMetrics, proteinAnalysis, stats, waterAnalysis]);
+  }, [calorieAnalysis, currentWaterTarget, macroAnalysis, macroMetrics, proteinAnalysis, stats, waterAnalysis]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">
