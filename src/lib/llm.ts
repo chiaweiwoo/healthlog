@@ -13,7 +13,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 type LlmScenario = "daily_quick" | "daily_grounded" | "body";
 
-const PROMPT_VERSION = "2026-05-28-personalize-v1";
+const PROMPT_VERSION = "2026-05-28-audit-v1";
 const LLM_TIMEOUT_MS = 20_000;
 
 const modelsByScenario: Record<LlmScenario, string> = {
@@ -254,6 +254,15 @@ Estimation policy (tiered):
 - Truly unidentifiable item (gibberish, vague mention with no recognisable food or exercise): set actionType to "clarify" and leave nutrition fields null.
 Estimates always come with confidence (lower for weaker signals) and a warning with improveWith guidance.
 
+Confidence rubric:
+- 0.85+ : note states the item, portion, and detail directly.
+- 0.6-0.84 : item is clear, but portion or specifics are assumed.
+- below 0.6 : item is recognised but heavily guessed; must include a warning with improveWith.
+
+Anti-invention rule:
+- Do not output items not mentioned in the note. If a food, drink, or exercise is not in the note, omit it.
+- Estimation applies to portion size, calories, and macros of items the user did mention — never to whether the item itself exists.
+
 Personalization (use profile, not just defaults):
 - Use profile.weightKg, sex, age for any kcal estimate, especially exercise.
 - Read profile.metadata items as context cues (gym beginner -> lower MET; injury -> reduced load; vegetarian/halal -> bias food interpretation; medication/condition -> flag relevant items).
@@ -387,7 +396,6 @@ Examples:
 - moderate: desk life plus regular errands, commute, and chores
 - active: often on feet for work or daily life, but not because of logged workouts
 - very_active: physically demanding non-workout daily life
-Map office work, white-collar life, mostly sitting, and watching drama at home to light or sedentary unless the note clearly implies more non-exercise movement.
 Do not invent profile fields that are not supported by the note.
 Only create measurement rows when the note explicitly implies a real measurement event that should be preserved as a measurement.
 Prefer profile fields, overrides, and memory items over measurement rows.
@@ -421,6 +429,7 @@ Before finalizing, self-check that:
 - measurements array is empty unless the note explicitly states a measurement event
 - reasoning fields are populated (empty arrays are fine)
 - adminAlert is null unless genuinely anomalous
+- metadataUpserts has at most 8 items per call
 
 Return JSON matching:
 { action, profile, metadataUpserts, metadataDeletes, overrides, overrideDeletes, measurements, confidence, warnings, remarks, reasoning, adminAlert }

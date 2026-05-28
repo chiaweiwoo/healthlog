@@ -187,7 +187,10 @@ List all adminAlerts found. If none, say "None."
 ## Open Questions
 1-3 things this digest cannot answer but a human reviewer should check.
 
-Keep the total digest under 600 words. Be direct, not generic.`;
+Ground rules:
+- Cite exact warning codes, assumption strings, and counts from the input above. Do not invent codes, counts, or patterns not present in the data.
+- If a section has no real signal in the data, write a single sentence saying so (e.g. "No warning code crosses the 30% threshold."). Do not fabricate findings to fill the section.
+- Keep the total digest under 600 words. Be direct, not generic.`;
 
     const result = await ai.models.generateContent({
       model: MODEL_NAME,

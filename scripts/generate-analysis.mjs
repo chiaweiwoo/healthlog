@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v8";
+const PROMPT_VERSION = "2026-05-28-analysis-v9";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -879,6 +879,13 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
     ]
   }
 }
+
+=== SELF-CHECK BEFORE FINALIZING ===
+- Each category status and message sentiment agree (no "watch" copy that reads as praise; no "good" copy that names a gap).
+- Every examples entry exists in the COMPLETE LOG TIMELINE above. Do not invent dates, items, or volumes.
+- Each category message is exactly one sentence within the 5-12 word range.
+- If complete days < ${thresholdDays}, confidence is "low".
+- All output messages and reasons are in English regardless of source-note language.
 
 STYLE RULES:
 - Be crisp. Avoid filler, motivational fluff, and textbook explanations.
