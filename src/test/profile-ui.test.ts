@@ -210,7 +210,7 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("3570 ml/day");
     expect(html).toContain("3200 ml");
     expect(html).toContain("Split is 24% carbs, 9% fat, 67% protein.");
-    expect(html).toContain("High energy intake averages observed.");
+    expect(html).toContain("Average intake is above your current calorie quota.");
     expect(html).not.toContain("rounded-lg border border-indigo-100/60 bg-indigo-50/20");
     expect(html).not.toContain("Carb 24%  Fat 9%  Protein 67%");
   });

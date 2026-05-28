@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v4";
+const PROMPT_VERSION = "2026-05-28-analysis-v5";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -151,32 +151,10 @@ const profileGapSchema = z.object({
   improveAdvice: z.string().min(1),
 });
 
-const waterAnalysisSchema = z.object({
-  isGood: z.boolean(),
-  assessment: z.string().min(1),
-  insights: z.string(),
-  recommendation: z.string(),
-});
-
-const calorieAnalysisSchema = z.object({
-  outcome: z.enum(["deficit", "surplus", "maintenance"]),
-  assessment: z.string().min(1),
-  alerts: z.array(z.string().min(1)),
-  insights: z.string(),
-  recommendation: z.string(),
-});
-
-const proteinAnalysisSchema = z.object({
-  assessment: z.string().min(1),
-  alerts: z.array(z.string().min(1)),
-  insights: z.string(),
-  recommendation: z.string(),
-});
-
-const macroAnalysisSchema = z.object({
-  assessment: z.string().min(1),
-  insights: z.string(),
-  recommendation: z.string(),
+const categoryStatusSchema = z.enum(["good", "watch"]);
+const categoryAnalysisSchema = z.object({
+  status: categoryStatusSchema,
+  message: z.string().min(1),
 });
 
 const analysisReportPayloadSchema = z.object({
@@ -185,11 +163,29 @@ const analysisReportPayloadSchema = z.object({
   focusAreas: z.array(focusAreaSchema),
   profileGaps: z.array(profileGapSchema),
   confidence: z.enum(["low", "medium", "high"]),
-  waterAnalysis: waterAnalysisSchema,
-  calorieAnalysis: calorieAnalysisSchema,
-  proteinAnalysis: proteinAnalysisSchema,
-  macroAnalysis: macroAnalysisSchema,
+  waterAnalysis: categoryAnalysisSchema,
+  calorieAnalysis: categoryAnalysisSchema,
+  proteinAnalysis: categoryAnalysisSchema,
+  macroAnalysis: categoryAnalysisSchema,
 });
+
+function normalizeCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
+  const src = value && typeof value === "object" ? value : {};
+  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
+  const status = ["good", "watch"].includes(statusValue) ? statusValue : fallbackStatus;
+
+  const messageCandidate =
+    typeof src.message === "string" ? src.message.trim() :
+    typeof src.insights === "string" ? src.insights.trim() :
+    typeof src.recommendation === "string" ? src.recommendation.trim() :
+    Array.isArray(src.alerts) ? src.alerts.map((item) => String(item).trim()).find(Boolean) ?? "" :
+    "";
+
+  return {
+    status,
+    message: messageCandidate || fallbackMessage,
+  };
+}
 
 // Normalizer implementation matching llm-normalizers.ts
 function normalizeAnalysisReportResult(value) {
@@ -227,37 +223,26 @@ function normalizeAnalysisReportResult(value) {
     ? confidenceValue
     : "low";
 
-  const waterSrc = record.waterAnalysis && typeof record.waterAnalysis === "object" ? record.waterAnalysis : {};
-  const waterAnalysis = {
-    isGood: typeof waterSrc.isGood === "boolean" ? waterSrc.isGood : false,
-    assessment: typeof waterSrc.assessment === "string" ? waterSrc.assessment.trim() : "Optimal",
-    insights: typeof waterSrc.insights === "string" ? waterSrc.insights.trim() : "",
-    recommendation: typeof waterSrc.recommendation === "string" ? waterSrc.recommendation.trim() : "",
-  };
-
-  const calSrc = record.calorieAnalysis && typeof record.calorieAnalysis === "object" ? record.calorieAnalysis : {};
-  const calorieAnalysis = {
-    outcome: ["deficit", "surplus", "maintenance"].includes(calSrc.outcome) ? calSrc.outcome : "deficit",
-    assessment: typeof calSrc.assessment === "string" ? calSrc.assessment.trim() : "In Balance",
-    alerts: Array.isArray(calSrc.alerts) ? calSrc.alerts.map(a => String(a).trim()).filter(Boolean) : [],
-    insights: typeof calSrc.insights === "string" ? calSrc.insights.trim() : "",
-    recommendation: typeof calSrc.recommendation === "string" ? calSrc.recommendation.trim() : "",
-  };
-
-  const protSrc = record.proteinAnalysis && typeof record.proteinAnalysis === "object" ? record.proteinAnalysis : {};
-  const proteinAnalysis = {
-    assessment: typeof protSrc.assessment === "string" ? protSrc.assessment.trim() : "Balanced",
-    alerts: Array.isArray(protSrc.alerts) ? protSrc.alerts.map(a => String(a).trim()).filter(Boolean) : [],
-    insights: typeof protSrc.insights === "string" ? protSrc.insights.trim() : "",
-    recommendation: typeof protSrc.recommendation === "string" ? protSrc.recommendation.trim() : "",
-  };
-
-  const macroSrc = record.macroAnalysis && typeof record.macroAnalysis === "object" ? record.macroAnalysis : {};
-  const macroAnalysis = {
-    assessment: typeof macroSrc.assessment === "string" ? macroSrc.assessment.trim() : "Healthy",
-    insights: typeof macroSrc.insights === "string" ? macroSrc.insights.trim() : "",
-    recommendation: typeof macroSrc.recommendation === "string" ? macroSrc.recommendation.trim() : "",
-  };
+  const waterAnalysis = normalizeCategoryAnalysis(
+    record.waterAnalysis,
+    "watch",
+    "Hydration needs a clearer read from the available logs.",
+  );
+  const calorieAnalysis = normalizeCategoryAnalysis(
+    record.calorieAnalysis,
+    "watch",
+    "Calories need a clearer read from the available logs.",
+  );
+  const proteinAnalysis = normalizeCategoryAnalysis(
+    record.proteinAnalysis,
+    "watch",
+    "Protein needs a clearer read from the available logs.",
+  );
+  const macroAnalysis = normalizeCategoryAnalysis(
+    record.macroAnalysis,
+    "watch",
+    "Macro balance needs a clearer read from the available logs.",
+  );
 
   return {
     summary,
@@ -633,41 +618,30 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   ],
   "confidence": "low" | "medium" | "high",
   "waterAnalysis": {
-    "isGood": true,
-    "assessment": "1-2 word status label (e.g. 'Good', 'Low', 'High')",
-    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
-    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
+    "status": "good" | "watch",
+    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
   },
   "calorieAnalysis": {
-    "outcome": "deficit" | "surplus" | "maintenance",
-    "assessment": "1-2 word status label (e.g. 'Good', 'Watch', 'Steady')",
-    "alerts": [
-      "At most one short alert phrase, or []"
-    ],
-    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
-    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
+    "status": "good" | "watch",
+    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
   },
   "proteinAnalysis": {
-    "assessment": "1-2 word status label (e.g. 'Good', 'Low')",
-    "alerts": [
-      "At most one short alert phrase, or []"
-    ],
-    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
-    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
+    "status": "good" | "watch",
+    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
   },
   "macroAnalysis": {
-    "assessment": "1-2 word status label (e.g. 'Balanced', 'Watch')",
-    "insights": "Exactly one short sentence, under 18 words, grounded in the stats.",
-    "recommendation": "Optional short follow-up sentence, under 12 words, or empty string if nothing useful."
+    "status": "good" | "watch",
+    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
   }
 }
 
 STYLE RULES:
 - Be crisp. Avoid filler, motivational fluff, and textbook explanations.
 - Write like a smart coach giving a fast read, not an article.
-- Prefer one specific implication over broad advice.
+- Use only two status states: "good" and "watch".
 - Mention the most important number or ratio in each category.
 - If a category is fine, say why briefly and stop.
+- Do not return separate alerts, assessments, recommendations, or multi-part coaching inside category objects.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

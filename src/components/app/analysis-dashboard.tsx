@@ -12,28 +12,36 @@ type AIReportPayload = {
   profileGaps?: ProfileGap[];
   confidence?: "low" | "medium" | "high";
   waterAnalysis?: {
-    isGood: boolean;
-    assessment: string;
-    insights: string;
-    recommendation: string;
+    status?: "good" | "watch";
+    message?: string;
+    isGood?: boolean;
+    assessment?: string;
+    insights?: string;
+    recommendation?: string;
   };
   calorieAnalysis?: {
-    outcome: "deficit" | "surplus" | "maintenance";
-    assessment: string;
-    alerts: string[];
-    insights: string;
-    recommendation: string;
+    status?: "good" | "watch";
+    message?: string;
+    outcome?: "deficit" | "surplus" | "maintenance";
+    assessment?: string;
+    alerts?: string[];
+    insights?: string;
+    recommendation?: string;
   };
   proteinAnalysis?: {
-    assessment: string;
-    alerts: string[];
-    insights: string;
-    recommendation: string;
+    status?: "good" | "watch";
+    message?: string;
+    assessment?: string;
+    alerts?: string[];
+    insights?: string;
+    recommendation?: string;
   };
   macroAnalysis?: {
-    assessment: string;
-    insights: string;
-    recommendation: string;
+    status?: "good" | "watch";
+    message?: string;
+    assessment?: string;
+    insights?: string;
+    recommendation?: string;
   };
 };
 
@@ -54,7 +62,7 @@ export type DailyHistoryItem = {
   waterTarget: number;
 };
 
-type StatusTone = "good" | "watch" | "neutral";
+type StatusTone = "good" | "watch";
 
 type AnalysisRowItem = {
   key: string;
@@ -105,9 +113,8 @@ function pillClasses(tone: StatusTone) {
     case "good":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "watch":
-      return "border-amber-200 bg-amber-50 text-amber-700";
     default:
-      return "border-stone-200 bg-white text-stone-600";
+      return "border-red-200 bg-red-50 text-red-700";
   }
 }
 
@@ -116,10 +123,17 @@ function rowClasses(tone: StatusTone) {
     case "good":
       return "rounded-lg border border-emerald-200/80 bg-emerald-50/45 px-3 py-2.5";
     case "watch":
-      return "rounded-lg border border-amber-200/80 bg-amber-50/45 px-3 py-2.5";
     default:
-      return "rounded-lg border border-stone-200 bg-white/80 px-3 py-2.5";
+      return "rounded-lg border border-red-200/80 bg-red-50/45 px-3 py-2.5";
   }
+}
+
+function resolveLegacyMessage(parts: Array<string | null | undefined>) {
+  for (const part of parts) {
+    const value = trimClause(part);
+    if (value) return value;
+  }
+  return null;
 }
 
 function AnalysisStatusRow({
@@ -175,72 +189,53 @@ export function AnalysisDashboard({
     return null;
   }, [dailyHistory]);
 
-  const fallbackAI = useMemo(() => {
+  const fallbackAI = useMemo<AIReportPayload | null>(() => {
     if (!stats) return null;
 
-    const isDeficit = stats.averageNetCalories !== null && stats.averageNetCalories <= 0;
-    const calorieAssessment = isDeficit ? "Calorie Deficit" : "Calorie Surplus";
-    const calorieInsights = isDeficit
-      ? `Your averages show a consistent daily calorie deficit of ${Math.abs(stats.averageNetCalories || 0)} kcal, which is supportive of energy balance and fat-loss goals.`
-      : `Your averages show a daily calorie surplus of ${stats.averageNetCalories || 0} kcal. Consider adjusting portion sizes or increasing daily physical activity if your goal is maintenance or fat-loss.`;
-    const calorieRecommendation = isDeficit
-      ? "Maintain your current daily energy intake and ensure steady dietary tracking."
-      : "Focus on reducing calorie-dense items and tracking snacks precisely.";
+    const isCalorieGood = stats.averageNetCalories !== null && stats.averageNetCalories <= 0;
+    const calorieMessage = isCalorieGood
+      ? `Average intake is staying within or below your current calorie quota.`
+      : `Average intake is above your current calorie quota.`;
 
     const targetProtein = 100;
     const isProteinGood = stats.averageProteinG >= targetProtein;
-    const proteinAssessment = isProteinGood ? "Optimal" : "Low Protein";
-    const proteinInsights = isProteinGood
-      ? `Average protein intake is ${stats.averageProteinG}g, meeting or exceeding target levels for muscle preservation.`
-      : `Average protein intake is ${stats.averageProteinG}g, which is below active target levels. Higher protein intake supports muscle synthesis and satiety.`;
-    const proteinRecommendation = isProteinGood
-      ? "Continue incorporating high-quality lean protein sources throughout your meals."
-      : "Consider adding lean protein sources (e.g., egg whites, chicken breast, or tofu) to your main meals.";
+    const proteinMessage = isProteinGood
+      ? "Protein intake looks solid for everyday recovery and satiety."
+      : "Protein intake is light for recovery and satiety.";
 
     const hydrationTarget = currentWaterTarget ?? 2000;
-    const isWaterGood = stats.averageWaterMl >= hydrationTarget * 0.9;
-    const waterAssessment = isWaterGood ? "Sufficient" : "Dehydrated";
-    const waterInsights = isWaterGood
-      ? `Hydration is landing above your current target of ${hydrationTarget} ml.`
-      : `Hydration is below your current target of ${hydrationTarget} ml.`;
-    const waterRecommendation = isWaterGood
-      ? "Keep this level steady across the full week."
-      : "Add a repeatable drinking cue earlier in the day.";
+    const hydrationRate = Math.round((stats.averageWaterMl / hydrationTarget) * 100);
+    const isWaterGood = hydrationRate >= 90 && hydrationRate <= 140;
+    const waterMessage = isWaterGood
+      ? "Hydration is on track against your current target."
+      : hydrationRate < 90
+        ? "Hydration is below your current target."
+        : "Hydration is running unusually high above target.";
 
     const totalMacrosG =
       (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
-    const proteinPct = Math.round(((stats.averageProteinG || 0) / totalMacrosG) * 100);
-    const fatPct = Math.round(((stats.averageFatG || 0) / totalMacrosG) * 100);
     const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
-    const macroAssessment = "Balanced";
-    const macroInsights = `Your energy distribution averages ${proteinPct}% protein, ${fatPct}% fats, and ${carbsPct}% carbohydrates. This provides a baseline macro-nutrient profile.`;
-    const macroRecommendation =
-      "Consider adjusting fat and carb ratios depending on your active recovery and energy levels.";
+    const isMacroGood = carbsPct <= 50;
+    const macroMessage = isMacroGood
+      ? "Macro split looks reasonably balanced."
+      : "Carbohydrates are carrying most of the intake.";
 
     return {
       waterAnalysis: {
-        isGood: isWaterGood,
-        assessment: waterAssessment,
-        insights: waterInsights,
-        recommendation: waterRecommendation,
+        status: isWaterGood ? "good" : "watch",
+        message: waterMessage,
       },
       calorieAnalysis: {
-        outcome: isDeficit ? ("deficit" as const) : ("surplus" as const),
-        assessment: calorieAssessment,
-        alerts: stats.averageIntakeCalories > 3000 ? ["High energy intake averages observed."] : [],
-        insights: calorieInsights,
-        recommendation: calorieRecommendation,
+        status: isCalorieGood ? "good" : "watch",
+        message: calorieMessage,
       },
       proteinAnalysis: {
-        assessment: proteinAssessment,
-        alerts: !isProteinGood ? ["Protein intake averages below baseline muscle support goals."] : [],
-        insights: proteinInsights,
-        recommendation: proteinRecommendation,
+        status: isProteinGood ? "good" : "watch",
+        message: proteinMessage,
       },
       macroAnalysis: {
-        assessment: macroAssessment,
-        insights: macroInsights,
-        recommendation: macroRecommendation,
+        status: isMacroGood ? "good" : "watch",
+        message: macroMessage,
       },
     };
   }, [currentWaterTarget, stats]);
@@ -273,19 +268,14 @@ export function AnalysisDashboard({
     const rows: AnalysisRowItem[] = [];
 
     if (calorieAnalysis) {
-      const calorieStatus =
-        calorieAnalysis.outcome === "maintenance"
-          ? "Steady"
-          : calorieAnalysis.outcome === "deficit"
-            ? "Good"
-            : "Watch";
       const calorieTone: StatusTone =
-        calorieAnalysis.outcome === "surplus" ||
-        (calorieAnalysis.alerts && calorieAnalysis.alerts.length > 0)
-          ? "watch"
-          : calorieAnalysis.outcome === "maintenance"
-            ? "neutral"
-            : "good";
+        calorieAnalysis.status === "good"
+          ? "good"
+          : calorieAnalysis.status === "watch"
+            ? "watch"
+            : stats.averageNetCalories !== null && stats.averageNetCalories <= 0
+              ? "good"
+              : "watch";
       const calorieNet =
         stats.averageNetCalories === null
           ? "Net unavailable"
@@ -293,16 +283,19 @@ export function AnalysisDashboard({
             ? `${Math.abs(stats.averageNetCalories)} kcal deficit`
             : `${stats.averageNetCalories} kcal surplus`;
       const calorieFollowup =
-        trimClause(calorieAnalysis.alerts?.[0]) ||
-        trimClause(calorieAnalysis.recommendation) ||
-        trimClause(calorieAnalysis.insights);
+        trimClause(calorieAnalysis.message) ||
+        resolveLegacyMessage([
+          calorieAnalysis.alerts?.[0],
+          calorieAnalysis.recommendation,
+          calorieAnalysis.insights,
+        ]);
 
       rows.push({
         key: "calories",
         title: "Calorie outcome",
         icon: Flame,
         iconClassName: "text-orange-500",
-        status: calorieStatus,
+        status: calorieTone === "good" ? "Good" : "Watch",
         tone: calorieTone,
         body: `You averaged ${calorieNet} with intake at ${stats.averageIntakeCalories} kcal${
           stats.averageQuotaCalories != null ? ` against a target of ${stats.averageQuotaCalories} kcal.` : "."
@@ -311,17 +304,25 @@ export function AnalysisDashboard({
     }
 
     if (proteinAnalysis) {
-      const isProteinGood = stats.averageProteinG >= 100;
+      const isProteinGood =
+        proteinAnalysis.status === "good"
+          ? true
+          : proteinAnalysis.status === "watch"
+            ? false
+            : stats.averageProteinG >= 100;
       const proteinFollowup =
-        trimClause(proteinAnalysis.recommendation) ||
-        trimClause(proteinAnalysis.alerts?.[0]) ||
-        trimClause(proteinAnalysis.insights);
+        trimClause(proteinAnalysis.message) ||
+        resolveLegacyMessage([
+          proteinAnalysis.recommendation,
+          proteinAnalysis.alerts?.[0],
+          proteinAnalysis.insights,
+        ]);
       rows.push({
         key: "protein",
         title: "Protein intake",
         icon: Dumbbell,
         iconClassName: "text-stone-600",
-        status: isProteinGood ? "Good" : "Low",
+        status: isProteinGood ? "Good" : "Watch",
         tone: isProteinGood ? "good" : "watch",
         body: `You averaged ${stats.averageProteinG} g/day.${proteinFollowup ? ` ${proteinFollowup}` : ""}`,
       });
@@ -331,18 +332,22 @@ export function AnalysisDashboard({
       const waterTarget = currentWaterTarget ?? 2000;
       const completionRate = Math.round((stats.averageWaterMl / waterTarget) * 100);
       const waterTone: StatusTone =
-        completionRate < 90 ? "watch" : completionRate > 140 ? "neutral" : "good";
-      const waterStatus =
-        completionRate < 90 ? "Low" : completionRate > 140 ? "High" : "Good";
+        waterAnalysis.status === "good"
+          ? "good"
+          : waterAnalysis.status === "watch"
+            ? "watch"
+            : completionRate >= 90 && completionRate <= 140
+              ? "good"
+              : "watch";
       const waterFollowup =
-        trimClause(waterAnalysis.insights) ||
-        trimClause(waterAnalysis.recommendation);
+        trimClause(waterAnalysis.message) ||
+        resolveLegacyMessage([waterAnalysis.insights, waterAnalysis.recommendation]);
       rows.push({
         key: "water",
         title: "Water intake",
         icon: Droplets,
         iconClassName: "text-sky-500",
-        status: waterStatus,
+        status: waterTone === "good" ? "Good" : "Watch",
         tone: waterTone,
         body: `You averaged ${stats.averageWaterMl} ml/day against a target of ${waterTarget} ml (${completionRate}%).${
           waterFollowup ? ` ${waterFollowup}` : ""
@@ -351,25 +356,29 @@ export function AnalysisDashboard({
     }
 
     if (macroAnalysis) {
-      const macroBalanced =
-        macroAnalysis.assessment === "Balanced" || macroAnalysis.assessment === "Healthy";
       const dominantMacro = [
         { label: "carbs", value: macroMetrics.carbsPct },
         { label: "fat", value: macroMetrics.fatPct },
         { label: "protein", value: macroMetrics.proteinPct },
       ].sort((a, b) => b.value - a.value)[0];
+      const macroGood =
+        macroAnalysis.status === "good"
+          ? true
+          : macroAnalysis.status === "watch"
+            ? false
+            : macroMetrics.carbsPct <= 50;
       const macroFollowup =
-        trimClause(macroAnalysis.insights) ||
-        trimClause(macroAnalysis.recommendation);
+        trimClause(macroAnalysis.message) ||
+        resolveLegacyMessage([macroAnalysis.insights, macroAnalysis.recommendation]);
       rows.push({
         key: "macros",
         title: "Nutrient ratios",
         icon: PieChart,
         iconClassName: "text-emerald-500",
-        status: macroBalanced ? "Balanced" : "Watch",
-        tone: macroBalanced ? "neutral" : "watch",
+        status: macroGood ? "Good" : "Watch",
+        tone: macroGood ? "good" : "watch",
         body: `Split is ${macroMetrics.carbsPct}% carbs, ${macroMetrics.fatPct}% fat, ${macroMetrics.proteinPct}% protein. ${
-          macroBalanced
+          macroGood
             ? `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is leading, but the mix still looks reasonable.`
             : macroFollowup || `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is doing most of the work here.`
         }`,
