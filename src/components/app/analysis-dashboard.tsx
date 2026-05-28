@@ -31,14 +31,32 @@ type AIReportPayload = {
   confidence: "low" | "medium" | "high";
 };
 
+export type DailyHistoryItem = {
+  date: string;
+  calories: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  alcoholG: number;
+  waterMl: number;
+  exerciseCalories: number;
+  bmr: number;
+  baseTdee: number;
+  tefCalories: number;
+  tdee: number;
+  waterTarget: number;
+};
+
 export function AnalysisDashboard({
   stats,
   evidence,
   report,
+  dailyHistory = [],
 }: {
   stats: AnalysisStats;
   evidence: AnalysisEvidence;
   report: AIReportPayload | null;
+  dailyHistory?: DailyHistoryItem[];
 }) {
   const [activeTab, setActiveTab] = useState<"stats" | "ai">("stats");
   const [showEvidence, setShowEvidence] = useState(false);
@@ -175,6 +193,9 @@ export function AnalysisDashboard({
       {/* 3. CONDITIONAL RENDERING BASED ON ACTIVE TAB */}
       {activeTab === "stats" ? (
         <div className="space-y-6">
+          
+          {/* DAILY ENERGY & WATER TRENDS GRAPH */}
+          <TrendCharts dailyHistory={dailyHistory} />
           
           {/* ENERGY CARD */}
           <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
@@ -603,6 +624,421 @@ function SectionHeader({
         </div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
+  if (!dailyHistory || dailyHistory.length === 0) return null;
+
+  const formatXAxisDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", timeZone: "UTC" });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const w = 500;
+  const h = 220;
+  const marginL = 50;
+  const marginR = 20;
+  const marginT = 20;
+  const marginB = 40;
+
+  const chartW = w - marginL - marginR;
+  const chartH = h - marginT - marginB;
+  const baselineY = h - marginB;
+
+  const maxHistoryCal = Math.max(
+    ...dailyHistory.map((d) => Math.max(d.tdee || 0, d.calories || 0)),
+    2500
+  );
+  const maxCalAxis = Math.ceil(maxHistoryCal / 500) * 500;
+  const calScale = chartH / maxCalAxis;
+
+  const calGridValues = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000].filter((v) => v < maxCalAxis);
+
+  const maxHistoryWater = Math.max(
+    ...dailyHistory.map((d) => Math.max(d.waterMl || 0, d.waterTarget || 0)),
+    2000
+  );
+  const maxWaterAxis = Math.ceil(maxHistoryWater / 500) * 500;
+  const waterScale = chartH / maxWaterAxis;
+
+  const waterGridValues = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000].filter((v) => v < maxWaterAxis);
+
+  const colW = 32;
+  const colGap = 28;
+  const startX = marginL + 19;
+
+  const hasAlcohol = dailyHistory.some((d) => d.alcoholG > 0);
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60 bg-indigo-50">
+            <BarChart3 className="text-indigo-500" size={18} />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Weekly Overview</span>
+            <p className="text-sm font-bold leading-tight text-stone-900">Energy & Hydration Trends</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* CHART 1: TDEE (Quota) Stacked Bar Chart */}
+        <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-stone-700" />
+              TDEE (Quota Components)
+            </span>
+            <span className="text-stone-400 font-normal">Daily Energy Quota</span>
+          </div>
+
+          <div className="relative w-full aspect-[500/220]">
+            <svg viewBox="0 0 500 220" className="w-full h-full font-sans select-none overflow-visible">
+              {calGridValues.map((val) => {
+                const y = baselineY - val * calScale;
+                return (
+                  <g key={val}>
+                    <line x1={marginL} y1={y} x2={w - marginR} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3,3" />
+                    <text x={marginL - 8} y={y + 3.5} textAnchor="end" className="fill-stone-400 font-medium text-[9px]">{val}</text>
+                  </g>
+                );
+              })}
+              
+              <line x1={marginL} y1={baselineY} x2={w - marginR} y2={baselineY} stroke="#e2e8f0" strokeWidth="1.5" />
+              <text x={marginL - 8} y={baselineY + 3.5} textAnchor="end" className="fill-stone-400 font-semibold text-[9px]">0 kcal</text>
+
+              {dailyHistory.map((day, idx) => {
+                const x = startX + idx * (colW + colGap);
+                
+                const bmr = day.bmr;
+                const neat = Math.max(0, day.baseTdee - bmr);
+                const tef = day.tefCalories;
+                const eat = day.exerciseCalories;
+                const totalTdee = day.tdee;
+
+                const hBmr = bmr * calScale;
+                const hNeat = neat * calScale;
+                const hTef = tef * calScale;
+                const hEat = eat * calScale;
+
+                const yBmr = baselineY - hBmr;
+                const yNeat = yBmr - hNeat;
+                const yTef = yNeat - hTef;
+                const yEat = yTef - hEat;
+
+                const dateStr = formatXAxisDate(day.date);
+
+                return (
+                  <g key={day.date} className="group">
+                    {hBmr > 0 && (
+                      <rect x={x} y={yBmr} width={colW} height={hBmr} fill="#3f3f46" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hNeat > 0 && (
+                      <rect x={x} y={yNeat} width={colW} height={hNeat} fill="#94a3b8" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hTef > 0 && (
+                      <rect x={x} y={yTef} width={colW} height={hTef} fill="#fcd34d" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hEat > 0 && (
+                      <rect x={x} y={yEat} width={colW} height={hEat} fill="#10b981" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+
+                    {totalTdee > 0 && (
+                      <text x={x + colW / 2} y={yEat - 6} textAnchor="middle" className="fill-stone-600 font-bold text-[9px]">{Math.round(totalTdee)}</text>
+                    )}
+
+                    <text x={x + colW / 2} y={baselineY + 16} textAnchor="middle" className="fill-stone-500 font-semibold text-[9px]">{dateStr.split(" ")[0]}</text>
+                    <text x={x + colW / 2} y={baselineY + 27} textAnchor="middle" className="fill-stone-400 text-[8px]">{dateStr.split(" ")[1]}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center pt-2.5 text-[9px] text-stone-500 font-semibold border-t border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-zinc-700" /> BMR (Basal Sleep)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-slate-400" /> Lifestyle Activity (NEAT)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-amber-300" /> Digestion Effect (TEF)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-emerald-500" /> Active Exercise (EAT)
+            </span>
+          </div>
+        </div>
+
+        {/* CHART 2: Calories Intake Stacked Bar Chart */}
+        <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-indigo-400" />
+              Daily Calorie Intake vs. TDEE
+            </span>
+            <span className="text-stone-400 font-normal">Realized Intake</span>
+          </div>
+
+          <div className="relative w-full aspect-[500/220]">
+            <svg viewBox="0 0 500 220" className="w-full h-full font-sans select-none overflow-visible">
+              {calGridValues.map((val) => {
+                const y = baselineY - val * calScale;
+                return (
+                  <g key={val}>
+                    <line x1={marginL} y1={y} x2={w - marginR} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3,3" />
+                    <text x={marginL - 8} y={y + 3.5} textAnchor="end" className="fill-stone-400 font-medium text-[9px]">{val}</text>
+                  </g>
+                );
+              })}
+              
+              <line x1={marginL} y1={baselineY} x2={w - marginR} y2={baselineY} stroke="#e2e8f0" strokeWidth="1.5" />
+              <text x={marginL - 8} y={baselineY + 3.5} textAnchor="end" className="fill-stone-400 font-semibold text-[9px]">0 kcal</text>
+
+              {dailyHistory.map((day, idx) => {
+                const x = startX + idx * (colW + colGap);
+                
+                const protCal = day.proteinG * 4;
+                const fatCal = day.fatG * 9;
+                const carbCal = day.carbsG * 4;
+                const alcCal = day.alcoholG * 7;
+                
+                const stackedSum = protCal + fatCal + carbCal + alcCal;
+                const otherCal = Math.max(0, day.calories - stackedSum);
+
+                const hProt = protCal * calScale;
+                const hFat = fatCal * calScale;
+                const hCarb = carbCal * calScale;
+                const hAlc = alcCal * calScale;
+                const hOth = otherCal * calScale;
+                const totalIntakeHeight = hProt + hFat + hCarb + hAlc + hOth;
+
+                const yProt = baselineY - hProt;
+                const yFat = yProt - hFat;
+                const yCarb = yFat - hCarb;
+                const yAlc = yCarb - hAlc;
+                const yOth = yAlc - hOth;
+
+                const yIntakeTop = baselineY - totalIntakeHeight;
+                const yTdee = baselineY - day.tdee * calScale;
+
+                const dateStr = formatXAxisDate(day.date);
+                const netCal = day.calories - day.tdee;
+                const hasNotes = day.calories > 0;
+
+                return (
+                  <g key={day.date} className="group">
+                    {hProt > 0 && (
+                      <rect x={x} y={yProt} width={colW} height={hProt} fill="#818cf8" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hFat > 0 && (
+                      <rect x={x} y={yFat} width={colW} height={hFat} fill="#10b981" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hCarb > 0 && (
+                      <rect x={x} y={yCarb} width={colW} height={hCarb} fill="#fb923c" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hAlc > 0 && (
+                      <rect x={x} y={yAlc} width={colW} height={hAlc} fill="#c084fc" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+                    {hOth > 0 && (
+                      <rect x={x} y={yOth} width={colW} height={hOth} fill="#d6d3d1" className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+
+                    {hasNotes && day.calories < day.tdee && (
+                      <rect
+                        x={x}
+                        y={yTdee}
+                        width={colW}
+                        height={yIntakeTop - yTdee}
+                        fill="rgba(16, 185, 129, 0.03)"
+                        stroke="#10b981"
+                        strokeWidth="1.2"
+                        strokeDasharray="2,2"
+                        className="pointer-events-none"
+                      />
+                    )}
+
+                    {hasNotes && day.calories > day.tdee && (
+                      <rect
+                        x={x}
+                        y={yIntakeTop}
+                        width={colW}
+                        height={yTdee - yIntakeTop}
+                        fill="rgba(245, 158, 11, 0.05)"
+                        stroke="#f59e0b"
+                        strokeWidth="1.5"
+                        className="pointer-events-none"
+                      />
+                    )}
+
+                    <line
+                      x1={x - 4}
+                      y1={yTdee}
+                      x2={x + colW + 4}
+                      y2={yTdee}
+                      stroke="#f59e0b"
+                      strokeWidth="2"
+                      strokeDasharray="2,1"
+                      className="drop-shadow-sm"
+                    />
+
+                    {day.calories > 0 && (
+                      <text x={x + colW / 2} y={yIntakeTop - 6} textAnchor="middle" className="fill-stone-800 font-bold text-[9px]">{Math.round(day.calories)}</text>
+                    )}
+
+                    {hasNotes ? (
+                      netCal <= 0 ? (
+                        <text x={x + colW / 2} y={baselineY + 12} textAnchor="middle" className="fill-emerald-600 font-bold text-[8.5px]">
+                          ↓{Math.abs(Math.round(netCal))}
+                        </text>
+                      ) : (
+                        <text x={x + colW / 2} y={baselineY + 12} textAnchor="middle" className="fill-amber-600 font-bold text-[8.5px]">
+                          ↑+{Math.round(netCal)}
+                        </text>
+                      )
+                    ) : (
+                      <text x={x + colW / 2} y={baselineY + 12} textAnchor="middle" className="fill-stone-300 text-[8.5px] font-medium">-</text>
+                    )}
+
+                    <text x={x + colW / 2} y={baselineY + 23} textAnchor="middle" className="fill-stone-500 font-semibold text-[9px]">{dateStr.split(" ")[0]}</text>
+                    <text x={x + colW / 2} y={baselineY + 34} textAnchor="middle" className="fill-stone-400 text-[8px]">{dateStr.split(" ")[1]}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 justify-center pt-2.5 text-[9px] text-stone-500 font-semibold border-t border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-indigo-400" /> Protein (🥚)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-emerald-500" /> Fats (🥑)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-orange-400" /> Carbs (🍞)
+            </span>
+            {hasAlcohol && (
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded bg-purple-400" /> Alcohol (🍷)
+              </span>
+            )}
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-stone-300" /> Other
+            </span>
+            <span className="flex items-center gap-1 pl-2 border-l border-stone-200">
+              <span className="h-0.5 w-3 bg-yellow-500 border-t border-dashed border-yellow-500" /> Quota TDEE Target
+            </span>
+            <span className="flex items-center gap-1 pl-2 border-l border-stone-200">
+              <span className="text-emerald-500 font-bold">↓ Deficit</span> / <span className="text-amber-500 font-bold">↑ Surplus</span>
+            </span>
+          </div>
+        </div>
+
+        {/* CHART 3: Hydration (Water Intake) Bar Chart */}
+        <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-sky-400" />
+              Hydration Trend
+            </span>
+            <span className="text-stone-400 font-normal">Daily Water Volume</span>
+          </div>
+
+          <div className="relative w-full aspect-[500/220]">
+            <svg viewBox="0 0 500 220" className="w-full h-full font-sans select-none overflow-visible">
+              {waterGridValues.map((val) => {
+                const y = baselineY - val * waterScale;
+                return (
+                  <g key={val}>
+                    <line x1={marginL} y1={y} x2={w - marginR} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3,3" />
+                    <text x={marginL - 8} y={y + 3.5} textAnchor="end" className="fill-stone-400 font-medium text-[9px]">{val}</text>
+                  </g>
+                );
+              })}
+              
+              <line x1={marginL} y1={baselineY} x2={w - marginR} y2={baselineY} stroke="#e2e8f0" strokeWidth="1.5" />
+              <text x={marginL - 8} y={baselineY + 3.5} textAnchor="end" className="fill-stone-400 font-semibold text-[9px]">0 ml</text>
+
+              {dailyHistory.map((day, idx) => {
+                const x = startX + idx * (colW + colGap);
+                const hWater = day.waterMl * waterScale;
+                const yWater = baselineY - hWater;
+                const dateStr = formatXAxisDate(day.date);
+                
+                const targetVal = day.waterTarget;
+                const isMet = day.waterMl >= targetVal;
+                
+                const barColor = isMet 
+                  ? "#0ea5e9" 
+                  : day.waterMl > 0 && day.waterMl < 1000 
+                    ? "#fdb96f"
+                    : "#7dd3fc";
+
+                return (
+                  <g key={day.date} className="group">
+                    {hWater > 0 && (
+                      <rect x={x} y={yWater} width={colW} height={hWater} fill={barColor} className="transition-all duration-200 group-hover:opacity-90" />
+                    )}
+
+                    {day.waterMl > 0 && (
+                      <text x={x + colW / 2} y={yWater - 6} textAnchor="middle" className="fill-stone-600 font-bold text-[9px]">{Math.round(day.waterMl)}</text>
+                    )}
+
+                    <line
+                      x1={x - 4}
+                      y1={baselineY - targetVal * waterScale}
+                      x2={x + colW + 4}
+                      y2={baselineY - targetVal * waterScale}
+                      stroke="#38bdf8"
+                      strokeWidth="1.5"
+                      strokeDasharray="2,2"
+                    />
+
+                    <text x={x + colW / 2} y={baselineY + 16} textAnchor="middle" className="fill-stone-500 font-semibold text-[9px]">{dateStr.split(" ")[0]}</text>
+                    <text x={x + colW / 2} y={baselineY + 27} textAnchor="middle" className="fill-stone-400 text-[8px]">{dateStr.split(" ")[1]}</text>
+                  </g>
+                );
+              })}
+
+              {dailyHistory.length > 0 && (
+                <text
+                  x={w - marginR - 6}
+                  y={baselineY - dailyHistory[dailyHistory.length - 1].waterTarget * waterScale - 6}
+                  textAnchor="end"
+                  className="fill-sky-500/80 font-bold text-[8.5px]"
+                >
+                  Goal: {Math.round(dailyHistory[dailyHistory.length - 1].waterTarget)} ml
+                </text>
+              )}
+            </svg>
+          </div>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center pt-2.5 text-[9px] text-stone-500 font-semibold border-t border-stone-100">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-sky-500" /> Target Met (💧)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-sky-300" /> Under Goal
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded bg-amber-300" /> Dehydrated (&lt;1000ml)
+            </span>
+            <span className="flex items-center gap-1 pl-2 border-l border-stone-200">
+              <span className="h-0.5 w-4 bg-sky-400 border-t border-dashed border-sky-400" /> Daily Target Level
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
