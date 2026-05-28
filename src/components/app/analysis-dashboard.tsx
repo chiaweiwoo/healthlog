@@ -700,6 +700,126 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
 
   const hasAlcohol = dailyHistory.some((d) => d.alcoholG > 0);
 
+  // 1. Raw Slices definitions
+  const rawSlices = [
+    {
+      id: "bmr",
+      label: "BMR",
+      fullName: "Basal Metabolic Rate",
+      pct: pctBmr,
+      val: avgBmr,
+      color: "#64748b", // slate-500
+    },
+    {
+      id: "neat",
+      label: "NEAT",
+      fullName: "Non-Exercise Activity Thermogenesis",
+      pct: pctNeat,
+      val: avgNeat,
+      color: "#6366f1", // indigo-500
+    },
+    {
+      id: "tef",
+      label: "TEF",
+      fullName: "Thermic Effect of Food",
+      pct: pctTef,
+      val: avgTef,
+      color: "#f97316", // orange-500
+    },
+    {
+      id: "eat",
+      label: "EAT",
+      fullName: "Exercise Activity Thermogenesis",
+      pct: pctEat,
+      val: avgEat,
+      color: "#10b981", // emerald-500
+    },
+  ];
+
+  // 2. Cumulative angles and coordinates setup
+  let currentAngle = -90;
+  const pieCx = 210;
+  const pieCy = 75;
+  const pieR = 24;
+  const pieCirc = 2 * Math.PI * pieR; // ~150.8
+
+  const slices = rawSlices.map((s) => {
+    const angleStart = currentAngle;
+    const angleDelta = (s.pct / 100) * 360;
+    const angleEnd = angleStart + angleDelta;
+    const angleMid = angleStart + angleDelta / 2;
+    currentAngle = angleEnd;
+
+    return {
+      ...s,
+      angleStart,
+      angleEnd,
+      angleMid,
+      dashOffset: pieCirc - (s.pct / 100) * pieCirc,
+    };
+  });
+
+  // Filter out slices with 0%
+  const activeSlices = slices.filter((s) => s.pct > 0);
+
+  // Spacing adjustment parameters
+  const minSpacingY = 18;
+
+  // Pre-calculate raw y coordinates for knee points
+  const activeSlicesWithCoords = activeSlices.map((s) => {
+    const rad = (s.angleMid * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    
+    // Knee point radius is 48
+    const rawKneeY = pieCy + 48 * sin;
+    const isLeft = cos < 0;
+
+    return {
+      ...s,
+      rad,
+      cos,
+      sin,
+      rawKneeY,
+      isLeft,
+      adjustedY: rawKneeY,
+    };
+  });
+
+  // Adjust left side slices
+  const leftSlices = activeSlicesWithCoords
+    .filter((s) => s.isLeft)
+    .sort((a, b) => a.rawKneeY - b.rawKneeY);
+
+  for (let i = 1; i < leftSlices.length; i++) {
+    const prev = leftSlices[i - 1];
+    const curr = leftSlices[i];
+    if (curr.adjustedY < prev.adjustedY + minSpacingY) {
+      curr.adjustedY = prev.adjustedY + minSpacingY;
+    }
+  }
+
+  // Adjust right side slices
+  const rightSlices = activeSlicesWithCoords
+    .filter((s) => !s.isLeft)
+    .sort((a, b) => a.rawKneeY - b.rawKneeY);
+
+  for (let i = 1; i < rightSlices.length; i++) {
+    const prev = rightSlices[i - 1];
+    const curr = rightSlices[i];
+    if (curr.adjustedY < prev.adjustedY + minSpacingY) {
+      curr.adjustedY = prev.adjustedY + minSpacingY;
+    }
+  }
+
+  // Combine and clamp back
+  const processedSlices = [...leftSlices, ...rightSlices].map((s) => {
+    return {
+      ...s,
+      adjustedY: Math.max(15, Math.min(135, s.adjustedY)),
+    };
+  });
+
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -715,7 +835,7 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
       </div>
 
       <div className="space-y-8">
-        {/* TDEE Quota Breakdown Card - Ultra Compact Pie + Text List */}
+        {/* TDEE Quota Breakdown Card - Ultra Compact Donut with Side Annotations */}
         <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner">
           <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 pb-1.5 border-b border-stone-100">
             <span className="flex items-center gap-1">
@@ -727,98 +847,68 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
             </span>
           </div>
 
-          <div className="flex items-center gap-5 pt-2.5">
-            {/* Left: Ultra-Compact SVG Pie Chart */}
-            <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-full h-full font-sans select-none overflow-visible">
-                <circle cx="50" cy="50" r="25" fill="none" stroke="#f5f5f4" strokeWidth="50" />
-                
-                {pctBmr > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="25"
-                    fill="none"
-                    stroke="#3f3f46"
-                    strokeWidth="50"
-                    strokeDasharray="157.08"
-                    strokeDashoffset={157.08 - (pctBmr / 100) * 157.08}
-                    transform="rotate(-90 50 50)"
-                  />
-                )}
-                {pctNeat > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="25"
-                    fill="none"
-                    stroke="#94a3b8"
-                    strokeWidth="50"
-                    strokeDasharray="157.08"
-                    strokeDashoffset={157.08 - (pctNeat / 100) * 157.08}
-                    transform={`rotate(${-90 + (pctBmr / 100) * 360} 50 50)`}
-                  />
-                )}
-                {pctTef > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="25"
-                    fill="none"
-                    stroke="#fcd34d"
-                    strokeWidth="50"
-                    strokeDasharray="157.08"
-                    strokeDashoffset={157.08 - (pctTef / 100) * 157.08}
-                    transform={`rotate(${-90 + ((pctBmr + pctNeat) / 100) * 360} 50 50)`}
-                  />
-                )}
-                {pctEat > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="25"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="50"
-                    strokeDasharray="157.08"
-                    strokeDashoffset={157.08 - (pctEat / 100) * 157.08}
-                    transform={`rotate(${-90 + ((pctBmr + pctNeat + pctTef) / 100) * 360} 50 50)`}
-                  />
-                )}
-              </svg>
-            </div>
+          <div className="w-full aspect-[420/150] pt-2">
+            <svg viewBox="0 0 420 150" className="w-full h-full font-sans select-none overflow-visible">
+              {/* Outer light gray donut baseline */}
+              <circle cx={pieCx} cy={pieCy} r={pieR} fill="none" stroke="#f5f5f4" strokeWidth={16} />
+              
+              {/* Slices */}
+              {processedSlices.map((s) => (
+                <circle
+                  key={s.id}
+                  cx={pieCx}
+                  cy={pieCy}
+                  r={pieR}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={16}
+                  strokeDasharray={pieCirc.toFixed(2)}
+                  strokeDashoffset={s.dashOffset.toFixed(2)}
+                  transform={`rotate(${s.angleStart} ${pieCx} ${pieCy})`}
+                />
+              ))}
 
-            {/* Right: Compact Annotations List */}
-            <div className="flex-1 text-[11px] text-stone-600 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-zinc-700 shrink-0" /> BMR (Sleep)
-                </span>
-                <span className="font-bold text-stone-700">{avgBmr} kcal ({formatPct(pctBmr)}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" /> NEAT (Activity)
-                </span>
-                <span className="font-bold text-stone-700">{avgNeat} kcal ({formatPct(pctNeat)}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-amber-300 shrink-0" /> TEF (Digestion)
-                </span>
-                <span className="font-bold text-stone-700">{avgTef} kcal ({formatPct(pctTef)}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" /> EAT (Exercise)
-                </span>
-                <span className="font-bold text-stone-700">{avgEat} kcal ({formatPct(pctEat)}%)</span>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-xs font-bold text-stone-800">
-                <span>Total Daily Quota</span>
-                <span>{avgTdee} kcal</span>
-              </div>
-            </div>
+              {/* Central text in Donut Hole */}
+              <text x={pieCx} y={pieCy - 2} textAnchor="middle" className="fill-stone-400 font-bold text-[7.5px] uppercase tracking-wider">TDEE</text>
+              <text x={pieCx} y={pieCy + 7} textAnchor="middle" className="fill-stone-800 font-extrabold text-[10px]">{avgTdee}</text>
+
+              {/* Direct Pointer Lines & Double-Line Annotations */}
+              {processedSlices.map((s) => {
+                const x1 = pieCx + 32 * s.cos;
+                const y1 = pieCy + 32 * s.sin;
+                const x2 = pieCx + 48 * s.cos;
+                const y2 = s.adjustedY;
+                const x3 = x2 + (s.isLeft ? -12 : 12);
+                const y3 = y2;
+                
+                const tx = x3 + (s.isLeft ? -4 : 4);
+                const ty = y3;
+
+                return (
+                  <g key={s.id}>
+                    {/* Beautiful Thin Connection Pointer Line */}
+                    <path
+                      d={`M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3}`}
+                      fill="none"
+                      stroke={s.color}
+                      strokeWidth="1"
+                      strokeOpacity="0.65"
+                    />
+                    
+                    {/* Balanced Double-line Label next to the pie slice */}
+                    <text
+                      x={tx}
+                      y={ty - 3}
+                      textAnchor={s.isLeft ? "end" : "start"}
+                      className="fill-stone-600 font-medium text-[7.5px] font-sans"
+                    >
+                      <tspan x={tx} dy="0">{s.label} ({s.fullName})</tspan>
+                      <tspan x={tx} dy="8.5" className="fill-stone-800 font-bold">{s.val} kcal ({formatPct(s.pct)}%)</tspan>
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
         </div>
 
