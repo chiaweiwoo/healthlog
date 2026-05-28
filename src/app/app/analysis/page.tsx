@@ -28,7 +28,7 @@ export default async function AnalysisPage() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
   
   // 1. Calculate real-time stats and contributor evidence from DB dynamically (no cache)
-  const { stats, evidence } = await getRealTimeAnalysisStats(profile, todayStr).catch((err) => {
+  const { stats } = await getRealTimeAnalysisStats(profile, todayStr).catch((err) => {
     console.error("Error calculating real-time stats:", err);
     return {
       stats: {
@@ -152,7 +152,6 @@ export default async function AnalysisPage() {
     <main>
       <AnalysisDashboard 
         stats={stats} 
-        evidence={evidence} 
         report={report?.payload || null} 
         dailyHistory={dailyHistory}
       />

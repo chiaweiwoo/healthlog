@@ -5,7 +5,6 @@ import {
   Calendar,
   AlertTriangle,
   Sparkles,
-  Info,
   Flame,
   Dumbbell,
   Droplets,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 import {
   AnalysisStats,
-  AnalysisEvidence,
   FocusArea,
   ProfileGap,
 } from "@/lib/schemas";
@@ -74,12 +72,10 @@ export function AnalysisDashboard({
   dailyHistory = [],
 }: {
   stats: AnalysisStats;
-  evidence: AnalysisEvidence;
   report: AIReportPayload | null;
   dailyHistory?: DailyHistoryItem[];
 }) {
   const totalDaysInPeriod = 14;
-  const isLowData = stats.completeDays < 7;
 
   // Formatting dates for the header
   const formatDate = (dateStr: string) => {
@@ -106,7 +102,7 @@ export function AnalysisDashboard({
 
     const targetProtein = 100; // fallback standard protein goal
     const isProteinGood = stats.averageProteinG >= targetProtein;
-    const proteinAssessment = isProteinGood ? "Optimal Intake" : "Insufficient Intake";
+    const proteinAssessment = isProteinGood ? "Optimal" : "Low Protein";
     const proteinInsights = isProteinGood
       ? `Average protein intake is ${stats.averageProteinG}g, meeting or exceeding target levels for muscle preservation.`
       : `Average protein intake is ${stats.averageProteinG}g, which is below active target levels. Higher protein intake supports muscle synthesis and satiety.`;
@@ -115,7 +111,7 @@ export function AnalysisDashboard({
       : "Consider adding lean protein sources (e.g., egg whites, chicken breast, or tofu) to your main meals.";
 
     const isWaterGood = stats.averageWaterMl >= 2000;
-    const waterAssessment = isWaterGood ? "Optimal Hydration" : "Moderate Dehydration";
+    const waterAssessment = isWaterGood ? "Sufficient" : "Dehydrated";
     const waterInsights = isWaterGood
       ? `Average water intake of ${stats.averageWaterMl}ml is supportive of digestive and metabolic function.`
       : `Average water intake of ${stats.averageWaterMl}ml is under the standard 2000ml goal. Try tracking fluids more consistently.`;
@@ -127,7 +123,7 @@ export function AnalysisDashboard({
     const proteinPct = Math.round(((stats.averageProteinG || 0) / totalMacrosG) * 100);
     const fatPct = Math.round(((stats.averageFatG || 0) / totalMacrosG) * 100);
     const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
-    const macroAssessment = "Balanced Ratios";
+    const macroAssessment = "Balanced";
     const macroInsights = `Your energy distribution averages ${proteinPct}% protein, ${fatPct}% fats, and ${carbsPct}% carbohydrates. This provides a baseline macro-nutrient profile.`;
     const macroRecommendation = "Consider adjusting fat and carb ratios depending on your active recovery and energy levels.";
 
@@ -167,7 +163,6 @@ export function AnalysisDashboard({
 
   // Consistency pills mapping from the past 14 days history
   const consistencyPills = useMemo(() => {
-    // Fill the pills from dailyHistory or default to false
     const pills = Array.from({ length: totalDaysInPeriod }).map((_, idx) => {
       if (idx < dailyHistory.length) {
         return dailyHistory[idx].isLogged;
@@ -177,377 +172,331 @@ export function AnalysisDashboard({
     return pills;
   }, [dailyHistory, stats.completeDays]);
 
+  // Determine macronutrient ratios
+  const macroMetrics = useMemo(() => {
+    const totalMacrosG = (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
+    const proteinPct = Math.round(((stats.averageProteinG || 0) / totalMacrosG) * 100);
+    const fatPct = Math.round(((stats.averageFatG || 0) / totalMacrosG) * 100);
+    const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
+    return { proteinPct, fatPct, carbsPct };
+  }, [stats]);
+
+  // Decision indicators: should we show the coaching insight text container?
+  // Water: hide if water volume is optimal (isGood = true)
+  const showWaterInsights = waterAnalysis && !waterAnalysis.isGood;
+
+  // Calories: hide if in deficit (outcome = deficit) and there are no alerts
+  const showCalorieInsights = calorieAnalysis && (
+    calorieAnalysis.outcome === "surplus" || 
+    (calorieAnalysis.alerts && calorieAnalysis.alerts.length > 0)
+  );
+
+  // Protein: hide if protein is optimal (>= 100g) and no alerts
+  const isProteinGood = stats.averageProteinG >= 100;
+  const showProteinInsights = proteinAnalysis && (
+    !isProteinGood || 
+    (proteinAnalysis.alerts && proteinAnalysis.alerts.length > 0)
+  );
+
+  // Macros: hide if assessment is "Balanced" or "Healthy" and no alerts/recommendations are high-priority
+  const isMacroImbalanced = macroAnalysis && !(
+    macroAnalysis.assessment === "Balanced" || 
+    macroAnalysis.assessment === "Healthy"
+  );
+  const showMacroInsights = macroAnalysis && isMacroImbalanced;
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 space-y-6">
+    <div className="mx-auto max-w-2xl px-4 py-4 space-y-4">
       
-      {/* 1. HEADER SECTION CARD */}
-      <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">14-day rolling review</span>
-            <h1 className="text-lg font-bold leading-tight text-stone-900 flex items-center gap-1.5">
-              <Calendar size={18} className="text-stone-500" />
-              {formatDate(stats.periodStart)} - {formatDate(stats.periodEnd)}
-            </h1>
-          </div>
-          {report?.confidence && (
-            <div className={cn(
-              "flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold",
-              report.confidence === "high" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-              report.confidence === "medium" ? "bg-sky-50 text-sky-700 border-sky-200" :
-              "bg-amber-50 text-amber-700 border-amber-200"
-            )}>
-              <Info size={12} />
-              <span className="capitalize">{report.confidence} Confidence</span>
-            </div>
-          )}
+      {/* 1. HEADER SECTION CARD (ULTRA COMPACT) */}
+      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">14-day rolling review</span>
+          <h1 className="text-sm font-bold text-stone-900 flex items-center gap-1.5 leading-none">
+            <Calendar size={14} className="text-stone-500 shrink-0" />
+            {formatDate(stats.periodStart)} - {formatDate(stats.periodEnd)}
+          </h1>
         </div>
-
-        {/* Tracking consistency pills progress indicator */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-stone-500">
-            <span>Tracking Consistency</span>
-            <span className="font-semibold text-stone-700">{stats.completeDays} of {totalDaysInPeriod} days logged</span>
-          </div>
-          
-          <div className="flex gap-1">
-            {consistencyPills.map((isLogged, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "h-2.5 flex-1 rounded-full border border-stone-200/50 transition-colors duration-300",
-                  isLogged 
-                    ? isLowData 
-                      ? "bg-amber-400" 
-                      : "bg-emerald-500" 
-                    : "bg-stone-200"
-                )}
-              />
-            ))}
-          </div>
+        
+        {/* Tracking consistency pills */}
+        <div className="flex gap-0.5 w-32 shrink-0">
+          {consistencyPills.map((isLogged, index) => (
+            <div
+              key={index}
+              className={cn(
+                "h-2 flex-1 rounded-full border border-stone-200/20 transition-colors duration-300",
+                isLogged ? "bg-emerald-500" : "bg-stone-200"
+              )}
+            />
+          ))}
         </div>
-
-        {isLowData && (
-          <div className="rounded-lg bg-amber-50/70 border border-amber-200/60 p-2.5 flex items-start gap-2 text-xs text-amber-800">
-            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
-            <div>
-              <p className="font-semibold">Limited Logging Coverage</p>
-              <p className="mt-0.5 text-amber-700">
-                You have logged under 7 days of entries in this 14-day window. AI recommendations and averages are preliminary. Log consistently to unlock high-confidence coaching insights.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 2. CORE PERSPECTIVES Stack (Single-Column) */}
+      {/* 2. CORE PERSPECTIVES STACK (SINGLE-COLUMN, HIGHLY DENSE) */}
 
       {/* CARD 1: Calorie Outcomes & Balance */}
       {calorieAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
+        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
           <SectionHeader
-            icon={<Flame size={18} className="text-orange-500" />}
+            icon={<Flame size={16} className="text-orange-500" />}
             caption="Energy Balance"
-            title="Calorie Balance & Outcomes"
+            title="Calorie Outcomes"
             iconBg="bg-orange-50"
+            action={
+              <span className={cn(
+                "px-2 py-0.5 text-[10px] font-bold border rounded-full capitalize",
+                calorieAnalysis.outcome === "deficit"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+              )}>
+                {calorieAnalysis.outcome === "deficit" ? "Deficit" : "Surplus"}
+              </span>
+            }
           />
 
-          <div className="space-y-3">
-            {/* Deterministic Badges */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Avg Daily Intake</span>
-                <span className="font-bold text-stone-800 text-sm">{stats.averageIntakeCalories} kcal</span>
+          <div className="space-y-2">
+            {/* Compressed Metrics Row */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
+              <div>
+                <span className="font-semibold text-stone-900">Intake:</span> {stats.averageIntakeCalories} kcal
               </div>
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Avg Daily Quota (TDEE)</span>
-                <span className="font-bold text-stone-800 text-sm">
-                  {stats.averageQuotaCalories ? `${stats.averageQuotaCalories} kcal` : "N/A"}
-                </span>
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">TDEE Quota:</span> {stats.averageQuotaCalories || "N/A"} kcal
               </div>
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Avg Daily Net</span>
-                {stats.averageNetCalories !== null ? (
-                  <span className={cn(
-                    "font-bold text-sm",
-                    stats.averageNetCalories <= 0 ? "text-emerald-600" : "text-amber-600"
-                  )}>
-                    {stats.averageNetCalories <= 0 ? "" : "+"}
-                    {stats.averageNetCalories <= 0 ? `${Math.abs(stats.averageNetCalories)} kcal Deficit` : `${stats.averageNetCalories} kcal Surplus`}
-                  </span>
-                ) : (
-                  <span className="text-stone-400">Incomplete</span>
-                )}
-              </div>
-            </div>
-
-            {/* Quota Progress Bar */}
-            {stats.averageQuotaCalories !== null && (
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                  <span>Quota Usage Target</span>
-                  <span>{Math.round((stats.averageIntakeCalories / stats.averageQuotaCalories) * 100)}%</span>
-                </div>
-                <div className="h-2 w-full bg-stone-200 rounded-full overflow-hidden border border-stone-200/50">
-                  <div
-                    className={cn(
-                      "h-full transition-all duration-500",
-                      stats.averageIntakeCalories <= stats.averageQuotaCalories 
-                        ? "bg-emerald-500" 
-                        : "bg-amber-400"
-                    )}
-                    style={{ width: `${Math.min((stats.averageIntakeCalories / stats.averageQuotaCalories) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* AI Insights and Alerts */}
-            <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-3 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-                <Sparkles size={14} className={cn("text-indigo-600", !report && "animate-pulse")} />
-                <span>AI Health Analysis</span>
-              </div>
-              <p className="text-xs text-stone-700 leading-relaxed">
-                {calorieAnalysis.insights}
-              </p>
-              
-              {calorieAnalysis.alerts && calorieAnalysis.alerts.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <span className="text-[10px] uppercase font-bold text-amber-700 tracking-wider">Calorie Alerts</span>
-                  <ul className="space-y-1 pl-1">
-                    {calorieAnalysis.alerts.map((alert, idx) => (
-                      <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 leading-normal items-start">
-                        <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-600" />
-                        <span>{alert}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="border-t border-indigo-100/40 pt-2 text-xs text-stone-600">
-                <span className="font-bold text-indigo-950">Recommendation:</span> {calorieAnalysis.recommendation}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CARD 2: Protein Intake & Alerts */}
-      {proteinAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
-          <SectionHeader
-            icon={<Dumbbell size={18} className="text-stone-600" />}
-            caption="Intake Composition"
-            title="Protein Intake & Quality"
-            iconBg="bg-stone-100"
-          />
-
-          <div className="space-y-3">
-            {/* Deterministic Badges */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Avg Daily Protein</span>
-                <span className="font-bold text-stone-800 text-sm">{stats.averageProteinG}g</span>
-              </div>
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Energy Contribution</span>
-                <span className="font-bold text-stone-800 text-sm">
-                  {stats.averageIntakeCalories > 0 
-                    ? `${Math.round(((stats.averageProteinG * 4) / stats.averageIntakeCalories) * 100)}%` 
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">Net:</span>{" "}
+                <span className={cn(
+                  "font-bold",
+                  stats.averageNetCalories !== null && stats.averageNetCalories <= 0 ? "text-emerald-600" : "text-amber-600"
+                )}>
+                  {stats.averageNetCalories !== null 
+                    ? stats.averageNetCalories <= 0 
+                      ? `-${Math.abs(stats.averageNetCalories)} Deficit` 
+                      : `+${stats.averageNetCalories} Surplus`
                     : "N/A"}
                 </span>
               </div>
             </div>
 
-            {/* Protein Target Bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                <span>Muscle Retention Target</span>
-                <span>{Math.round(Math.min((stats.averageProteinG / 100) * 100, 100))}%</span>
-              </div>
-              <div className="h-2 w-full bg-stone-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-stone-300 rounded-full" 
-                  style={{ width: `${Math.min((stats.averageProteinG / 100) * 100, 100)}%` }} 
+            {/* Quota Progress Bar (Thin line) */}
+            {stats.averageQuotaCalories !== null && (
+              <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    stats.averageIntakeCalories <= stats.averageQuotaCalories ? "bg-emerald-500" : "bg-amber-400"
+                  )}
+                  style={{ width: `${Math.min((stats.averageIntakeCalories / stats.averageQuotaCalories) * 100, 100)}%` }}
                 />
               </div>
-            </div>
+            )}
 
-            {/* AI Insights & Alerts */}
-            <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-3 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-                <Sparkles size={14} className={cn("text-indigo-600", !report && "animate-pulse")} />
-                <span>AI Health Analysis</span>
-              </div>
-              <p className="text-xs text-stone-700 leading-relaxed">
-                {proteinAnalysis.insights}
-              </p>
-
-              {proteinAnalysis.alerts && proteinAnalysis.alerts.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <span className="text-[10px] uppercase font-bold text-amber-700 tracking-wider">Protein Alerts</span>
-                  <ul className="space-y-1 pl-1">
-                    {proteinAnalysis.alerts.map((alert, idx) => (
-                      <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 leading-normal items-start">
-                        <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-600" />
-                        <span>{alert}</span>
-                      </li>
-                    ))}
-                  </ul>
+            {/* AI Insights and Alerts (Rendered only on Surplus or Warning alerts) */}
+            {showCalorieInsights && (
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
+                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
+                  <span>AI Coaching Advice</span>
                 </div>
-              )}
+                
+                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+                  {calorieAnalysis.insights} {calorieAnalysis.recommendation}
+                </p>
+                
+                {calorieAnalysis.alerts && calorieAnalysis.alerts.length > 0 && (
+                  <div className="space-y-1 pt-0.5 border-t border-indigo-100/30">
+                    <ul className="space-y-1 pl-0.5">
+                      {calorieAnalysis.alerts.map((alert, idx) => (
+                        <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 items-start">
+                          <AlertTriangle size={11} className="mt-0.5 shrink-0 text-amber-600" />
+                          <span>{alert}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-              <div className="border-t border-indigo-100/40 pt-2 text-xs text-stone-600">
-                <span className="font-bold text-indigo-950">Recommendation:</span> {proteinAnalysis.recommendation}
+      {/* CARD 2: Protein Intake */}
+      {proteinAnalysis && (
+        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
+          <SectionHeader
+            icon={<Dumbbell size={16} className="text-stone-600" />}
+            caption="Intake Composition"
+            title="Protein Intake"
+            iconBg="bg-stone-100"
+            action={
+              <span className={cn(
+                "px-2 py-0.5 text-[10px] font-bold border rounded-full",
+                isProteinGood
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+              )}>
+                {isProteinGood ? "Optimal" : "Low Protein"}
+              </span>
+            }
+          />
+
+          <div className="space-y-2">
+            {/* Compressed Metrics Row */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
+              <div>
+                <span className="font-semibold text-stone-900">Avg Protein:</span> {stats.averageProteinG}g
+              </div>
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">Energy Share:</span>{" "}
+                {stats.averageIntakeCalories > 0 
+                  ? `${Math.round(((stats.averageProteinG * 4) / stats.averageIntakeCalories) * 100)}%` 
+                  : "N/A"}
               </div>
             </div>
+
+            {/* Protein Target Bar */}
+            <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-stone-300 rounded-full" 
+                style={{ width: `${Math.min((stats.averageProteinG / 100) * 100, 100)}%` }} 
+              />
+            </div>
+
+            {/* AI Insights & Alerts (Rendered only on low protein or warnings) */}
+            {showProteinInsights && (
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
+                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
+                  <span>AI Coaching Advice</span>
+                </div>
+                
+                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+                  {proteinAnalysis.insights} {proteinAnalysis.recommendation}
+                </p>
+
+                {proteinAnalysis.alerts && proteinAnalysis.alerts.length > 0 && (
+                  <div className="space-y-1 pt-0.5 border-t border-indigo-100/30">
+                    <ul className="space-y-1 pl-0.5">
+                      {proteinAnalysis.alerts.map((alert, idx) => (
+                        <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 items-start">
+                          <AlertTriangle size={11} className="mt-0.5 shrink-0 text-amber-600" />
+                          <span>{alert}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* CARD 3: Hydration Status */}
       {waterAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
+        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
           <SectionHeader
-            icon={<Droplets size={18} className="text-sky-500" />}
+            icon={<Droplets size={16} className="text-sky-500" />}
             caption="Hydration Balance"
-            title="Water Intake & Hydration"
+            title="Water Intake"
             iconBg="bg-sky-50"
+            action={
+              <span className={cn(
+                "px-2 py-0.5 text-[10px] font-bold border rounded-full",
+                waterAnalysis.isGood
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+              )}>
+                {waterAnalysis.isGood ? "Sufficient" : "Dehydrated"}
+              </span>
+            }
           />
 
-          <div className="space-y-3">
-            {/* Deterministic Badges */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Avg Daily Fluids</span>
-                <span className="font-bold text-stone-800 text-sm">{stats.averageWaterMl} ml</span>
+          <div className="space-y-2">
+            {/* Compressed Metrics Row */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
+              <div>
+                <span className="font-semibold text-stone-900">Avg Fluids:</span> {stats.averageWaterMl} ml
               </div>
-              <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Hydration Level</span>
-                <span className={cn(
-                  "font-bold text-sm",
-                  stats.averageWaterMl >= 2000 ? "text-sky-600" :
-                  stats.averageWaterMl >= 1000 ? "text-stone-600" :
-                  "text-amber-600"
-                )}>
-                  {waterAnalysis.assessment}
-                </span>
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">Daily Target:</span> 2000 ml
               </div>
             </div>
 
             {/* Hydration Bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                <span>Daily Hydration Goal</span>
-                <span>{Math.round(Math.min((stats.averageWaterMl / 2000) * 100, 100))}%</span>
-              </div>
-              <div className="h-2 w-full bg-stone-200 rounded-full overflow-hidden border border-stone-200/50">
-                <div
-                  className="h-full bg-sky-500 transition-all duration-500"
-                  style={{ width: `${Math.min((stats.averageWaterMl / 2000) * 100, 100)}%` }}
-                />
-              </div>
+            <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-sky-500 transition-all duration-500"
+                style={{ width: `${Math.min((stats.averageWaterMl / 2000) * 100, 100)}%` }}
+              />
             </div>
 
-            {/* AI Insights & Recommendation */}
-            <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-3 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-                <Sparkles size={14} className={cn("text-indigo-600", !report && "animate-pulse")} />
-                <span>AI Health Analysis</span>
+            {/* AI Insights & Recommendation (Hidden if hydration is sufficient) */}
+            {showWaterInsights && (
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
+                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
+                  <span>AI Coaching Advice</span>
+                </div>
+                
+                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+                  {waterAnalysis.insights} {waterAnalysis.recommendation}
+                </p>
               </div>
-              <p className="text-xs text-stone-700 leading-relaxed">
-                {waterAnalysis.insights}
-              </p>
-
-              <div className="border-t border-indigo-100/40 pt-2 text-xs text-stone-600">
-                <span className="font-bold text-indigo-950">Recommendation:</span> {waterAnalysis.recommendation}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
 
       {/* CARD 4: Macronutrient Ratios */}
       {macroAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
+        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
           <SectionHeader
-            icon={<PieChart size={18} className="text-emerald-500" />}
+            icon={<PieChart size={16} className="text-emerald-500" />}
             caption="Nutrient Ratio"
-            title="Macronutrient Distribution"
+            title="Macronutrient Ratios"
             iconBg="bg-emerald-50"
+            action={
+              <span className="px-2 py-0.5 text-[10px] font-bold border border-stone-200 bg-white text-stone-600 rounded-full">
+                {macroAnalysis.assessment}
+              </span>
+            }
           />
 
-          <div className="space-y-3">
-            {/* Ratios distribution row */}
-            {(() => {
-              const totalMacrosG = (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
-              const proteinPct = Math.round(((stats.averageProteinG || 0) / totalMacrosG) * 100);
-              const fatPct = Math.round(((stats.averageFatG || 0) / totalMacrosG) * 100);
-              const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
-
-              return (
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                      <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Protein ({stats.averageProteinG}g)</span>
-                      <span className="font-bold text-stone-800 text-sm">{proteinPct}%</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                      <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Fat ({stats.averageFatG}g)</span>
-                      <span className="font-bold text-stone-800 text-sm">{fatPct}%</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-white border border-stone-200/60 rounded-lg p-2.5 text-xs">
-                      <span className="font-medium text-stone-500 uppercase tracking-wider text-[9px]">Carbs ({stats.averageCarbsG}g)</span>
-                      <span className="font-bold text-stone-800 text-sm">{carbsPct}%</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="space-y-0.5">
-                      <div className="flex justify-between text-[8px] uppercase tracking-wider font-bold text-stone-400">
-                        <span>Protein Share</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-stone-300" style={{ width: `${proteinPct}%` }} />
-                      </div>
-                    </div>
-                    <div className="space-y-0.5">
-                      <div className="flex justify-between text-[8px] uppercase tracking-wider font-bold text-stone-400">
-                        <span>Fat Share</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-stone-300" style={{ width: `${fatPct}%` }} />
-                      </div>
-                    </div>
-                    <div className="space-y-0.5">
-                      <div className="flex justify-between text-[8px] uppercase tracking-wider font-bold text-stone-400">
-                        <span>Carbs Share</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-stone-300" style={{ width: `${carbsPct}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* AI Insights & Recommendation */}
-            <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-3 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-                <Sparkles size={14} className={cn("text-indigo-600", !report && "animate-pulse")} />
-                <span>AI Health Analysis</span>
+          <div className="space-y-2">
+            {/* Compressed Metrics Row (All macros on a single clean line!) */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
+              <div>
+                <span className="font-semibold text-stone-900">Carbs:</span> {macroMetrics.carbsPct}% ({Math.round(stats.averageCarbsG)}g)
               </div>
-              <p className="text-xs text-stone-700 leading-relaxed">
-                {macroAnalysis.insights}
-              </p>
-
-              <div className="border-t border-indigo-100/40 pt-2 text-xs text-stone-600">
-                <span className="font-bold text-indigo-950">Recommendation:</span> {macroAnalysis.recommendation}
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">Fat:</span> {macroMetrics.fatPct}% ({Math.round(stats.averageFatG)}g)
+              </div>
+              <div className="h-3 w-[1px] bg-stone-200" />
+              <div>
+                <span className="font-semibold text-stone-900">Protein:</span> {macroMetrics.proteinPct}% ({Math.round(stats.averageProteinG)}g)
               </div>
             </div>
+
+            {/* AI Insights & Recommendation (Hidden if balanced/healthy macros) */}
+            {showMacroInsights && (
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
+                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
+                  <span>AI Coaching Advice</span>
+                </div>
+                
+                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+                  {macroAnalysis.insights} {macroAnalysis.recommendation}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
