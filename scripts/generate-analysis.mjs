@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v6";
+const PROMPT_VERSION = "2026-05-28-analysis-v7";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -667,19 +667,19 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   "confidence": "low" | "medium" | "high",
   "waterAnalysis": {
     "status": "good" | "watch",
-    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
+    "message": "One very short clause, under 8 words."
   },
   "calorieAnalysis": {
     "status": "good" | "watch",
-    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
+    "message": "One very short clause, under 8 words."
   },
   "proteinAnalysis": {
     "status": "good" | "watch",
-    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
+    "message": "One very short clause, under 8 words."
   },
   "macroAnalysis": {
     "status": "good" | "watch",
-    "message": "Exactly one short sentence, under 18 words, grounded in stats.energySplit calorie contribution."
+    "message": "One very short clause, under 8 words."
   }
 }
 
@@ -687,10 +687,12 @@ STYLE RULES:
 - Be crisp. Avoid filler, motivational fluff, and textbook explanations.
 - Write like a smart coach giving a fast read, not an article.
 - Use only two status states: "good" and "watch".
-- Mention the most important number or ratio in each category.
+- The UI already shows the main number. Use the message only as a short interpretation.
 - If a category is fine, say why briefly and stop.
 - Do not return separate alerts, assessments, recommendations, or multi-part coaching inside category objects.
 - For macroAnalysis, describe calorie-source decomposition, not gram balance. Mention alcohol share when it matters.
+- Prefer fragments like "Above target.", "Hydration on track.", "Carbs are leading.", "Good baseline."
+- Never restate the full metric line or repeat multiple numbers in the message.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

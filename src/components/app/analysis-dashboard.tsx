@@ -103,7 +103,7 @@ function firstSentence(text: string | null | undefined) {
   return (match ? match[0] : normalized).trim();
 }
 
-function trimClause(text: string | null | undefined, maxLength = 96) {
+function trimClause(text: string | null | undefined, maxLength = 64) {
   const normalized = firstSentence(text);
   if (!normalized) return null;
   if (normalized.length <= maxLength) return normalized;
@@ -123,10 +123,10 @@ function pillClasses(tone: StatusTone) {
 function rowClasses(tone: StatusTone) {
   switch (tone) {
     case "good":
-      return "rounded-lg border border-emerald-200/80 bg-emerald-50/45 px-3 py-2.5";
+      return "rounded-lg border border-emerald-200/80 bg-emerald-50/45 px-3 py-2";
     case "watch":
     default:
-      return "rounded-lg border border-red-200/80 bg-red-50/45 px-3 py-2.5";
+      return "rounded-lg border border-red-200/80 bg-red-50/45 px-3 py-2";
   }
 }
 
@@ -148,15 +148,15 @@ function AnalysisStatusRow({
   return (
     <section
       data-testid={`analysis-row-${item.key}`}
-      className={cn("space-y-1.5", rowClasses(item.tone))}
+      className={cn("space-y-1", rowClasses(item.tone))}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
             <Icon size={15} className={cn("mt-0.5 shrink-0", item.iconClassName)} />
             <h2 className="text-sm font-semibold text-stone-900">{item.title}</h2>
           </div>
-          <p className="text-[13px] leading-snug text-stone-700">{item.body}</p>
+          <p className="text-[12px] leading-snug text-stone-700">{item.body}</p>
         </div>
         <span
           className={cn(
@@ -299,13 +299,13 @@ export function AnalysisDashboard({
 
       rows.push({
         key: "calories",
-        title: "Calorie outcome",
+        title: "Calorie Outcome",
         icon: Flame,
         iconClassName: "text-orange-500",
         status: calorieTone === "good" ? "Good" : "Watch",
         tone: calorieTone,
-        body: `You averaged ${calorieNet} with intake at ${stats.averageIntakeCalories} kcal${
-          stats.averageQuotaCalories != null ? ` against a target of ${stats.averageQuotaCalories} kcal.` : "."
+        body: `${calorieNet}. Intake ${stats.averageIntakeCalories} kcal${
+          stats.averageQuotaCalories != null ? ` vs target ${stats.averageQuotaCalories} kcal.` : "."
         }${calorieFollowup ? ` ${calorieFollowup}` : ""}`,
       });
     }
@@ -326,12 +326,12 @@ export function AnalysisDashboard({
         ]);
       rows.push({
         key: "protein",
-        title: "Protein intake",
+        title: "Protein Intake",
         icon: Dumbbell,
         iconClassName: "text-stone-600",
         status: isProteinGood ? "Good" : "Watch",
         tone: isProteinGood ? "good" : "watch",
-        body: `You averaged ${stats.averageProteinG} g/day.${proteinFollowup ? ` ${proteinFollowup}` : ""}`,
+        body: `${stats.averageProteinG} g/day average.${proteinFollowup ? ` ${proteinFollowup}` : ""}`,
       });
     }
 
@@ -351,12 +351,12 @@ export function AnalysisDashboard({
         resolveLegacyMessage([waterAnalysis.insights, waterAnalysis.recommendation]);
       rows.push({
         key: "water",
-        title: "Water intake",
+        title: "Water Intake",
         icon: Droplets,
         iconClassName: "text-sky-500",
         status: waterTone === "good" ? "Good" : "Watch",
         tone: waterTone,
-        body: `You averaged ${stats.averageWaterMl} ml/day against a target of ${waterTarget} ml (${completionRate}%).${
+        body: `${stats.averageWaterMl} ml/day vs ${waterTarget} ml target (${completionRate}%).${
           waterFollowup ? ` ${waterFollowup}` : ""
         }`,
       });
@@ -391,13 +391,13 @@ export function AnalysisDashboard({
         : "Energy decomposition needs more logged intake data.";
       rows.push({
         key: "macros",
-        title: "Energy split",
+        title: "Energy Split",
         icon: PieChart,
         iconClassName: "text-emerald-500",
         status: macroGood ? "Good" : "Watch",
         tone: macroGood ? "good" : "watch",
         body: splitSummary
-          ? `Energy split is ${splitSummary}.${macroFollowup ? ` ${macroFollowup}` : ` ${fallbackMacroMessage}`}`
+          ? `${splitSummary}.${macroFollowup ? ` ${macroFollowup}` : ` ${fallbackMacroMessage}`}`
           : macroFollowup || fallbackMacroMessage,
       });
     }
