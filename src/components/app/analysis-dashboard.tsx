@@ -193,101 +193,178 @@ function MiniTrendBars({
   dailyHistory: DailyHistoryItem[];
   targetValue?: number | null;
 }) {
+  const defaultLabel = useMemo(() => {
+    if (!dailyHistory || dailyHistory.length === 0) return "";
+    const days = dailyHistory.slice(-14);
+    const lastDay = days[days.length - 1];
+    if (!lastDay) return "";
+
+    let label = "";
+    const formattedDate = formatDate(lastDay.date);
+
+    if (metricKey === "calories") {
+      const target = targetValue ?? 2000;
+      const value = lastDay.calories;
+      label = `${formattedDate}: ${value} kcal (Target: ${target} kcal)`;
+    } else if (metricKey === "protein") {
+      const target = targetValue ?? 100;
+      const value = lastDay.proteinG;
+      label = `${formattedDate}: ${value}g protein (Target: ${target}g)`;
+    } else if (metricKey === "water") {
+      const target = targetValue ?? 2000;
+      const value = lastDay.waterMl;
+      label = `${formattedDate}: ${value}ml water (Target: ${target}ml)`;
+    } else if (metricKey === "macros") {
+      const calories = {
+        protein: lastDay.proteinG * 4,
+        carbs: lastDay.carbsG * 4,
+        fat: lastDay.fatG * 9,
+        alcohol: lastDay.alcoholG * 7,
+      };
+      const total = calories.protein + calories.carbs + calories.fat + calories.alcohol;
+      let dominant: "protein" | "carbs" | "fat" | "alcohol" | "none" = "none";
+      let maxCals = 0;
+      if (total > 0) {
+        if (calories.protein > maxCals) { dominant = "protein"; maxCals = calories.protein; }
+        if (calories.carbs > maxCals) { dominant = "carbs"; maxCals = calories.carbs; }
+        if (calories.fat > maxCals) { dominant = "fat"; maxCals = calories.fat; }
+        if (calories.alcohol > maxCals) { dominant = "alcohol"; maxCals = calories.alcohol; }
+      }
+      const sharePercent = total > 0 ? Math.round((maxCals / total) * 100) : 0;
+      label = total > 0
+        ? `${formattedDate}: ${Math.round(total)} kcal (${dominant} ${sharePercent}%)`
+        : `${formattedDate}: No logs`;
+    } else if (metricKey === "logging") {
+      label = `${formattedDate}: ${lastDay.isLogged ? "Logged" : "Unlogged"}`;
+    } else if (metricKey === "meals") {
+      const fatRatio = (lastDay.fatG * 9) / (lastDay.proteinG * 4 + lastDay.carbsG * 4 + lastDay.fatG * 9 + lastDay.alcoholG * 7 || 1);
+      const isHighFat = fatRatio > 0.4;
+      label = `${formattedDate}: ${isHighFat ? "High fat-ratio choice" : "Balanced meal choice"}`;
+    } else if (metricKey === "exercise") {
+      const value = lastDay.exerciseCalories;
+      label = `${formattedDate}: ${value} kcal burned via exercise`;
+    }
+    return label;
+  }, [dailyHistory, metricKey, targetValue]);
+
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+
   if (!dailyHistory || dailyHistory.length === 0) return null;
 
   const days = dailyHistory.slice(-14);
 
+  const items = days.map((day) => {
+    let heightPercent = 0;
+    let barBg = "bg-stone-300";
+    let label = "";
+
+    const formattedDate = formatDate(day.date);
+
+    if (metricKey === "calories") {
+      const target = targetValue ?? 2000;
+      const value = day.calories;
+      heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
+      const isAbove = value > target;
+      barBg = isAbove ? "bg-red-500" : "bg-emerald-500";
+      label = `${formattedDate}: ${value} kcal (Target: ${target} kcal)`;
+    } else if (metricKey === "protein") {
+      const target = targetValue ?? 100;
+      const value = day.proteinG;
+      heightPercent = Math.min((value / Math.max(target * 1.5, 150)) * 100, 100);
+      const isGood = value >= target;
+      barBg = isGood ? "bg-emerald-500" : "bg-red-400";
+      label = `${formattedDate}: ${value}g protein (Target: ${target}g)`;
+    } else if (metricKey === "water") {
+      const target = targetValue ?? 2000;
+      const value = day.waterMl;
+      heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
+      const isLow = value < target * 0.9;
+      const isHigh = value > target * 1.4;
+      barBg = isLow ? "bg-amber-400" : isHigh ? "bg-sky-600" : "bg-sky-500";
+      label = `${formattedDate}: ${value}ml water (Target: ${target}ml)`;
+    } else if (metricKey === "macros") {
+      const calories = {
+        protein: day.proteinG * 4,
+        carbs: day.carbsG * 4,
+        fat: day.fatG * 9,
+        alcohol: day.alcoholG * 7,
+      };
+      const total = calories.protein + calories.carbs + calories.fat + calories.alcohol;
+      let dominant: "protein" | "carbs" | "fat" | "alcohol" | "none" = "none";
+      let maxCals = 0;
+      if (total > 0) {
+        if (calories.protein > maxCals) { dominant = "protein"; maxCals = calories.protein; }
+        if (calories.carbs > maxCals) { dominant = "carbs"; maxCals = calories.carbs; }
+        if (calories.fat > maxCals) { dominant = "fat"; maxCals = calories.fat; }
+        if (calories.alcohol > maxCals) { dominant = "alcohol"; maxCals = calories.alcohol; }
+      }
+
+      heightPercent = total > 0 ? Math.min((total / 3000) * 100, 100) : 0;
+      if (dominant === "protein") barBg = "bg-stone-600";
+      else if (dominant === "carbs") barBg = "bg-amber-500";
+      else if (dominant === "fat") barBg = "bg-emerald-500";
+      else if (dominant === "alcohol") barBg = "bg-red-500";
+      else barBg = "bg-stone-200";
+
+      const sharePercent = total > 0 ? Math.round((maxCals / total) * 100) : 0;
+      label = total > 0
+        ? `${formattedDate}: ${Math.round(total)} kcal (${dominant} ${sharePercent}%)`
+        : `${formattedDate}: No logs`;
+    } else if (metricKey === "logging") {
+      heightPercent = day.isLogged ? 100 : 20;
+      barBg = day.isLogged ? "bg-emerald-500" : "bg-stone-300";
+      label = `${formattedDate}: ${day.isLogged ? "Logged" : "Unlogged"}`;
+    } else if (metricKey === "meals") {
+      const fatRatio = (day.fatG * 9) / (day.proteinG * 4 + day.carbsG * 4 + day.fatG * 9 + day.alcoholG * 7 || 1);
+      const isHighFat = fatRatio > 0.4;
+      heightPercent = day.isLogged ? (isHighFat ? 105 : 40) : 0;
+      barBg = isHighFat ? "bg-red-400" : "bg-emerald-500";
+      label = `${formattedDate}: ${isHighFat ? "High fat-ratio choice" : "Balanced meal choice"}`;
+    } else if (metricKey === "exercise") {
+      const value = day.exerciseCalories;
+      heightPercent = Math.min((value / 1000) * 100, 100);
+      barBg = value > 0 ? "bg-emerald-500" : "bg-stone-300";
+      label = `${formattedDate}: ${value} kcal burned via exercise`;
+    }
+
+    return { heightPercent, barBg, label };
+  });
+
+  const displayedLabel = activeLabel !== null ? activeLabel : defaultLabel;
+
   return (
-    <div className="space-y-1.5 border-b border-stone-200/60 pb-3 select-none">
+    <div className="space-y-2.5 border-b border-stone-200/60 pb-3.5 select-none">
       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
         <span>14-Day Trend</span>
-        <span className="text-[9px] lowercase font-normal italic">hover/tap bars for details</span>
+        <span className="text-[9px] lowercase font-normal italic text-stone-400/80">tap a bar to show value</span>
       </div>
-      <div className="flex items-end gap-1 h-12 pt-2 bg-stone-50/50 rounded-lg px-2 border border-stone-200/30">
-        {days.map((day, idx) => {
-          let heightPercent = 0;
-          let barBg = "bg-stone-300";
-          let label = "";
-
-          const formattedDate = formatDate(day.date);
-
-          if (metricKey === "calories") {
-            const target = targetValue ?? 2000;
-            const value = day.calories;
-            heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
-            const isAbove = value > target;
-            barBg = isAbove ? "bg-red-500" : "bg-emerald-500";
-            label = `${formattedDate}: ${value} kcal (Target: ${target} kcal)`;
-          } else if (metricKey === "protein") {
-            const target = targetValue ?? 100;
-            const value = day.proteinG;
-            heightPercent = Math.min((value / Math.max(target * 1.5, 150)) * 100, 100);
-            const isGood = value >= target;
-            barBg = isGood ? "bg-emerald-500" : "bg-red-400";
-            label = `${formattedDate}: ${value}g protein (Target: ${target}g)`;
-          } else if (metricKey === "water") {
-            const target = targetValue ?? 2000;
-            const value = day.waterMl;
-            heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
-            const isLow = value < target * 0.9;
-            const isHigh = value > target * 1.4;
-            barBg = isLow ? "bg-amber-400" : isHigh ? "bg-sky-600" : "bg-sky-500";
-            label = `${formattedDate}: ${value}ml water (Target: ${target}ml)`;
-          } else if (metricKey === "macros") {
-            const calories = {
-              protein: day.proteinG * 4,
-              carbs: day.carbsG * 4,
-              fat: day.fatG * 9,
-              alcohol: day.alcoholG * 7,
-            };
-            const total = calories.protein + calories.carbs + calories.fat + calories.alcohol;
-            let dominant: "protein" | "carbs" | "fat" | "alcohol" | "none" = "none";
-            let maxCals = 0;
-            if (total > 0) {
-              if (calories.protein > maxCals) { dominant = "protein"; maxCals = calories.protein; }
-              if (calories.carbs > maxCals) { dominant = "carbs"; maxCals = calories.carbs; }
-              if (calories.fat > maxCals) { dominant = "fat"; maxCals = calories.fat; }
-              if (calories.alcohol > maxCals) { dominant = "alcohol"; maxCals = calories.alcohol; }
-            }
-
-            heightPercent = total > 0 ? Math.min((total / 3000) * 100, 100) : 0;
-            if (dominant === "protein") barBg = "bg-stone-600";
-            else if (dominant === "carbs") barBg = "bg-amber-500";
-            else if (dominant === "fat") barBg = "bg-emerald-500";
-            else if (dominant === "alcohol") barBg = "bg-red-500";
-            else barBg = "bg-stone-200";
-
-            const sharePercent = total > 0 ? Math.round((maxCals / total) * 100) : 0;
-            label = total > 0
-              ? `${formattedDate}: ${Math.round(total)} kcal (Dominant: ${dominant} ${sharePercent}%)`
-              : `${formattedDate}: No logs`;
-          } else if (metricKey === "logging") {
-            heightPercent = day.isLogged ? 100 : 20;
-            barBg = day.isLogged ? "bg-emerald-500" : "bg-stone-300";
-            label = `${formattedDate}: ${day.isLogged ? "Logged" : "Unlogged"}`;
-          } else if (metricKey === "meals") {
-            const fatRatio = (day.fatG * 9) / (day.proteinG * 4 + day.carbsG * 4 + day.fatG * 9 + day.alcoholG * 7 || 1);
-            const isHighFat = fatRatio > 0.4;
-            heightPercent = day.isLogged ? (isHighFat ? 105 : 40) : 0;
-            barBg = isHighFat ? "bg-red-400" : "bg-emerald-500";
-            label = `${formattedDate}: ${isHighFat ? "High fat-ratio choice" : "Balanced meal choice"}`;
-          } else if (metricKey === "exercise") {
-            const value = day.exerciseCalories;
-            heightPercent = Math.min((value / 1000) * 100, 100);
-            barBg = value > 0 ? "bg-emerald-500" : "bg-stone-300";
-            label = `${formattedDate}: ${value} kcal burned via exercise`;
-          }
-
+      <div className="flex items-end gap-1.5 h-14 pt-2.5 bg-stone-50/50 rounded-lg px-2.5 border border-stone-200/30">
+        {items.map((item, idx) => {
+          const isSelected = displayedLabel === item.label;
           return (
-            <div
+            <button
               key={idx}
-              className={cn("flex-1 rounded-t-sm transition-all cursor-pointer", barBg)}
-              style={{ height: `${Math.max(heightPercent, 4)}%` }}
-              title={label}
+              type="button"
+              onMouseEnter={() => setActiveLabel(item.label)}
+              onClick={() => setActiveLabel(item.label)}
+              className={cn(
+                "flex-1 rounded-t-sm transition-all focus:outline-hidden relative",
+                item.barBg,
+                isSelected ? "opacity-100 ring-2 ring-stone-950/20 scale-y-[1.05]" : "opacity-80 hover:opacity-100"
+              )}
+              style={{ height: `${Math.max(item.heightPercent, 6)}%` }}
+              aria-label={item.label}
             />
           );
         })}
       </div>
+      {displayedLabel && (
+        <div className="bg-stone-50/60 rounded-md border border-stone-200/50 px-2.5 py-1 text-center">
+          <p className="text-[11px] font-medium text-stone-700 leading-snug">
+            {displayedLabel}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
