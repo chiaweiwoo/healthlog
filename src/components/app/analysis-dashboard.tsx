@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ReactNode } from "react";
 import { Calendar, Flame, Dumbbell, Droplets, PieChart } from "lucide-react";
 import { AnalysisStats, FocusArea, ProfileGap } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -64,8 +63,7 @@ type AnalysisRowItem = {
   iconClassName: string;
   status: string;
   tone: StatusTone;
-  body: ReactNode;
-  bar?: ReactNode;
+  body: string;
 };
 
 function formatDate(dateStr: string) {
@@ -102,17 +100,6 @@ function trimClause(text: string | null | undefined, maxLength = 96) {
   return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
-function toneClasses(tone: StatusTone) {
-  switch (tone) {
-    case "good":
-      return "text-emerald-700";
-    case "watch":
-      return "text-amber-700";
-    default:
-      return "text-stone-600";
-  }
-}
-
 function pillClasses(tone: StatusTone) {
   switch (tone) {
     case "good":
@@ -121,6 +108,17 @@ function pillClasses(tone: StatusTone) {
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-stone-200 bg-white text-stone-600";
+  }
+}
+
+function rowClasses(tone: StatusTone) {
+  switch (tone) {
+    case "good":
+      return "rounded-lg border border-emerald-200/80 bg-emerald-50/45 px-3 py-2.5";
+    case "watch":
+      return "rounded-lg border border-amber-200/80 bg-amber-50/45 px-3 py-2.5";
+    default:
+      return "rounded-lg border border-stone-200 bg-white/80 px-3 py-2.5";
   }
 }
 
@@ -134,7 +132,7 @@ function AnalysisStatusRow({
   return (
     <section
       data-testid={`analysis-row-${item.key}`}
-      className="space-y-2 py-3 first:pt-0 last:pb-0"
+      className={cn("space-y-1.5", rowClasses(item.tone))}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -142,7 +140,7 @@ function AnalysisStatusRow({
             <Icon size={15} className={cn("mt-0.5 shrink-0", item.iconClassName)} />
             <h2 className="text-sm font-semibold text-stone-900">{item.title}</h2>
           </div>
-          <div className="text-sm leading-relaxed text-stone-700">{item.body}</div>
+          <p className="text-[13px] leading-snug text-stone-700">{item.body}</p>
         </div>
         <span
           className={cn(
@@ -153,7 +151,6 @@ function AnalysisStatusRow({
           {item.status}
         </span>
       </div>
-      {item.bar ? <div className="pl-[23px]">{item.bar}</div> : null}
     </section>
   );
 }
@@ -307,28 +304,9 @@ export function AnalysisDashboard({
         iconClassName: "text-orange-500",
         status: calorieStatus,
         tone: calorieTone,
-        body: (
-          <p>
-            You averaged{" "}
-            <span className={cn("font-semibold", toneClasses(calorieTone))}>{calorieNet}</span>{" "}
-            with intake at{" "}
-            <span className="font-semibold text-stone-900">{stats.averageIntakeCalories} kcal</span>
-            {stats.averageQuotaCalories != null ? (
-              <>
-                {" "}against a target of{" "}
-                <span className="font-semibold text-stone-900">{stats.averageQuotaCalories} kcal</span>.
-              </>
-            ) : (
-              "."
-            )}
-            {calorieFollowup ? (
-              <>
-                {" "}
-                <span className={cn("font-medium", toneClasses(calorieTone))}>{calorieFollowup}</span>
-              </>
-            ) : null}
-          </p>
-        ),
+        body: `You averaged ${calorieNet} with intake at ${stats.averageIntakeCalories} kcal${
+          stats.averageQuotaCalories != null ? ` against a target of ${stats.averageQuotaCalories} kcal.` : "."
+        }${calorieFollowup ? ` ${calorieFollowup}` : ""}`,
       });
     }
 
@@ -345,16 +323,7 @@ export function AnalysisDashboard({
         iconClassName: "text-stone-600",
         status: isProteinGood ? "Good" : "Low",
         tone: isProteinGood ? "good" : "watch",
-        body: (
-          <p>
-            You averaged{" "}
-            <span className={cn("font-semibold", toneClasses(isProteinGood ? "good" : "watch"))}>
-              {stats.averageProteinG} g/day
-            </span>
-            .{" "}
-            {proteinFollowup ? <span className={cn("font-medium", toneClasses(isProteinGood ? "good" : "watch"))}>{proteinFollowup}</span> : null}
-          </p>
-        ),
+        body: `You averaged ${stats.averageProteinG} g/day.${proteinFollowup ? ` ${proteinFollowup}` : ""}`,
       });
     }
 
@@ -375,21 +344,9 @@ export function AnalysisDashboard({
         iconClassName: "text-sky-500",
         status: waterStatus,
         tone: waterTone,
-        body: (
-          <p>
-            You averaged{" "}
-            <span className={cn("font-semibold", toneClasses(waterTone))}>{stats.averageWaterMl} ml/day</span>{" "}
-            against a target of{" "}
-            <span className="font-semibold text-stone-900">{waterTarget} ml</span>{" "}
-            ({completionRate}%).
-            {waterFollowup ? (
-              <>
-                {" "}
-                <span className={cn("font-medium", toneClasses(waterTone))}>{waterFollowup}</span>
-              </>
-            ) : null}
-          </p>
-        ),
+        body: `You averaged ${stats.averageWaterMl} ml/day against a target of ${waterTarget} ml (${completionRate}%).${
+          waterFollowup ? ` ${waterFollowup}` : ""
+        }`,
       });
     }
 
@@ -411,32 +368,11 @@ export function AnalysisDashboard({
         iconClassName: "text-emerald-500",
         status: macroBalanced ? "Balanced" : "Watch",
         tone: macroBalanced ? "neutral" : "watch",
-        body: (
-          <p>
-            Split is{" "}
-            <span className="font-semibold text-stone-900">
-              {macroMetrics.carbsPct}% carbs, {macroMetrics.fatPct}% fat, {macroMetrics.proteinPct}% protein
-            </span>
-            .{" "}
-            <span className={cn("font-medium", toneClasses(macroBalanced ? "neutral" : "watch"))}>
-              {macroBalanced
-                ? `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is leading, but the mix still looks reasonable.`
-                : macroFollowup || `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is doing most of the work here.`}
-            </span>
-          </p>
-        ),
-        bar: (
-          <div className="space-y-1.5">
-            <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-stone-200/80">
-              <div className="h-full bg-amber-300" style={{ width: `${macroMetrics.carbsPct}%` }} />
-              <div className="h-full bg-stone-400/80" style={{ width: `${macroMetrics.fatPct}%` }} />
-              <div className="h-full bg-emerald-500" style={{ width: `${macroMetrics.proteinPct}%` }} />
-            </div>
-            <p className="text-[11px] font-medium text-stone-500">
-              Carb {macroMetrics.carbsPct}%  Fat {macroMetrics.fatPct}%  Protein {macroMetrics.proteinPct}%
-            </p>
-          </div>
-        ),
+        body: `Split is ${macroMetrics.carbsPct}% carbs, ${macroMetrics.fatPct}% fat, ${macroMetrics.proteinPct}% protein. ${
+          macroBalanced
+            ? `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is leading, but the mix still looks reasonable.`
+            : macroFollowup || `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is doing most of the work here.`
+        }`,
       });
     }
 
@@ -470,7 +406,7 @@ export function AnalysisDashboard({
       </div>
 
       <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm">
-        <div className="divide-y divide-stone-200/70">
+        <div className="space-y-2">
           {analysisRows.map((item) => (
             <AnalysisStatusRow key={item.key} item={item} />
           ))}
