@@ -1,9 +1,21 @@
 "use client";
 
-import { useMemo } from "react";
-import { Calendar, Flame, Dumbbell, Droplets, PieChart } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Calendar, Flame, Dumbbell, Droplets, PieChart, Compass, BookOpen, Utensils, Activity } from "lucide-react";
 import { AnalysisStats, FocusArea, ProfileGap } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+
+type DeeperAnalysisRow = {
+  status: "good" | "watch";
+  message: string;
+  examples: Array<{
+    date: string;
+    time: string | null;
+    rawNote: string;
+    parsedInfo: string;
+    reason: string;
+  }>;
+};
 
 type AIReportPayload = {
   summary?: string;
@@ -43,6 +55,10 @@ type AIReportPayload = {
     insights?: string;
     recommendation?: string;
   };
+  overallAnalysis?: DeeperAnalysisRow;
+  loggingHabitAnalysis?: DeeperAnalysisRow;
+  mealChoiceAnalysis?: DeeperAnalysisRow;
+  exerciseHabitAnalysis?: DeeperAnalysisRow;
 };
 
 export type DailyHistoryItem = {
@@ -171,6 +187,89 @@ function AnalysisStatusRow({
   );
 }
 
+function DeeperStatusRow({
+  title,
+  icon: Icon,
+  iconClassName,
+  data,
+}: {
+  title: string;
+  icon: typeof Compass;
+  iconClassName: string;
+  data: DeeperAnalysisRow;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const statusLabel = data.status === "good" ? "Good" : "Watch";
+  const hasExamples = data.examples && data.examples.length > 0;
+
+  return (
+    <section
+      data-testid={`deeper-row-${title.toLowerCase().replace(/\s+/g, "-")}`}
+      onClick={() => {
+        if (hasExamples) setIsExpanded(!isExpanded);
+      }}
+      className={cn(
+        "space-y-2.5 transition-all duration-200 select-none",
+        rowClasses(data.status),
+        hasExamples ? "cursor-pointer hover:bg-stone-50/30" : "cursor-default"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <Icon size={15} className={cn("mt-0.5 shrink-0", iconClassName)} />
+            <h2 className="text-sm font-semibold text-stone-900">{title}</h2>
+            {hasExamples && (
+              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-white/80 border border-stone-200/50 px-1 py-0.2 rounded leading-none">
+                {isExpanded ? "Collapse" : `+${data.examples.length} Evidence`}
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] leading-snug text-stone-700">{data.message}</p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none",
+            pillClasses(data.status),
+          )}
+        >
+          {statusLabel}
+        </span>
+      </div>
+
+      {isExpanded && hasExamples && (
+        <div className="space-y-2 border-t border-stone-200/40 pt-2 animate-fadeIn">
+          {data.examples.slice(0, 3).map((ex, idx) => {
+            const timeStr = ex.time ? `, ${ex.time}` : "";
+            const formattedDate = formatDate(ex.date) + timeStr;
+            return (
+              <div
+                key={idx}
+                className="bg-white/80 border border-stone-100 rounded-md p-2 text-[11.5px] space-y-1 shadow-2xs"
+              >
+                <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                  {formattedDate}
+                </div>
+                <div className="text-stone-850">
+                  <span className="text-stone-400 text-[9px] font-bold uppercase mr-1">Log:</span>
+                  &quot;{ex.rawNote}&quot;
+                </div>
+                <div className="text-stone-700">
+                  <span className="text-stone-400 text-[9px] font-bold uppercase mr-1">Parsed:</span>
+                  {ex.parsedInfo}
+                </div>
+                <div className="text-indigo-800 text-[11px] bg-indigo-50/40 rounded px-1.5 py-0.5 inline-block font-medium">
+                  <span className="font-semibold text-indigo-900">Reason:</span> {ex.reason}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function AnalysisDashboard({
   stats,
   report,
@@ -255,6 +354,38 @@ export function AnalysisDashboard({
   const calorieAnalysis = report?.calorieAnalysis || fallbackAI?.calorieAnalysis;
   const proteinAnalysis = report?.proteinAnalysis || fallbackAI?.proteinAnalysis;
   const macroAnalysis = report?.macroAnalysis || fallbackAI?.macroAnalysis;
+
+  const overallAnalysis = report?.overallAnalysis || {
+    status: stats.consistencyScore >= 0.7 ? "good" : "watch",
+    message: stats.consistencyScore >= 0.7
+      ? "Tracking consistency is good; align intake with active fitness goals."
+      : "Logging is sparse; track more days to establish a clear trend.",
+    examples: [],
+  };
+
+  const loggingHabitAnalysis = report?.loggingHabitAnalysis || {
+    status: stats.consistencyScore >= 0.8 ? "good" : "watch",
+    message: stats.consistencyScore >= 0.8
+      ? "Daily meal logs are frequent and timestamped consistently."
+      : "Try to log meals closer to when they occur to preserve timing details.",
+    examples: [],
+  };
+
+  const mealChoiceAnalysis = report?.mealChoiceAnalysis || {
+    status: stats.averageProteinG >= 100 ? "good" : "watch",
+    message: stats.averageProteinG >= 100
+      ? "Meal selections provide high protein density to support muscle mass."
+      : "Focus on pairing high-protein sources with calorie-dense meals.",
+    examples: [],
+  };
+
+  const exerciseHabitAnalysis = report?.exerciseHabitAnalysis || {
+    status: stats.averageExerciseCalories >= 150 ? "good" : "watch",
+    message: stats.averageExerciseCalories >= 150
+      ? "Logged workout energy matches profile baseline activity levels."
+      : "Record workout sessions regularly to ensure precise TDEE calculations.",
+    examples: [],
+  };
 
   const consistencyPills = useMemo(() => {
     const pills = Array.from({ length: totalDaysInPeriod }).map((_, idx) => {
@@ -403,6 +534,7 @@ export function AnalysisDashboard({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">
+      {/* 1. HEADER DATE PICKER & TIMELINE CAROUSEL ROW */}
       <div className="flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm">
         <div className="space-y-0.5">
           <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
@@ -427,11 +559,47 @@ export function AnalysisDashboard({
         </div>
       </div>
 
+      {/* 2. CORE PERSPECTIVES PANEL */}
       <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm">
         <div className="space-y-2">
           {analysisRows.map((item) => (
             <AnalysisStatusRow key={item.key} item={item} />
           ))}
+        </div>
+      </div>
+
+      {/* 3. DEEPER REVIEW PANEL */}
+      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm space-y-3">
+        <div className="border-b border-stone-200/60 pb-1.5">
+          <h2 className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+            Deeper Review
+          </h2>
+        </div>
+        <div className="space-y-2">
+          <DeeperStatusRow
+            title="Overall Direction"
+            icon={Compass}
+            iconClassName="text-indigo-500"
+            data={overallAnalysis}
+          />
+          <DeeperStatusRow
+            title="Logging Habit"
+            icon={BookOpen}
+            iconClassName="text-stone-500"
+            data={loggingHabitAnalysis}
+          />
+          <DeeperStatusRow
+            title="Meal Choices"
+            icon={Utensils}
+            iconClassName="text-amber-500"
+            data={mealChoiceAnalysis}
+          />
+          <DeeperStatusRow
+            title="Exercise Fit"
+            icon={Activity}
+            iconClassName="text-emerald-500"
+            data={exerciseHabitAnalysis}
+          />
         </div>
       </div>
     </div>

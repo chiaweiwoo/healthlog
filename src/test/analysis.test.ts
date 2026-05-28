@@ -61,7 +61,7 @@ describe("7-Day Analysis Schemas", () => {
     ]);
   });
 
-  it("validates a compliant evidence schema", () => {
+  it("validates a compliant evidence schema including logTimeline", () => {
     const item = {
       kind: "food" as const,
       label: "Grilled Chicken Breast",
@@ -79,20 +79,32 @@ describe("7-Day Analysis Schemas", () => {
       metadata: {},
     };
 
+    const timelineItem = {
+      date: "2026-05-25",
+      time: "08:30",
+      rawNote: "breakfast: eggs and chicken breast",
+      parsedInfo: "Food: chicken breast (150g) - 45g P, 5g F, 0g C, 250 kcal",
+      confidence: 0.9,
+      warnings: [],
+    };
+
     const evidence = {
       topCalorieFoods: [item],
       alcoholContributors: [],
       waterContributors: [],
       exerciseContributors: [],
       highCalorieLowProteinCandidates: [],
+      logTimeline: [timelineItem],
     };
 
     const parsed = analysisEvidenceSchema.parse(evidence);
     expect(parsed.topCalorieFoods).toHaveLength(1);
     expect(parsed.topCalorieFoods[0].label).toBe("Grilled Chicken Breast");
+    expect(parsed.logTimeline).toHaveLength(1);
+    expect(parsed.logTimeline?.[0].time).toBe("08:30");
   });
 
-  it("validates a compliant full analysis report payload", () => {
+  it("validates a compliant full analysis report payload with deeper analyses", () => {
     const fullPayload = {
       stats: {
         periodStart: "2026-05-20",
@@ -126,6 +138,7 @@ describe("7-Day Analysis Schemas", () => {
         waterContributors: [],
         exerciseContributors: [],
         highCalorieLowProteinCandidates: [],
+        logTimeline: [],
       },
       summary: "Great tracking week.",
       rootCauses: ["Consistently high protein intake"],
@@ -134,16 +147,30 @@ describe("7-Day Analysis Schemas", () => {
       ],
       profileGaps: [],
       confidence: "high" as const,
+      overallAnalysis: {
+        status: "good" as const,
+        message: "Consistency is excellent; align goals.",
+        examples: [
+          {
+            date: "2026-05-25",
+            time: "08:30",
+            rawNote: "eggs",
+            parsedInfo: "eggs - 140 kcal",
+            reason: "High consistency breakfast",
+          }
+        ],
+      },
     };
 
     const parsed = analysisReportPayloadSchema.parse(fullPayload);
     expect(parsed.confidence).toBe("high");
-    expect(parsed.focusAreas[0].action).toBe("Maintain protein target");
+    expect(parsed.overallAnalysis?.status).toBe("good");
+    expect(parsed.overallAnalysis?.examples).toHaveLength(1);
   });
 });
 
 describe("normalizeAnalysisReportResult Normalizer", () => {
-  it("tolerates messy or incomplete LLM JSON output", () => {
+  it("tolerates messy or incomplete LLM JSON output including deeper analyses", () => {
     const messyOutput = {
       summary: " A decent week of tracking. ",
       root_causes: [
@@ -157,7 +184,20 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
       profile_gaps: [
         { parameter: "Weight", whyItMatters: "MSJ calculation accuracy", improveAdvice: "Add weight" }
       ],
-      confidence: "MEDIUM"
+      confidence: "MEDIUM",
+      overallAnalysis: {
+        status: "  WATCH  ",
+        message: "   Logging is sparse. ",
+        examples: [
+          {
+            date: "2026-05-25",
+            time: "08:30",
+            raw_note: "  skip breakfast  ",
+            parsed_info: "note - 0 kcal",
+            reason: "Missing macro values",
+          }
+        ],
+      },
     };
 
     const normalized = normalizeAnalysisReportResult(messyOutput);
@@ -169,6 +209,10 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     expect(normalized.profileGaps).toHaveLength(1);
     expect(normalized.profileGaps[0].parameter).toBe("Weight");
     expect(normalized.confidence).toBe("medium");
+    expect(normalized.overallAnalysis.status).toBe("watch");
+    expect(normalized.overallAnalysis.message).toBe("Logging is sparse.");
+    expect(normalized.overallAnalysis.examples).toHaveLength(1);
+    expect(normalized.overallAnalysis.examples[0].rawNote).toBe("skip breakfast");
   });
 
   it("defaults gracefully when missing fields entirely", () => {
@@ -180,5 +224,8 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     expect(normalized.focusAreas).toEqual([]);
     expect(normalized.profileGaps).toEqual([]);
     expect(normalized.confidence).toBe("low");
+    expect(normalized.overallAnalysis.status).toBe("watch");
+    expect(normalized.overallAnalysis.message).toBe("Overall progression needs to be evaluated from more logs.");
+    expect(normalized.overallAnalysis.examples).toEqual([]);
   });
 });

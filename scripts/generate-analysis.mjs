@@ -192,6 +192,20 @@ const categoryAnalysisSchema = z.object({
   message: z.string().min(1),
 });
 
+const deeperCategoryExampleSchema = z.object({
+  date: z.string().min(1),
+  time: z.string().nullable(),
+  rawNote: z.string().min(1),
+  parsedInfo: z.string().min(1),
+  reason: z.string().min(1),
+});
+
+const deeperCategorySchema = z.object({
+  status: categoryStatusSchema,
+  message: z.string().min(1),
+  examples: z.array(deeperCategoryExampleSchema),
+});
+
 const analysisReportPayloadSchema = z.object({
   summary: z.string().min(1),
   rootCauses: z.array(z.string().min(1)),
@@ -202,6 +216,10 @@ const analysisReportPayloadSchema = z.object({
   calorieAnalysis: categoryAnalysisSchema,
   proteinAnalysis: categoryAnalysisSchema,
   macroAnalysis: categoryAnalysisSchema,
+  overallAnalysis: deeperCategorySchema,
+  loggingHabitAnalysis: deeperCategorySchema,
+  mealChoiceAnalysis: deeperCategorySchema,
+  exerciseHabitAnalysis: deeperCategorySchema,
 });
 
 function normalizeCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
@@ -219,6 +237,35 @@ function normalizeCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
   return {
     status,
     message: messageCandidate || fallbackMessage,
+  };
+}
+
+function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
+  const src = value && typeof value === "object" ? value : {};
+  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
+  const status = ["good", "watch"].includes(statusValue) ? statusValue : fallbackStatus;
+
+  const message = typeof src.message === "string" && src.message.trim().length > 0
+    ? src.message.trim()
+    : fallbackMessage;
+
+  const rawExamples = Array.isArray(src.examples) ? src.examples : Array.isArray(src.rootCauses) ? src.rootCauses : [];
+  const examples = rawExamples
+    .map((item) => {
+      const itemSrc = item && typeof item === "object" ? item : {};
+      const date = typeof itemSrc.date === "string" ? itemSrc.date.trim() : "";
+      const time = typeof itemSrc.time === "string" ? itemSrc.time.trim() : null;
+      const rawNote = typeof itemSrc.rawNote === "string" ? itemSrc.rawNote.trim() : typeof itemSrc.raw_note === "string" ? itemSrc.raw_note.trim() : "";
+      const parsedInfo = typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() : typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+      const reason = typeof itemSrc.reason === "string" ? itemSrc.reason.trim() : "";
+      return { date, time, rawNote, parsedInfo, reason };
+    })
+    .filter((ex) => ex.date.length > 0 && ex.rawNote.length > 0);
+
+  return {
+    status,
+    message,
+    examples: examples.slice(0, 3),
   };
 }
 
@@ -279,6 +326,27 @@ function normalizeAnalysisReportResult(value) {
     "Energy split needs a clearer read from the available logs.",
   );
 
+  const overallAnalysis = normalizeDeeperCategoryAnalysis(
+    record.overallAnalysis,
+    "watch",
+    "Overall progression needs to be evaluated from more logs."
+  );
+  const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
+    record.loggingHabitAnalysis,
+    "watch",
+    "Logging habits need to be evaluated from more logs."
+  );
+  const mealChoiceAnalysis = normalizeDeeperCategoryAnalysis(
+    record.mealChoiceAnalysis,
+    "watch",
+    "Meal choices need to be evaluated from more logs."
+  );
+  const exerciseHabitAnalysis = normalizeDeeperCategoryAnalysis(
+    record.exerciseHabitAnalysis,
+    "watch",
+    "Exercise patterns need to be evaluated from more logs."
+  );
+
   return {
     summary,
     rootCauses,
@@ -289,6 +357,10 @@ function normalizeAnalysisReportResult(value) {
     calorieAnalysis,
     proteinAnalysis,
     macroAnalysis,
+    overallAnalysis,
+    loggingHabitAnalysis,
+    mealChoiceAnalysis,
+    exerciseHabitAnalysis,
   };
 }
 
@@ -578,12 +650,45 @@ async function run() {
         remarks: `Logged on ${item.date}: "${item.sourceRawNote}"`,
       }));
 
+    const logTimeline = allItems.map(item => {
+      let parsedInfo = "";
+      if (item.kind === "food") {
+        const nut = item.nutrition || {};
+        const macros = [];
+        if (nut.proteinG) macros.push(`${nut.proteinG}g P`);
+        if (nut.fatG) macros.push(`${nut.fatG}g F`);
+        if (nut.carbsG) macros.push(`${nut.carbsG}g C`);
+        if (nut.alcoholG) macros.push(`${nut.alcoholG}g Alc`);
+        const macroStr = macros.length > 0 ? ` (${macros.join(", ")})` : "";
+        const cals = nut.calories ? `${nut.calories} kcal` : "unknown cals";
+        parsedInfo = `${item.label}${item.quantity ? ` (${item.quantity})` : ""}: ${cals}${macroStr}`;
+      } else if (item.kind === "water") {
+        parsedInfo = `${item.label}: +${item.waterMl || 0}ml`;
+      } else if (item.kind === "exercise") {
+        parsedInfo = `${item.label}: -${item.exerciseCalories || 0} kcal`;
+      } else {
+        parsedInfo = `${item.label}`;
+      }
+
+      const time = item.occurredTime || null;
+
+      return {
+        date: item.date,
+        time,
+        rawNote: item.sourceRawNote || "",
+        parsedInfo,
+        confidence: item.confidence,
+        warnings: item.warnings || [],
+      };
+    });
+
     const evidence = {
       topCalorieFoods,
       alcoholContributors,
       waterContributors,
       exerciseContributors,
       highCalorieLowProteinCandidates,
+      logTimeline,
     };
 
     // 8. Package Prompt for Gemini 3.5 Flash
@@ -640,6 +745,12 @@ ${exerciseContributors.map(serializeExerciseItem).join("\n") || "None"}
 - High-Calorie/Low-Protein Candidates (>300 kcal, <10g protein):
 ${highCalorieLowProteinCandidates.map(serializeFoodItem).join("\n") || "None"}
 
+=== COMPLETE LOG TIMELINE ===
+${logTimeline.map(item => {
+  const timeStr = item.time ? ` at ${item.time}` : "";
+  return `- [${item.date}${timeStr}] "${item.rawNote}" -> Parsed: ${item.parsedInfo}`;
+}).join("\n") || "None"}
+
 === CRITICAL REQUIREMENT FOR LIMITED DATA ===
 - If the number of complete days is LESS THAN ${thresholdDays} (we have ${completeDaysCount} days), the overall data is highly limited.
 - In this case, you MUST set the confidence field to "low".
@@ -681,6 +792,58 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   "macroAnalysis": {
     "status": "good" | "watch",
     "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
+  },
+  "overallAnalysis": {
+    "status": "good" | "watch",
+    "message": "One compact sentence assessing the whole-period read across intake, hydration, exercise, and goal fit.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "rawNote": "Exact raw note snippet from logs",
+        "parsedInfo": "Parsed summary of the item",
+        "reason": "Why this specific log is evidence of overall direction fit"
+      }
+    ]
+  },
+  "loggingHabitAnalysis": {
+    "status": "good" | "watch",
+    "message": "One compact sentence assessing log frequency, specificity, and timestamping.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "rawNote": "Exact raw note snippet from logs",
+        "parsedInfo": "Parsed summary of the item",
+        "reason": "Why this specific log shows high/low specificity or timeliness"
+      }
+    ]
+  },
+  "mealChoiceAnalysis": {
+    "status": "good" | "watch",
+    "message": "One compact sentence on food-quality patterns (e.g. sugary items, fiber/vegetable gaps, repeated dense items).",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "rawNote": "Exact raw note snippet from logs",
+        "parsedInfo": "Parsed summary of the item",
+        "reason": "Why this meal is evidence of quality or repeated dense patterns"
+      }
+    ]
+  },
+  "exerciseHabitAnalysis": {
+    "status": "good" | "watch",
+    "message": "One compact sentence on how logged exercise frequency and type aligns with goal.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "rawNote": "Exact raw note snippet from logs",
+        "parsedInfo": "Parsed summary of the item",
+        "reason": "Why this log is evidence of exercise alignment or gap"
+      }
+    ]
   }
 }
 
@@ -697,15 +860,7 @@ STYLE RULES:
 - Do not complain about limited data inside category messages when a real signal exists.
 - Avoid repeating all the numbers already shown in the UI.
 - Keep each category message to one sentence only.
-- Good examples:
-  - "Surplus is high; trim dense extras."
-  - "Protein looks solid; keep it steady."
-  - "Hydration is on track; keep it up."
-  - "Carbs lead calories; rebalance meals."
-- Bad examples:
-  - "High average; requires consistent 14-day logs."
-  - "Good hydration, but track more days."
-  - "Carbs and fats dominate limited data."
+- For "examples" arrays in deeper analysis objects, provide up to 3 real, specific log items as evidence. Do not make up examples that do not exist in the COMPLETE LOG TIMELINE.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

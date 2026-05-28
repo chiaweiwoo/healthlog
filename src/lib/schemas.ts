@@ -191,12 +191,22 @@ export const analysisStatsSchema = z.object({
   consistencyScore: z.number().min(0).max(1),
 });
 
+export const logTimelineItemSchema = z.object({
+  date: z.string(),
+  time: z.string().nullable(),
+  rawNote: z.string(),
+  parsedInfo: z.string(),
+  confidence: z.number().min(0).max(1).optional(),
+  warnings: z.array(warningSchema).optional(),
+});
+
 export const analysisEvidenceSchema = z.object({
   topCalorieFoods: z.array(parsedDailyItemSchema),
   alcoholContributors: z.array(parsedDailyItemSchema),
   waterContributors: z.array(parsedDailyItemSchema),
   exerciseContributors: z.array(parsedDailyItemSchema),
   highCalorieLowProteinCandidates: z.array(parsedDailyItemSchema),
+  logTimeline: z.array(logTimelineItemSchema).optional(),
 });
 
 export const focusAreaSchema = z.object({
@@ -210,6 +220,25 @@ export const profileGapSchema = z.object({
   improveAdvice: z.string(),
 });
 
+export const categoryAnalysisSchema = z.object({
+  status: z.enum(["good", "watch"]),
+  message: z.string(),
+});
+
+export const deeperCategoryExampleSchema = z.object({
+  date: z.string(),
+  time: z.string().nullable(),
+  rawNote: z.string(),
+  parsedInfo: z.string(),
+  reason: z.string(),
+});
+
+export const deeperCategorySchema = z.object({
+  status: z.enum(["good", "watch"]),
+  message: z.string(),
+  examples: z.array(deeperCategoryExampleSchema),
+});
+
 export const analysisReportPayloadSchema = z.object({
   stats: analysisStatsSchema,
   evidence: analysisEvidenceSchema,
@@ -218,6 +247,14 @@ export const analysisReportPayloadSchema = z.object({
   focusAreas: z.array(focusAreaSchema),
   profileGaps: z.array(profileGapSchema),
   confidence: z.enum(["low", "medium", "high"]),
+  waterAnalysis: categoryAnalysisSchema.optional(),
+  calorieAnalysis: categoryAnalysisSchema.optional(),
+  proteinAnalysis: categoryAnalysisSchema.optional(),
+  macroAnalysis: categoryAnalysisSchema.optional(),
+  overallAnalysis: deeperCategorySchema.optional(),
+  loggingHabitAnalysis: deeperCategorySchema.optional(),
+  mealChoiceAnalysis: deeperCategorySchema.optional(),
+  exerciseHabitAnalysis: deeperCategorySchema.optional(),
 });
 
 export type FocusArea = z.infer<typeof focusAreaSchema>;

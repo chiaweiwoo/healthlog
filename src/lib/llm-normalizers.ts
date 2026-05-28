@@ -438,6 +438,53 @@ export function normalizeProfileNoteResult(raw: unknown) {
   };
 }
 
+function normalizeCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string) {
+  const src = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
+  const status = ["good", "watch"].includes(statusValue) ? (statusValue as "good" | "watch") : fallbackStatus;
+
+  const messageCandidate =
+    typeof src.message === "string" ? src.message.trim() :
+    typeof src.insights === "string" ? src.insights.trim() :
+    typeof src.recommendation === "string" ? src.recommendation.trim() :
+    Array.isArray(src.alerts) ? src.alerts.map((item) => String(item).trim()).find(Boolean) ?? "" :
+    "";
+
+  return {
+    status,
+    message: messageCandidate || fallbackMessage,
+  };
+}
+
+function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string) {
+  const src = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
+  const status = ["good", "watch"].includes(statusValue) ? (statusValue as "good" | "watch") : fallbackStatus;
+
+  const message = typeof src.message === "string" && src.message.trim().length > 0
+    ? src.message.trim()
+    : fallbackMessage;
+
+  const rawExamples = Array.isArray(src.examples) ? src.examples : Array.isArray(src.rootCauses) ? src.rootCauses : [];
+  const examples = rawExamples
+    .map((item) => {
+      const itemSrc = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const date = typeof itemSrc.date === "string" ? itemSrc.date.trim() : "";
+      const time = typeof itemSrc.time === "string" ? itemSrc.time.trim() : null;
+      const rawNote = typeof itemSrc.rawNote === "string" ? itemSrc.rawNote.trim() : typeof itemSrc.raw_note === "string" ? itemSrc.raw_note.trim() : "";
+      const parsedInfo = typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() : typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+      const reason = typeof itemSrc.reason === "string" ? itemSrc.reason.trim() : "";
+      return { date, time, rawNote, parsedInfo, reason };
+    })
+    .filter((ex) => ex.date.length > 0 && ex.rawNote.length > 0);
+
+  return {
+    status,
+    message,
+    examples: examples.slice(0, 3),
+  };
+}
+
 export function normalizeAnalysisReportResult(value: unknown) {
   const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
@@ -473,11 +520,61 @@ export function normalizeAnalysisReportResult(value: unknown) {
     ? (confidenceValue as "low" | "medium" | "high")
     : "low";
 
+  const waterAnalysis = normalizeCategoryAnalysis(
+    record.waterAnalysis,
+    "watch",
+    "Hydration needs a clearer read from the available logs.",
+  );
+  const calorieAnalysis = normalizeCategoryAnalysis(
+    record.calorieAnalysis,
+    "watch",
+    "Calories need a clearer read from the available logs.",
+  );
+  const proteinAnalysis = normalizeCategoryAnalysis(
+    record.proteinAnalysis,
+    "watch",
+    "Protein needs a clearer read from the available logs.",
+  );
+  const macroAnalysis = normalizeCategoryAnalysis(
+    record.macroAnalysis,
+    "watch",
+    "Energy split needs a clearer read from the available logs.",
+  );
+
+  const overallAnalysis = normalizeDeeperCategoryAnalysis(
+    record.overallAnalysis,
+    "watch",
+    "Overall progression needs to be evaluated from more logs."
+  );
+  const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
+    record.loggingHabitAnalysis,
+    "watch",
+    "Logging habits need to be evaluated from more logs."
+  );
+  const mealChoiceAnalysis = normalizeDeeperCategoryAnalysis(
+    record.mealChoiceAnalysis,
+    "watch",
+    "Meal choices need to be evaluated from more logs."
+  );
+  const exerciseHabitAnalysis = normalizeDeeperCategoryAnalysis(
+    record.exerciseHabitAnalysis,
+    "watch",
+    "Exercise patterns need to be evaluated from more logs."
+  );
+
   return {
     summary,
     rootCauses,
     focusAreas,
     profileGaps,
     confidence,
+    waterAnalysis,
+    calorieAnalysis,
+    proteinAnalysis,
+    macroAnalysis,
+    overallAnalysis,
+    loggingHabitAnalysis,
+    mealChoiceAnalysis,
+    exerciseHabitAnalysis,
   };
 }
