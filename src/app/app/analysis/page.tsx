@@ -118,6 +118,7 @@ export default async function AnalysisPage() {
 
     return {
       date,
+      isLogged: !!summary,
       calories: summary ? Number(summary.calories) : 0,
       proteinG: summary ? Number(summary.protein_g) : 0,
       fatG: summary ? Number(summary.fat_g) : 0,

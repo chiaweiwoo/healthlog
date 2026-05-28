@@ -33,6 +33,7 @@ type AIReportPayload = {
 
 export type DailyHistoryItem = {
   date: string;
+  isLogged: boolean;
   calories: number;
   proteinG: number;
   fatG: number;
@@ -631,6 +632,31 @@ function SectionHeader({
 function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
   if (!dailyHistory || dailyHistory.length === 0) return null;
 
+  // TDEE quota averages calculation across logged days (days with active summaries)
+  const loggedDays = dailyHistory.filter((d) => d.isLogged);
+  const useFallbackOnly = loggedDays.length === 0;
+  const sourceDays = useFallbackOnly ? dailyHistory : loggedDays;
+  const count = sourceDays.length;
+
+  const totalBmr = sourceDays.reduce((acc, d) => acc + d.bmr, 0);
+  const totalNeat = sourceDays.reduce((acc, d) => acc + Math.max(0, d.baseTdee - d.bmr), 0);
+  const totalTef = sourceDays.reduce((acc, d) => acc + d.tefCalories, 0);
+  const totalEat = sourceDays.reduce((acc, d) => acc + d.exerciseCalories, 0);
+  const totalTdee = sourceDays.reduce((acc, d) => acc + d.tdee, 0);
+
+  const avgBmr = Math.round(totalBmr / count);
+  const avgNeat = Math.round(totalNeat / count);
+  const avgTef = Math.round(totalTef / count);
+  const avgEat = Math.round(totalEat / count);
+  const avgTdee = Math.round(totalTdee / count);
+
+  const pctBmr = avgTdee > 0 ? (avgBmr / avgTdee) * 100 : 0;
+  const pctNeat = avgTdee > 0 ? (avgNeat / avgTdee) * 100 : 0;
+  const pctTef = avgTdee > 0 ? (avgTef / avgTdee) * 100 : 0;
+  const pctEat = avgTdee > 0 ? (avgEat / avgTdee) * 100 : 0;
+
+  const formatPct = (pct: number) => Math.round(pct * 10) / 10;
+
   const formatXAxisDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -689,92 +715,76 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
       </div>
 
       <div className="space-y-8">
-        {/* CHART 1: TDEE (Quota) Stacked Bar Chart */}
-        <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner space-y-3">
+        {/* TDEE Quota Breakdown Card */}
+        <div className="bg-white border border-stone-200/60 rounded-lg p-4 shadow-inner space-y-4">
           <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-stone-700" />
-              TDEE (Quota Components)
+              <span className="h-2.5 w-2.5 rounded bg-zinc-700" />
+              TDEE Quota (Average Allocation)
             </span>
-            <span className="text-stone-400 font-normal">Daily Energy Quota</span>
+            <span className="text-stone-400 font-normal">
+              {useFallbackOnly ? "Profile Default Target" : `Avg over ${loggedDays.length} logged day${loggedDays.length === 1 ? "" : "s"}`}
+            </span>
           </div>
 
-          <div className="relative w-full aspect-[500/220]">
-            <svg viewBox="0 0 500 220" className="w-full h-full font-sans select-none overflow-visible">
-              {calGridValues.map((val) => {
-                const y = baselineY - val * calScale;
-                return (
-                  <g key={val}>
-                    <line x1={marginL} y1={y} x2={w - marginR} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3,3" />
-                    <text x={marginL - 8} y={y + 3.5} textAnchor="end" className="fill-stone-400 font-medium text-[9px]">{val}</text>
-                  </g>
-                );
-              })}
-              
-              <line x1={marginL} y1={baselineY} x2={w - marginR} y2={baselineY} stroke="#e2e8f0" strokeWidth="1.5" />
-              <text x={marginL - 8} y={baselineY + 3.5} textAnchor="end" className="fill-stone-400 font-semibold text-[9px]">0 kcal</text>
-
-              {dailyHistory.map((day, idx) => {
-                const x = startX + idx * (colW + colGap);
-                
-                const bmr = day.bmr;
-                const neat = Math.max(0, day.baseTdee - bmr);
-                const tef = day.tefCalories;
-                const eat = day.exerciseCalories;
-                const totalTdee = day.tdee;
-
-                const hBmr = bmr * calScale;
-                const hNeat = neat * calScale;
-                const hTef = tef * calScale;
-                const hEat = eat * calScale;
-
-                const yBmr = baselineY - hBmr;
-                const yNeat = yBmr - hNeat;
-                const yTef = yNeat - hTef;
-                const yEat = yTef - hEat;
-
-                const dateStr = formatXAxisDate(day.date);
-
-                return (
-                  <g key={day.date} className="group">
-                    {hBmr > 0 && (
-                      <rect x={x} y={yBmr} width={colW} height={hBmr} fill="#3f3f46" className="transition-all duration-200 group-hover:opacity-90" />
-                    )}
-                    {hNeat > 0 && (
-                      <rect x={x} y={yNeat} width={colW} height={hNeat} fill="#94a3b8" className="transition-all duration-200 group-hover:opacity-90" />
-                    )}
-                    {hTef > 0 && (
-                      <rect x={x} y={yTef} width={colW} height={hTef} fill="#fcd34d" className="transition-all duration-200 group-hover:opacity-90" />
-                    )}
-                    {hEat > 0 && (
-                      <rect x={x} y={yEat} width={colW} height={hEat} fill="#10b981" className="transition-all duration-200 group-hover:opacity-90" />
-                    )}
-
-                    {totalTdee > 0 && (
-                      <text x={x + colW / 2} y={yEat - 6} textAnchor="middle" className="fill-stone-600 font-bold text-[9px]">{Math.round(totalTdee)}</text>
-                    )}
-
-                    <text x={x + colW / 2} y={baselineY + 16} textAnchor="middle" className="fill-stone-500 font-semibold text-[9px]">{dateStr.split(" ")[0]}</text>
-                    <text x={x + colW / 2} y={baselineY + 27} textAnchor="middle" className="fill-stone-400 text-[8px]">{dateStr.split(" ")[1]}</text>
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
+              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">BMR (Sleep)</span>
+              <p className="text-xs font-bold text-stone-700 mt-0.5">{avgBmr} kcal</p>
+              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctBmr)}%</span>
+            </div>
+            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
+              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Activity (NEAT)</span>
+              <p className="text-xs font-bold text-stone-600 mt-0.5">{avgNeat} kcal</p>
+              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctNeat)}%</span>
+            </div>
+            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
+              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Digestion (TEF)</span>
+              <p className="text-xs font-bold text-amber-600 mt-0.5">{avgTef} kcal</p>
+              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctTef)}%</span>
+            </div>
+            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
+              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Exercise (EAT)</span>
+              <p className="text-xs font-bold text-emerald-600 mt-0.5">{avgEat} kcal</p>
+              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctEat)}%</span>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center pt-2.5 text-[9px] text-stone-500 font-semibold border-t border-stone-100">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded bg-zinc-700" /> BMR (Basal Sleep)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded bg-slate-400" /> Lifestyle Activity (NEAT)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded bg-amber-300" /> Digestion Effect (TEF)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded bg-emerald-500" /> Active Exercise (EAT)
-            </span>
+          <div className="space-y-1.5">
+            <div className="h-4 w-full bg-stone-100 rounded-full overflow-hidden border border-stone-200/50 flex">
+              {pctBmr > 0 && (
+                <div
+                  className="h-full bg-zinc-700 transition-all duration-300"
+                  style={{ width: `${pctBmr}%` }}
+                  title={`BMR: ${formatPct(pctBmr)}%`}
+                />
+              )}
+              {pctNeat > 0 && (
+                <div
+                  className="h-full bg-slate-400 transition-all duration-300"
+                  style={{ width: `${pctNeat}%` }}
+                  title={`NEAT: ${formatPct(pctNeat)}%`}
+                />
+              )}
+              {pctTef > 0 && (
+                <div
+                  className="h-full bg-amber-300 transition-all duration-300"
+                  style={{ width: `${pctTef}%` }}
+                  title={`TEF: ${formatPct(pctTef)}%`}
+                />
+              )}
+              {pctEat > 0 && (
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${pctEat}%` }}
+                  title={`EAT: ${formatPct(pctEat)}%`}
+                />
+              )}
+            </div>
+            <div className="flex justify-between items-center text-[10px] text-stone-500 font-semibold px-0.5">
+              <span>Total TDEE (Average Daily Quota)</span>
+              <span className="text-stone-850 font-bold">{avgTdee} kcal</span>
+            </div>
           </div>
         </div>
 
