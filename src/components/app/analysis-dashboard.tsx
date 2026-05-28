@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type DeeperAnalysisRow = {
   status: "good" | "watch";
   message: string;
-  examples: Array<{
+  examples?: Array<{
     date: string;
     time: string | null;
     parsedSummary?: string;
@@ -24,38 +24,10 @@ type AIReportPayload = {
   focusAreas?: FocusArea[];
   profileGaps?: ProfileGap[];
   confidence?: "low" | "medium" | "high";
-  waterAnalysis?: {
-    status?: "good" | "watch";
-    message?: string;
-    isGood?: boolean;
-    assessment?: string;
-    insights?: string;
-    recommendation?: string;
-  };
-  calorieAnalysis?: {
-    status?: "good" | "watch";
-    message?: string;
-    outcome?: "deficit" | "surplus" | "maintenance";
-    assessment?: string;
-    alerts?: string[];
-    insights?: string;
-    recommendation?: string;
-  };
-  proteinAnalysis?: {
-    status?: "good" | "watch";
-    message?: string;
-    assessment?: string;
-    alerts?: string[];
-    insights?: string;
-    recommendation?: string;
-  };
-  macroAnalysis?: {
-    status?: "good" | "watch";
-    message?: string;
-    assessment?: string;
-    insights?: string;
-    recommendation?: string;
-  };
+  waterAnalysis?: DeeperAnalysisRow;
+  calorieAnalysis?: DeeperAnalysisRow;
+  proteinAnalysis?: DeeperAnalysisRow;
+  macroAnalysis?: DeeperAnalysisRow;
   loggingHabitAnalysis?: DeeperAnalysisRow;
   mealChoiceAnalysis?: DeeperAnalysisRow;
   exerciseHabitAnalysis?: DeeperAnalysisRow;
@@ -125,11 +97,8 @@ function firstSentence(text: string | null | undefined) {
   return (match ? match[0] : normalized).trim();
 }
 
-function trimClause(text: string | null | undefined, maxLength = 72) {
-  const normalized = firstSentence(text);
-  if (!normalized) return null;
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength).trimEnd()}...`;
+function trimClause(text: string | null | undefined) {
+  return firstSentence(text);
 }
 
 function pillClasses(tone: StatusTone) {
@@ -162,13 +131,14 @@ function resolveLegacyMessage(parts: Array<string | null | undefined>) {
 
 function UnifiedAnalysisRow({
   item,
+  hasEvidence,
   onShowEvidence,
 }: {
   item: UnifiedRowItem;
+  hasEvidence: boolean;
   onShowEvidence?: (title: string, examples: Exclude<UnifiedRowItem["examples"], undefined>) => void;
 }) {
   const Icon = item.icon;
-  const hasEvidence = item.examples && item.examples.length > 0;
 
   return (
     <section
@@ -188,7 +158,7 @@ function UnifiedAnalysisRow({
                   onShowEvidence(item.title, item.examples || []);
                 }}
                 className="inline-flex items-center justify-center text-stone-400 hover:text-stone-600 focus:outline-hidden transition-colors cursor-pointer"
-                title="View evidence"
+                title="View evidence & trends"
                 aria-label={`View evidence for ${item.title}`}
               >
                 <Info size={13} />
@@ -210,15 +180,127 @@ function UnifiedAnalysisRow({
   );
 }
 
+function MiniTrendBars({
+  metricKey,
+  dailyHistory,
+  targetValue,
+}: {
+  metricKey: string;
+  dailyHistory: DailyHistoryItem[];
+  targetValue?: number | null;
+}) {
+  if (!dailyHistory || dailyHistory.length === 0) return null;
+
+  const days = dailyHistory.slice(-14);
+
+  return (
+    <div className="space-y-1.5 border-b border-stone-200/60 pb-3 select-none">
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-stone-400">
+        <span>14-Day Trend</span>
+        <span className="text-[9px] lowercase font-normal italic">hover/tap bars for details</span>
+      </div>
+      <div className="flex items-end gap-1 h-12 pt-2 bg-stone-50/50 rounded-lg px-2 border border-stone-200/30">
+        {days.map((day, idx) => {
+          let heightPercent = 0;
+          let barBg = "bg-stone-300";
+          let label = "";
+
+          const formattedDate = formatDate(day.date);
+
+          if (metricKey === "calories") {
+            const target = targetValue ?? 2000;
+            const value = day.calories;
+            heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
+            const isAbove = value > target;
+            barBg = isAbove ? "bg-red-500" : "bg-emerald-500";
+            label = `${formattedDate}: ${value} kcal (Target: ${target} kcal)`;
+          } else if (metricKey === "protein") {
+            const target = targetValue ?? 100;
+            const value = day.proteinG;
+            heightPercent = Math.min((value / Math.max(target * 1.5, 150)) * 100, 100);
+            const isGood = value >= target;
+            barBg = isGood ? "bg-emerald-500" : "bg-red-400";
+            label = `${formattedDate}: ${value}g protein (Target: ${target}g)`;
+          } else if (metricKey === "water") {
+            const target = targetValue ?? 2000;
+            const value = day.waterMl;
+            heightPercent = Math.min((value / Math.max(target * 1.5, 3000)) * 100, 100);
+            const isLow = value < target * 0.9;
+            const isHigh = value > target * 1.4;
+            barBg = isLow ? "bg-amber-400" : isHigh ? "bg-sky-600" : "bg-sky-500";
+            label = `${formattedDate}: ${value}ml water (Target: ${target}ml)`;
+          } else if (metricKey === "macros") {
+            const calories = {
+              protein: day.proteinG * 4,
+              carbs: day.carbsG * 4,
+              fat: day.fatG * 9,
+              alcohol: day.alcoholG * 7,
+            };
+            const total = calories.protein + calories.carbs + calories.fat + calories.alcohol;
+            let dominant: "protein" | "carbs" | "fat" | "alcohol" | "none" = "none";
+            let maxCals = 0;
+            if (total > 0) {
+              if (calories.protein > maxCals) { dominant = "protein"; maxCals = calories.protein; }
+              if (calories.carbs > maxCals) { dominant = "carbs"; maxCals = calories.carbs; }
+              if (calories.fat > maxCals) { dominant = "fat"; maxCals = calories.fat; }
+              if (calories.alcohol > maxCals) { dominant = "alcohol"; maxCals = calories.alcohol; }
+            }
+
+            heightPercent = total > 0 ? Math.min((total / 3000) * 100, 100) : 0;
+            if (dominant === "protein") barBg = "bg-stone-600";
+            else if (dominant === "carbs") barBg = "bg-amber-500";
+            else if (dominant === "fat") barBg = "bg-emerald-500";
+            else if (dominant === "alcohol") barBg = "bg-red-500";
+            else barBg = "bg-stone-200";
+
+            const sharePercent = total > 0 ? Math.round((maxCals / total) * 100) : 0;
+            label = total > 0
+              ? `${formattedDate}: ${Math.round(total)} kcal (Dominant: ${dominant} ${sharePercent}%)`
+              : `${formattedDate}: No logs`;
+          } else if (metricKey === "logging") {
+            heightPercent = day.isLogged ? 100 : 20;
+            barBg = day.isLogged ? "bg-emerald-500" : "bg-stone-300";
+            label = `${formattedDate}: ${day.isLogged ? "Logged" : "Unlogged"}`;
+          } else if (metricKey === "meals") {
+            const fatRatio = (day.fatG * 9) / (day.proteinG * 4 + day.carbsG * 4 + day.fatG * 9 + day.alcoholG * 7 || 1);
+            const isHighFat = fatRatio > 0.4;
+            heightPercent = day.isLogged ? (isHighFat ? 105 : 40) : 0;
+            barBg = isHighFat ? "bg-red-400" : "bg-emerald-500";
+            label = `${formattedDate}: ${isHighFat ? "High fat-ratio choice" : "Balanced meal choice"}`;
+          } else if (metricKey === "exercise") {
+            const value = day.exerciseCalories;
+            heightPercent = Math.min((value / 1000) * 100, 100);
+            barBg = value > 0 ? "bg-emerald-500" : "bg-stone-300";
+            label = `${formattedDate}: ${value} kcal burned via exercise`;
+          }
+
+          return (
+            <div
+              key={idx}
+              className={cn("flex-1 rounded-t-sm transition-all cursor-pointer", barBg)}
+              style={{ height: `${Math.max(heightPercent, 4)}%` }}
+              title={label}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EvidenceModal({
   isOpen,
   onClose,
   title,
+  metricKey,
   examples,
+  dailyHistory,
+  targetValue,
 }: {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  metricKey: string;
   examples: Array<{
     date: string;
     time: string | null;
@@ -227,6 +309,8 @@ function EvidenceModal({
     reason: string;
     confidence?: number | null;
   }>;
+  dailyHistory: DailyHistoryItem[];
+  targetValue?: number | null;
 }) {
   if (!isOpen) return null;
 
@@ -250,42 +334,55 @@ function EvidenceModal({
           </button>
         </div>
 
-        <div className="space-y-3">
-          {examples.map((ex, idx) => {
-            const timeStr = ex.time ? `, ${ex.time}` : "";
-            const formattedDate = formatDate(ex.date) + timeStr;
-            const parsedSummary = ex.parsedSummary || ex.parsedInfo || "N/A";
-            const confidencePercent = typeof ex.confidence === "number"
-              ? `${Math.round(ex.confidence * 100)}%`
-              : null;
+        {/* Mini 14-day Trend Visualization */}
+        <MiniTrendBars
+          metricKey={metricKey}
+          dailyHistory={dailyHistory}
+          targetValue={targetValue}
+        />
 
-            return (
-              <div
-                key={idx}
-                className="rounded-lg border border-stone-150 bg-stone-50/40 p-3 space-y-2 text-[12px]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    {formattedDate}
-                  </span>
-                  {confidencePercent && (
-                    <span className="text-[9px] font-medium text-stone-500 bg-stone-200/50 px-1.5 py-0.5 rounded">
-                      Confidence: {confidencePercent}
+        {examples && examples.length > 0 ? (
+          <div className="space-y-3">
+            {examples.map((ex, idx) => {
+              const timeStr = ex.time ? `, ${ex.time}` : "";
+              const formattedDate = formatDate(ex.date) + timeStr;
+              const parsedSummary = ex.parsedSummary || ex.parsedInfo || "N/A";
+              const confidencePercent = typeof ex.confidence === "number"
+                ? `${Math.round(ex.confidence * 100)}%`
+                : null;
+
+              return (
+                <div
+                  key={idx}
+                  className="rounded-lg border border-stone-150 bg-stone-50/40 p-3 space-y-2 text-[12px]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      {formattedDate}
                     </span>
-                  )}
-                </div>
+                    {confidencePercent && (
+                      <span className="text-[9px] font-medium text-stone-500 bg-stone-200/50 px-1.5 py-0.5 rounded">
+                        Confidence: {confidencePercent}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="text-stone-850 font-medium leading-snug">
-                  {parsedSummary}
-                </div>
+                  <div className="text-stone-850 font-medium leading-snug">
+                    {parsedSummary}
+                  </div>
 
-                <div className="border-t border-stone-200/40 pt-1.5 text-stone-600 leading-snug">
-                  <span className="font-semibold text-stone-700">Reason:</span> {ex.reason}
+                  <div className="border-t border-stone-200/40 pt-1.5 text-stone-600 leading-snug">
+                    <span className="font-semibold text-stone-700">Reason:</span> {ex.reason}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11.5px] text-stone-550 leading-snug italic text-center py-2">
+            No specific logged timeline evidence returned for this category.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -303,6 +400,8 @@ export function AnalysisDashboard({
   const totalDaysInPeriod = 14;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
+  const [modalMetricKey, setModalMetricKey] = useState("");
+  const [modalTargetValue, setModalTargetValue] = useState<number | null>(null);
   const [modalExamples, setModalExamples] = useState<Array<{
     date: string;
     time: string | null;
@@ -423,9 +522,9 @@ export function AnalysisDashboard({
       const calorieFollowup =
         trimClause(calorieAnalysis.message) ||
         resolveLegacyMessage([
-          calorieAnalysis.alerts?.[0],
-          calorieAnalysis.recommendation,
-          calorieAnalysis.insights,
+          calorieAnalysis.message,
+          (calorieAnalysis as Record<string, unknown>).recommendation as string | undefined,
+          (calorieAnalysis as Record<string, unknown>).insights as string | undefined,
         ]);
 
       rows.push({
@@ -438,6 +537,7 @@ export function AnalysisDashboard({
         body: calorieFollowup || `${calorieNet}. Intake ${stats.averageIntakeCalories} kcal${
           stats.averageQuotaCalories != null ? ` vs target ${stats.averageQuotaCalories} kcal.` : "."
         }`,
+        examples: calorieAnalysis.examples,
       });
     }
 
@@ -451,9 +551,9 @@ export function AnalysisDashboard({
       const proteinFollowup =
         trimClause(proteinAnalysis.message) ||
         resolveLegacyMessage([
-          proteinAnalysis.recommendation,
-          proteinAnalysis.alerts?.[0],
-          proteinAnalysis.insights,
+          proteinAnalysis.message,
+          (proteinAnalysis as Record<string, unknown>).recommendation as string | undefined,
+          (proteinAnalysis as Record<string, unknown>).insights as string | undefined,
         ]);
       rows.push({
         key: "protein",
@@ -463,6 +563,7 @@ export function AnalysisDashboard({
         status: isProteinGood ? "Good" : "Watch",
         tone: isProteinGood ? "good" : "watch",
         body: proteinFollowup || `${stats.averageProteinG} g/day average.`,
+        examples: proteinAnalysis.examples,
       });
     }
 
@@ -479,7 +580,11 @@ export function AnalysisDashboard({
               : "watch";
       const waterFollowup =
         trimClause(waterAnalysis.message) ||
-        resolveLegacyMessage([waterAnalysis.insights, waterAnalysis.recommendation]);
+        resolveLegacyMessage([
+          waterAnalysis.message,
+          (waterAnalysis as Record<string, unknown>).insights as string | undefined,
+          (waterAnalysis as Record<string, unknown>).recommendation as string | undefined,
+        ]);
       rows.push({
         key: "water",
         title: "Water Intake",
@@ -488,6 +593,7 @@ export function AnalysisDashboard({
         status: waterTone === "good" ? "Good" : "Watch",
         tone: waterTone,
         body: waterFollowup || `${stats.averageWaterMl} ml/day vs ${waterTarget} ml target (${completionRate}%).`,
+        examples: waterAnalysis.examples,
       });
     }
 
@@ -502,7 +608,11 @@ export function AnalysisDashboard({
             : true;
       const macroFollowup =
         trimClause(macroAnalysis.message) ||
-        resolveLegacyMessage([macroAnalysis.insights, macroAnalysis.recommendation]);
+        resolveLegacyMessage([
+          macroAnalysis.message,
+          (macroAnalysis as Record<string, unknown>).insights as string | undefined,
+          (macroAnalysis as Record<string, unknown>).recommendation as string | undefined,
+        ]);
       const splitSummary =
         energySplitEntries.length > 0
           ? energySplitEntries
@@ -520,6 +630,7 @@ export function AnalysisDashboard({
         status: macroGood ? "Good" : "Watch",
         tone: macroGood ? "good" : "watch",
         body: macroFollowup || (splitSummary ? `${splitSummary}. ${fallbackMacroMessage}` : fallbackMacroMessage),
+        examples: macroAnalysis.examples,
       });
     }
 
@@ -631,40 +742,44 @@ export function AnalysisDashboard({
       </div>
 
       {/* 2. HEALTH SNAPSHOT CARD */}
-      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm flex items-center justify-between text-xs text-stone-700 font-medium">
+      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-2.5 shadow-xs flex items-center justify-center gap-6 text-xs text-stone-700 font-medium">
         <div className="flex items-center gap-1">
-          <span className="font-bold text-stone-900 text-sm">7</span> checks
+          <span className="font-bold text-stone-900 text-sm">7</span> Checks
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-600/25" />
-            <span className="font-bold text-emerald-700">{goodCount}</span> Good
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600/25" />
-            <span className="font-bold text-red-700">{watchCount}</span> Watch
-          </div>
+        <div className="h-3 w-px bg-stone-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 border border-emerald-600/25" />
+          <span className="font-bold text-emerald-700">{goodCount}</span> Good
         </div>
-        <div className="text-stone-500">
-          <span className="font-bold text-stone-700">{stats.completeDays}</span> / 14 logged
+        <div className="h-3 w-px bg-stone-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-red-500 border border-red-600/25" />
+          <span className="font-bold text-red-700">{watchCount}</span> Watch
         </div>
       </div>
 
-      {/* 3. UNIFIED ANALYSIS rows PANEL */}
-      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm">
-        <div className="space-y-2">
-          {analysisRows.map((item) => (
-            <UnifiedAnalysisRow
-              key={item.key}
-              item={item}
-              onShowEvidence={(title, examples) => {
-                setModalTitle(title);
-                setModalExamples(examples);
-                setIsModalOpen(true);
-              }}
-            />
-          ))}
-        </div>
+      {/* 3. UNIFIED ANALYSIS rows LIST */}
+      <div className="space-y-2 animate-fadeIn">
+        {analysisRows.map((item) => (
+          <UnifiedAnalysisRow
+            key={item.key}
+            item={item}
+            hasEvidence={true}
+            onShowEvidence={(title, examples) => {
+              setModalTitle(title);
+              setModalMetricKey(item.key);
+              setModalExamples(examples);
+
+              let target: number | null = null;
+              if (item.key === "calories") target = stats.averageQuotaCalories;
+              else if (item.key === "protein") target = 100;
+              else if (item.key === "water") target = currentWaterTarget ?? 2000;
+              setModalTargetValue(target);
+
+              setIsModalOpen(true);
+            }}
+          />
+        ))}
       </div>
 
       {/* Evidence Modal Component */}
@@ -672,7 +787,10 @@ export function AnalysisDashboard({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalTitle}
+        metricKey={modalMetricKey}
         examples={modalExamples}
+        dailyHistory={dailyHistory}
+        targetValue={modalTargetValue}
       />
     </div>
   );

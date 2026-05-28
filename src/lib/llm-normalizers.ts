@@ -438,22 +438,26 @@ export function normalizeProfileNoteResult(raw: unknown) {
   };
 }
 
-function normalizeCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string) {
-  const src = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
-  const status = ["good", "watch"].includes(statusValue) ? (statusValue as "good" | "watch") : fallbackStatus;
+function isValidWatchMessage(msg: string): boolean {
+  const m = msg.toLowerCase();
+  const watchKeywords = [
+    "need", "but", "howev", "add", "trim", "focus", "improv", "rebal", "cut", "reduc",
+    "increas", "limit", "avoid", "pair", "supplement", "inclu", "record", "track",
+    "low", "high", "surplus", "deficit", "light", "heavy", "excess", "sparse", "less",
+    "more", "gap", "short", "miss", "fail", "watch", "adjust"
+  ];
+  const hasKeyword = watchKeywords.some(kw => m.includes(kw));
+  const isPurelyPositive = (m.includes("excellent") || m.includes("perfect") || m.includes("great") || m.includes("solid") || m.includes("on track") || m.includes("good")) &&
+                            !m.includes("but") && !m.includes("however") && !m.includes("need") && !m.includes("add") && !m.includes("trim") && !m.includes("reduct") && !m.includes("cut");
 
-  const messageCandidate =
-    typeof src.message === "string" ? src.message.trim() :
-    typeof src.insights === "string" ? src.insights.trim() :
-    typeof src.recommendation === "string" ? src.recommendation.trim() :
-    Array.isArray(src.alerts) ? src.alerts.map((item) => String(item).trim()).find(Boolean) ?? "" :
-    "";
+  return hasKeyword && !isPurelyPositive;
+}
 
-  return {
-    status,
-    message: messageCandidate || fallbackMessage,
-  };
+function isValidGoodMessage(msg: string): boolean {
+  const m = msg.toLowerCase();
+  const positiveKeywords = ["excellent", "perfect", "great", "solid", "on track", "good", "strong", "well", "consistent", "sufficient", "meeting", "satisfy", "adequate", "ideal", "positive"];
+  const hasPositive = positiveKeywords.some(kw => m.includes(kw));
+  return hasPositive || !isValidWatchMessage(msg);
 }
 
 function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string) {
@@ -461,9 +465,15 @@ function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" 
   const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
   const status = ["good", "watch"].includes(statusValue) ? (statusValue as "good" | "watch") : fallbackStatus;
 
-  const message = typeof src.message === "string" && src.message.trim().length > 0
+  let message = typeof src.message === "string" && src.message.trim().length > 0
     ? src.message.trim()
     : fallbackMessage;
+
+  if (status === "watch" && !isValidWatchMessage(message)) {
+    message = fallbackMessage;
+  } else if (status === "good" && !isValidGoodMessage(message)) {
+    message = fallbackMessage;
+  }
 
   const rawExamples = Array.isArray(src.examples) ? src.examples : Array.isArray(src.rootCauses) ? src.rootCauses : [];
   const examples = rawExamples
@@ -531,22 +541,22 @@ export function normalizeAnalysisReportResult(value: unknown) {
     ? (confidenceValue as "low" | "medium" | "high")
     : "low";
 
-  const waterAnalysis = normalizeCategoryAnalysis(
+  const waterAnalysis = normalizeDeeperCategoryAnalysis(
     record.waterAnalysis,
     "watch",
     "Hydration needs a clearer read from the available logs.",
   );
-  const calorieAnalysis = normalizeCategoryAnalysis(
+  const calorieAnalysis = normalizeDeeperCategoryAnalysis(
     record.calorieAnalysis,
     "watch",
     "Calories need a clearer read from the available logs.",
   );
-  const proteinAnalysis = normalizeCategoryAnalysis(
+  const proteinAnalysis = normalizeDeeperCategoryAnalysis(
     record.proteinAnalysis,
     "watch",
     "Protein needs a clearer read from the available logs.",
   );
-  const macroAnalysis = normalizeCategoryAnalysis(
+  const macroAnalysis = normalizeDeeperCategoryAnalysis(
     record.macroAnalysis,
     "watch",
     "Energy split needs a clearer read from the available logs.",

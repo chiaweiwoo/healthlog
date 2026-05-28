@@ -187,10 +187,6 @@ const profileGapSchema = z.object({
 });
 
 const categoryStatusSchema = z.enum(["good", "watch"]);
-const categoryAnalysisSchema = z.object({
-  status: categoryStatusSchema,
-  message: z.string().min(1),
-});
 
 const deeperCategoryExampleSchema = z.object({
   date: z.string().min(1),
@@ -203,7 +199,7 @@ const deeperCategoryExampleSchema = z.object({
 const deeperCategorySchema = z.object({
   status: categoryStatusSchema,
   message: z.string().min(1),
-  examples: z.array(deeperCategoryExampleSchema),
+  examples: z.array(deeperCategoryExampleSchema).optional(),
 });
 
 const analysisReportPayloadSchema = z.object({
@@ -212,31 +208,35 @@ const analysisReportPayloadSchema = z.object({
   focusAreas: z.array(focusAreaSchema),
   profileGaps: z.array(profileGapSchema),
   confidence: z.enum(["low", "medium", "high"]),
-  waterAnalysis: categoryAnalysisSchema,
-  calorieAnalysis: categoryAnalysisSchema,
-  proteinAnalysis: categoryAnalysisSchema,
-  macroAnalysis: categoryAnalysisSchema,
+  waterAnalysis: deeperCategorySchema,
+  calorieAnalysis: deeperCategorySchema,
+  proteinAnalysis: deeperCategorySchema,
+  macroAnalysis: deeperCategorySchema,
   loggingHabitAnalysis: deeperCategorySchema,
   mealChoiceAnalysis: deeperCategorySchema,
   exerciseHabitAnalysis: deeperCategorySchema,
 });
 
-function normalizeCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
-  const src = value && typeof value === "object" ? value : {};
-  const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
-  const status = ["good", "watch"].includes(statusValue) ? statusValue : fallbackStatus;
+function isValidWatchMessage(msg) {
+  const m = msg.toLowerCase();
+  const watchKeywords = [
+    "need", "but", "howev", "add", "trim", "focus", "improv", "rebal", "cut", "reduc",
+    "increas", "limit", "avoid", "pair", "supplement", "inclu", "record", "track",
+    "low", "high", "surplus", "deficit", "light", "heavy", "excess", "sparse", "less",
+    "more", "gap", "short", "miss", "fail", "watch", "adjust"
+  ];
+  const hasKeyword = watchKeywords.some(kw => m.includes(kw));
+  const isPurelyPositive = (m.includes("excellent") || m.includes("perfect") || m.includes("great") || m.includes("solid") || m.includes("on track") || m.includes("good")) &&
+                            !m.includes("but") && !m.includes("however") && !m.includes("need") && !m.includes("add") && !m.includes("trim") && !m.includes("reduct") && !m.includes("cut");
 
-  const messageCandidate =
-    typeof src.message === "string" ? src.message.trim() :
-    typeof src.insights === "string" ? src.insights.trim() :
-    typeof src.recommendation === "string" ? src.recommendation.trim() :
-    Array.isArray(src.alerts) ? src.alerts.map((item) => String(item).trim()).find(Boolean) ?? "" :
-    "";
+  return hasKeyword && !isPurelyPositive;
+}
 
-  return {
-    status,
-    message: messageCandidate || fallbackMessage,
-  };
+function isValidGoodMessage(msg) {
+  const m = msg.toLowerCase();
+  const positiveKeywords = ["excellent", "perfect", "great", "solid", "on track", "good", "strong", "well", "consistent", "sufficient", "meeting", "satisfy", "adequate", "ideal", "positive"];
+  const hasPositive = positiveKeywords.some(kw => m.includes(kw));
+  return hasPositive || !isValidWatchMessage(msg);
 }
 
 function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
@@ -244,9 +244,15 @@ function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage)
   const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
   const status = ["good", "watch"].includes(statusValue) ? statusValue : fallbackStatus;
 
-  const message = typeof src.message === "string" && src.message.trim().length > 0
+  let message = typeof src.message === "string" && src.message.trim().length > 0
     ? src.message.trim()
     : fallbackMessage;
+
+  if (status === "watch" && !isValidWatchMessage(message)) {
+    message = fallbackMessage;
+  } else if (status === "good" && !isValidGoodMessage(message)) {
+    message = fallbackMessage;
+  }
 
   const rawExamples = Array.isArray(src.examples) ? src.examples : Array.isArray(src.rootCauses) ? src.rootCauses : [];
   const examples = rawExamples
@@ -315,22 +321,22 @@ function normalizeAnalysisReportResult(value) {
     ? confidenceValue
     : "low";
 
-  const waterAnalysis = normalizeCategoryAnalysis(
+  const waterAnalysis = normalizeDeeperCategoryAnalysis(
     record.waterAnalysis,
     "watch",
     "Hydration needs a clearer read from the available logs.",
   );
-  const calorieAnalysis = normalizeCategoryAnalysis(
+  const calorieAnalysis = normalizeDeeperCategoryAnalysis(
     record.calorieAnalysis,
     "watch",
     "Calories need a clearer read from the available logs.",
   );
-  const proteinAnalysis = normalizeCategoryAnalysis(
+  const proteinAnalysis = normalizeDeeperCategoryAnalysis(
     record.proteinAnalysis,
     "watch",
     "Protein needs a clearer read from the available logs.",
   );
-  const macroAnalysis = normalizeCategoryAnalysis(
+  const macroAnalysis = normalizeDeeperCategoryAnalysis(
     record.macroAnalysis,
     "watch",
     "Energy split needs a clearer read from the available logs.",
@@ -783,19 +789,55 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   "confidence": "low" | "medium" | "high",
   "waterAnalysis": {
     "status": "good" | "watch",
-    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "parsedSummary": "Clean parsed summary of the water log (e.g. '+500ml water')",
+        "reason": "Why this specific water log supports the hydration insight",
+        "confidence": number or null
+      }
+    ]
   },
   "calorieAnalysis": {
     "status": "good" | "watch",
-    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "parsedSummary": "Clean parsed summary of the calorie log (e.g. 'Egg fried rice (600 kcal)')",
+        "reason": "Why this specific calorie log supports the calorie outcome insight",
+        "confidence": number or null
+      }
+    ]
   },
   "proteinAnalysis": {
     "status": "good" | "watch",
-    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "parsedSummary": "Clean parsed summary of the protein log (e.g. 'Chicken breast (45g P)')",
+        "reason": "Why this specific protein log supports the protein intake insight",
+        "confidence": number or null
+      }
+    ]
   },
   "macroAnalysis": {
     "status": "good" | "watch",
-    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion.",
+    "examples": [
+      {
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM" or null,
+        "parsedSummary": "Clean parsed summary of the macro/alcohol log (e.g. '2 beers (14g Alc)')",
+        "reason": "Why this specific macro log supports the energy split insight",
+        "confidence": number or null
+      }
+    ]
   },
   "loggingHabitAnalysis": {
     "status": "good" | "watch",
@@ -851,11 +893,15 @@ STYLE RULES:
 - Do not complain about limited data inside category messages when a real signal exists.
 - Avoid repeating all the numbers already shown in the UI.
 - Keep each category message to one sentence only.
-- For "examples" arrays in deeper analysis objects, provide up to 3 real, specific log items as evidence. Do not make up examples that do not exist in the COMPLETE LOG TIMELINE.
+- For "examples" arrays in ALL category objects, provide up to 3 real, specific log items as evidence. Do not make up examples that do not exist in the COMPLETE LOG TIMELINE.
 - Do NOT output "rawNote" or "raw_note" inside the examples. Use "parsedSummary" instead to describe the log item cleanly (e.g., "Egg fried rice (600 kcal)" or "+400ml water").
 - Ensure the mealChoiceAnalysis message addresses food-quality patterns (sugar, fried foods, fiber/veggies, protein pairing, alcohol, snack density) directly.
 - Ensure the loggingHabitAnalysis message addresses log frequency, specificity, and timestamping directly.
 - Ensure the exerciseHabitAnalysis message addresses how logged exercise frequency/type aligns with the user's goal directly.
+- Message & Status Sentiment Guardrail: Every status and message sentiment MUST agree.
+  - "good" messages must sound clearly positive.
+  - "watch" messages must name the gap and give a concrete next step. Avoid positive-leading watch copy unless it clearly says the problem in the same short sentence (e.g. for Exercise Fit, do not output "Excellent step counts." as Watch. Instead output: "Steps are strong, but add planned workouts.").
+- Evidence must come strictly from parsed timeline items. Ensure that for core categories like water, calories, protein, and macros, the examples provide actual items from the COMPLETE LOG TIMELINE matching those attributes.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

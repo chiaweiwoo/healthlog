@@ -236,7 +236,7 @@ export const deeperCategoryExampleSchema = z.object({
 export const deeperCategorySchema = z.object({
   status: z.enum(["good", "watch"]),
   message: z.string(),
-  examples: z.array(deeperCategoryExampleSchema),
+  examples: z.array(deeperCategoryExampleSchema).optional(),
 });
 
 export const analysisReportPayloadSchema = z.object({
@@ -247,10 +247,10 @@ export const analysisReportPayloadSchema = z.object({
   focusAreas: z.array(focusAreaSchema),
   profileGaps: z.array(profileGapSchema),
   confidence: z.enum(["low", "medium", "high"]),
-  waterAnalysis: categoryAnalysisSchema.optional(),
-  calorieAnalysis: categoryAnalysisSchema.optional(),
-  proteinAnalysis: categoryAnalysisSchema.optional(),
-  macroAnalysis: categoryAnalysisSchema.optional(),
+  waterAnalysis: deeperCategorySchema.optional(),
+  calorieAnalysis: deeperCategorySchema.optional(),
+  proteinAnalysis: deeperCategorySchema.optional(),
+  macroAnalysis: deeperCategorySchema.optional(),
   loggingHabitAnalysis: deeperCategorySchema.optional(),
   mealChoiceAnalysis: deeperCategorySchema.optional(),
   exerciseHabitAnalysis: deeperCategorySchema.optional(),

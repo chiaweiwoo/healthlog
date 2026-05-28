@@ -231,4 +231,32 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     expect(normalized.loggingHabitAnalysis.message).toBe("Logging habits need to be evaluated from more logs.");
     expect(normalized.loggingHabitAnalysis.examples).toEqual([]);
   });
+
+  it("enforces sentiment/status guardrails (e.g. repairing mismatching messages)", () => {
+    const input = {
+      exerciseHabitAnalysis: {
+        status: "watch",
+        message: "Excellent step counts and activity level!",
+      },
+      calorieAnalysis: {
+        status: "good",
+        message: "Calorie surplus exists and you must trim snacks immediately.",
+      },
+      proteinAnalysis: {
+        status: "watch",
+        message: "Protein intake is excellent.",
+      }
+    };
+
+    const normalized = normalizeAnalysisReportResult(input);
+
+    expect(normalized.exerciseHabitAnalysis.status).toBe("watch");
+    expect(normalized.exerciseHabitAnalysis.message).toBe("Exercise patterns need to be evaluated from more logs.");
+
+    expect(normalized.calorieAnalysis.status).toBe("good");
+    expect(normalized.calorieAnalysis.message).toBe("Calories need a clearer read from the available logs.");
+
+    expect(normalized.proteinAnalysis.status).toBe("watch");
+    expect(normalized.proteinAnalysis.message).toBe("Protein needs a clearer read from the available logs.");
+  });
 });
