@@ -30,7 +30,9 @@ export function LoginForm() {
         const url = new URL(window.location.href);
         url.searchParams.delete("signedOut");
         window.history.replaceState(null, "", url.toString());
-        setCheckingSession(false);
+        setTimeout(() => {
+          if (active) setCheckingSession(false);
+        }, 0);
         return;
       }
 

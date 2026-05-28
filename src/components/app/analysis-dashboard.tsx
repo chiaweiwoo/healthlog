@@ -647,7 +647,6 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
   const marginT = 20;
   const marginB = 40;
 
-  const chartW = w - marginL - marginR;
   const chartH = h - marginT - marginB;
   const baselineY = h - marginB;
 

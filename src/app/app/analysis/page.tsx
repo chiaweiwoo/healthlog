@@ -3,7 +3,7 @@ import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
 import { getProfile } from "@/lib/db";
 import { isProfileComplete, deriveWaterTarget } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getRealTimeAnalysisStats, getPastDaysRange } from "@/lib/analysis";
+import { getRealTimeAnalysisStats } from "@/lib/analysis";
 import { calculateBmr, calculateTdee } from "@/lib/calculations";
 import { format } from "date-fns";
 
