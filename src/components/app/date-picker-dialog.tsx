@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 
 type RecordDatesResponse = {
   dates?: string[];
+  deficits?: Record<string, number | null>;
 };
 
 function parseDateOnly(value: string) {
@@ -48,6 +49,7 @@ export function DatePickerDialog({
   const [open, setOpen] = useState(false);
   const [visibleMonthOverride, setVisibleMonthOverride] = useState<Date | null>(null);
   const [recordDates, setRecordDates] = useState<Set<string>>(new Set());
+  const [recordDeficits, setRecordDeficits] = useState<Record<string, number | null>>({});
   const selectedMonth = useMemo(() => startOfMonth(selectedDate), [selectedDate]);
   const visibleMonth = visibleMonthOverride ?? selectedMonth;
 
@@ -62,10 +64,12 @@ export function DatePickerDialog({
         const body = (await response.json()) as RecordDatesResponse;
         if (!active) return;
         setRecordDates(new Set(body.dates ?? []));
+        setRecordDeficits(body.deficits ?? {});
       })
       .catch(() => {
         if (!active) return;
         setRecordDates(new Set());
+        setRecordDeficits({});
       });
 
     return () => {
@@ -103,7 +107,7 @@ export function DatePickerDialog({
       <DialogContent className="max-w-sm p-0">
         <DialogHeader className="border-b border-stone-200 px-4 py-4">
           <DialogTitle>Select date</DialogTitle>
-          <DialogDescription>Blue dots show days with at least one active record.</DialogDescription>
+          <DialogDescription>Shows daily calorie deficit (+) or surplus (-) for days with active records.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-4 py-4">
           <div className="flex items-center justify-between">
@@ -139,12 +143,13 @@ export function DatePickerDialog({
               const iso = format(day, "yyyy-MM-dd");
               const isSelected = isSameDay(day, selectedDate);
               const hasRecord = recordDates.has(iso);
+              const deficit = recordDeficits[iso];
 
               return (
                 <button
                   key={iso}
                   className={cn(
-                    "flex aspect-square min-w-0 flex-col items-center justify-center rounded-lg border text-sm transition",
+                    "flex aspect-square min-w-0 flex-col items-center justify-center rounded-lg border transition",
                     isSelected
                       ? "border-emerald-600 bg-emerald-50 font-semibold text-emerald-800"
                       : "border-transparent text-stone-700 hover:border-stone-200 hover:bg-stone-50",
@@ -157,8 +162,23 @@ export function DatePickerDialog({
                   }}
                   type="button"
                 >
-                  <span className={cn("mb-1 h-1.5 w-1.5 rounded-full", hasRecord ? "bg-sky-500" : "bg-transparent")} />
-                  <span>{format(day, "d")}</span>
+                  <span className="text-xs font-semibold leading-none">{format(day, "d")}</span>
+                  {hasRecord ? (
+                    deficit !== undefined && deficit !== null ? (
+                      <span
+                        className={cn(
+                          "text-[9px] font-bold mt-1 leading-none",
+                          deficit >= 0 ? "text-emerald-600" : "text-amber-500"
+                        )}
+                      >
+                        {deficit >= 0 ? `+${Math.round(deficit)}` : `${Math.round(deficit)}`}
+                      </span>
+                    ) : (
+                      <span className="mt-1.5 h-1 w-1 rounded-full bg-stone-400" />
+                    )
+                  ) : (
+                    <span className="mt-1 h-1 bg-transparent" />
+                  )}
                 </button>
               );
             })}

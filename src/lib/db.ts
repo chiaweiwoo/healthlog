@@ -306,7 +306,7 @@ export async function listDailyEntries(date: string) {
 
 export async function listDailyEntryDates(from: string, to: string) {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  const { data: entryData, error: entryError } = await supabase
     .from("daily_entries")
     .select("entry_date")
     .eq("is_active", true)
@@ -314,9 +314,28 @@ export async function listDailyEntryDates(from: string, to: string) {
     .lte("entry_date", to)
     .order("entry_date", { ascending: true });
 
-  if (error) throw error;
-  const uniqueDates = [...new Set(((data ?? []) as DailyEntryDateRow[]).map((row) => row.entry_date))];
-  return uniqueDates;
+  if (entryError) throw entryError;
+  const uniqueDates = [...new Set(((entryData ?? []) as { entry_date: string }[]).map((row) => row.entry_date))];
+
+  const { data: summaryData, error: summaryError } = await supabase
+    .from("daily_summaries")
+    .select("entry_date, estimated_deficit")
+    .gte("entry_date", from)
+    .lte("entry_date", to);
+
+  if (summaryError) throw summaryError;
+
+  const deficits: Record<string, number | null> = {};
+  for (const row of (summaryData ?? [])) {
+    deficits[row.entry_date] = row.estimated_deficit !== null && row.estimated_deficit !== undefined
+      ? Number(row.estimated_deficit)
+      : null;
+  }
+
+  return {
+    dates: uniqueDates,
+    deficits,
+  };
 }
 
 export async function listActiveEntryDates() {

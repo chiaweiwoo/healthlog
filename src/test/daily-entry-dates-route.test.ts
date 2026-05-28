@@ -27,13 +27,23 @@ describe("/api/daily-entry-dates", () => {
 
   it("returns active record dates in the requested range", async () => {
     const { GET } = await import("@/app/api/daily-entry-dates/route");
-    mockListDailyEntryDates.mockResolvedValue(["2026-05-24", "2026-05-25"]);
+    mockListDailyEntryDates.mockResolvedValue({
+      dates: ["2026-05-24", "2026-05-25"],
+      deficits: {
+        "2026-05-24": 350,
+        "2026-05-25": -150,
+      },
+    });
 
     const response = await GET(new NextRequest("http://localhost/api/daily-entry-dates?from=2026-05-01&to=2026-05-31"));
 
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.dates).toEqual(["2026-05-24", "2026-05-25"]);
+    expect(body.deficits).toEqual({
+      "2026-05-24": 350,
+      "2026-05-25": -150,
+    });
     expect(mockListDailyEntryDates).toHaveBeenCalledWith("2026-05-01", "2026-05-31");
   });
 });

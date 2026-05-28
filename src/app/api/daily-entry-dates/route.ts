@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const from = isoDateSchema.parse(request.nextUrl.searchParams.get("from"));
     const to = isoDateSchema.parse(request.nextUrl.searchParams.get("to"));
-    const dates = await listDailyEntryDates(from, to);
+    const { dates, deficits } = await listDailyEntryDates(from, to);
 
     await logUserAction({
       requestId,
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       userAgent: request.headers.get("user-agent"),
     });
 
-    return Response.json({ dates, requestId });
+    return Response.json({ dates, deficits, requestId });
   } catch (error) {
     await logUserAction({
       requestId,
