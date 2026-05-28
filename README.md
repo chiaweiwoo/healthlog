@@ -76,7 +76,11 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 - Baseline lifestyle and profile context can be managed from the profile page
 - The mobile dashboard prefers dense list rows over decorative metric cards
 - The Analysis page is a compact rolling review, not a card-heavy coaching surface
-- Analysis uses one clean outer card with compact `Good` / `Watch` rows and short, precise body copy
+- Analysis uses one clean outer card with compact `Good` / `Watch` rows
+- Analysis row titles are Title Case: `Calorie Outcome`, `Protein Intake`, `Water Intake`, `Energy Split`
+- Each Analysis row is one short visible sentence, not a metric block plus a second explanation line
+- `Watch` copy should give a concrete suggestion; `Good` copy should briefly reinforce what is working
+- Avoid spending the compact row sentence on generic limited-data caveats when there is already enough signal to give a useful takeaway
 - The Analysis "Energy split" row uses calorie contribution, not gram percentages:
   - protein = 4 kcal/g
   - carbs = 4 kcal/g

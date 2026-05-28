@@ -282,8 +282,18 @@ CI should run lint, typecheck, tests, and production build.
 - Analysis rows use only two visible states: `Good` and `Watch`. Let row tint
   and status color carry urgency; keep the body sentence plain, short, and
   informative rather than richly formatted.
-- The Analysis page should help the user feel "I get it" quickly. Favor one
-  precise sentence with the key number over longer advice blocks.
+- Analysis row titles are Title Case: `Calorie Outcome`, `Protein Intake`,
+  `Water Intake`, `Energy Split`.
+- The Analysis page should help the user feel "I get it" quickly. Each row
+  should read as one compact sentence, not a metric line plus a second block of
+  explanation.
+- For saved analysis reports, the LLM message is the whole visible row sentence.
+  Keep it to one short sentence with a useful takeaway.
+- `Watch` rows should include a concrete next step or correction, not a vague
+  complaint about sparse data. `Good` rows should briefly reinforce what is
+  working.
+- Do not spend the compact row sentence on "limited data", "track more days",
+  or similar caveats when there is already enough signal to offer a suggestion.
 - The Analysis "Energy split" row is based on calorie contribution, not gram
   weight. Use protein = 4 kcal/g, carbs = 4 kcal/g, fat = 9 kcal/g, alcohol =
   7 kcal/g, and include alcohol in the decomposition when present.
