@@ -715,7 +715,7 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
       </div>
 
       <div className="space-y-8">
-        {/* TDEE Quota Breakdown Card */}
+        {/* TDEE Quota Breakdown Card with Simple Pie Chart */}
         <div className="bg-white border border-stone-200/60 rounded-lg p-4 shadow-inner space-y-4">
           <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
             <span className="flex items-center gap-1.5">
@@ -727,63 +727,107 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
-              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">BMR (Sleep)</span>
-              <p className="text-xs font-bold text-stone-700 mt-0.5">{avgBmr} kcal</p>
-              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctBmr)}%</span>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
+            {/* Left: Simple Pie Chart */}
+            <div className="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 100 100" className="w-full h-full font-sans select-none overflow-visible">
+                <circle cx="50" cy="50" r="25" fill="none" stroke="#f5f5f4" strokeWidth="50" />
+                
+                {pctBmr > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="25"
+                    fill="none"
+                    stroke="#3f3f46"
+                    strokeWidth="50"
+                    strokeDasharray="157.08"
+                    strokeDashoffset={157.08 - (pctBmr / 100) * 157.08}
+                    transform="rotate(-90 50 50)"
+                  />
+                )}
+                {pctNeat > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="25"
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="50"
+                    strokeDasharray="157.08"
+                    strokeDashoffset={157.08 - (pctNeat / 100) * 157.08}
+                    transform={`rotate(${-90 + (pctBmr / 100) * 360} 50 50)`}
+                  />
+                )}
+                {pctTef > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="25"
+                    fill="none"
+                    stroke="#fcd34d"
+                    strokeWidth="50"
+                    strokeDasharray="157.08"
+                    strokeDashoffset={157.08 - (pctTef / 100) * 157.08}
+                    transform={`rotate(${-90 + ((pctBmr + pctNeat) / 100) * 360} 50 50)`}
+                  />
+                )}
+                {pctEat > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="25"
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="50"
+                    strokeDasharray="157.08"
+                    strokeDashoffset={157.08 - (pctEat / 100) * 157.08}
+                    transform={`rotate(${-90 + ((pctBmr + pctNeat + pctTef) / 100) * 360} 50 50)`}
+                  />
+                )}
+              </svg>
             </div>
-            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
-              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Activity (NEAT)</span>
-              <p className="text-xs font-bold text-stone-600 mt-0.5">{avgNeat} kcal</p>
-              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctNeat)}%</span>
-            </div>
-            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
-              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Digestion (TEF)</span>
-              <p className="text-xs font-bold text-amber-600 mt-0.5">{avgTef} kcal</p>
-              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctTef)}%</span>
-            </div>
-            <div className="bg-stone-50 border border-stone-200/60 rounded-lg p-2.5">
-              <span className="text-[9px] uppercase font-bold text-stone-400 tracking-wider">Exercise (EAT)</span>
-              <p className="text-xs font-bold text-emerald-600 mt-0.5">{avgEat} kcal</p>
-              <span className="text-[9px] font-medium text-stone-400">{formatPct(pctEat)}%</span>
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <div className="h-4 w-full bg-stone-100 rounded-full overflow-hidden border border-stone-200/50 flex">
-              {pctBmr > 0 && (
-                <div
-                  className="h-full bg-zinc-700 transition-all duration-300"
-                  style={{ width: `${pctBmr}%` }}
-                  title={`BMR: ${formatPct(pctBmr)}%`}
-                />
-              )}
-              {pctNeat > 0 && (
-                <div
-                  className="h-full bg-slate-400 transition-all duration-300"
-                  style={{ width: `${pctNeat}%` }}
-                  title={`NEAT: ${formatPct(pctNeat)}%`}
-                />
-              )}
-              {pctTef > 0 && (
-                <div
-                  className="h-full bg-amber-300 transition-all duration-300"
-                  style={{ width: `${pctTef}%` }}
-                  title={`TEF: ${formatPct(pctTef)}%`}
-                />
-              )}
-              {pctEat > 0 && (
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-300"
-                  style={{ width: `${pctEat}%` }}
-                  title={`EAT: ${formatPct(pctEat)}%`}
-                />
-              )}
-            </div>
-            <div className="flex justify-between items-center text-[10px] text-stone-500 font-semibold px-0.5">
-              <span>Total TDEE (Average Daily Quota)</span>
-              <span className="text-stone-850 font-bold">{avgTdee} kcal</span>
+            {/* Right: Legend & Metrics List */}
+            <div className="flex-1 w-full space-y-2">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
+                  <span className="h-2.5 w-2.5 rounded-full bg-zinc-700 shrink-0" />
+                  <div className="text-left leading-none">
+                    <p className="font-bold text-stone-700">{avgBmr} kcal</p>
+                    <span className="text-[9px] text-stone-400 font-semibold">BMR ({formatPct(pctBmr)}%)</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-400 shrink-0" />
+                  <div className="text-left leading-none">
+                    <p className="font-bold text-stone-600">{avgNeat} kcal</p>
+                    <span className="text-[9px] text-stone-400 font-semibold">NEAT ({formatPct(pctNeat)}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-300 shrink-0" />
+                  <div className="text-left leading-none">
+                    <p className="font-bold text-amber-600">{avgTef} kcal</p>
+                    <span className="text-[9px] text-stone-400 font-semibold">TEF ({formatPct(pctTef)}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <div className="text-left leading-none">
+                    <p className="font-bold text-emerald-600">{avgEat} kcal</p>
+                    <span className="text-[9px] text-stone-400 font-semibold">EAT ({formatPct(pctEat)}%)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs font-bold text-stone-700 bg-stone-50/80 border border-stone-200/60 rounded-lg p-2 mt-2">
+                <span>Total TDEE (Daily Quota)</span>
+                <span className="text-stone-900 font-extrabold">{avgTdee} kcal</span>
+              </div>
             </div>
           </div>
         </div>
