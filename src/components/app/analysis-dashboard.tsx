@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calendar, Flame, Dumbbell, Droplets, PieChart, Compass, BookOpen, Utensils, Activity } from "lucide-react";
+import { Calendar, Flame, Dumbbell, Droplets, PieChart, BookOpen, Utensils, Activity, Info } from "lucide-react";
 import { AnalysisStats, FocusArea, ProfileGap } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
@@ -11,9 +11,10 @@ type DeeperAnalysisRow = {
   examples: Array<{
     date: string;
     time: string | null;
-    rawNote: string;
-    parsedInfo: string;
+    parsedSummary?: string;
+    parsedInfo?: string;
     reason: string;
+    confidence?: number | null;
   }>;
 };
 
@@ -55,7 +56,6 @@ type AIReportPayload = {
     insights?: string;
     recommendation?: string;
   };
-  overallAnalysis?: DeeperAnalysisRow;
   loggingHabitAnalysis?: DeeperAnalysisRow;
   mealChoiceAnalysis?: DeeperAnalysisRow;
   exerciseHabitAnalysis?: DeeperAnalysisRow;
@@ -80,17 +80,23 @@ export type DailyHistoryItem = {
 
 type StatusTone = "good" | "watch";
 
-type AnalysisRowItem = {
+type UnifiedRowItem = {
   key: string;
   title: string;
   icon: typeof Flame;
   iconClassName: string;
-  status: string;
+  status: "Good" | "Watch";
   tone: StatusTone;
   body: string;
+  examples?: Array<{
+    date: string;
+    time: string | null;
+    parsedSummary?: string;
+    parsedInfo?: string;
+    reason: string;
+    confidence?: number | null;
+  }>;
 };
-
-type EnergySplitEntry = AnalysisStats["energySplit"]["entries"][number];
 
 function formatDate(dateStr: string) {
   try {
@@ -154,12 +160,15 @@ function resolveLegacyMessage(parts: Array<string | null | undefined>) {
   return null;
 }
 
-function AnalysisStatusRow({
+function UnifiedAnalysisRow({
   item,
+  onShowEvidence,
 }: {
-  item: AnalysisRowItem;
+  item: UnifiedRowItem;
+  onShowEvidence?: (title: string, examples: Exclude<UnifiedRowItem["examples"], undefined>) => void;
 }) {
   const Icon = item.icon;
+  const hasEvidence = item.examples && item.examples.length > 0;
 
   return (
     <section
@@ -167,10 +176,24 @@ function AnalysisStatusRow({
       className={cn("space-y-1", rowClasses(item.tone))}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Icon size={15} className={cn("mt-0.5 shrink-0", item.iconClassName)} />
-            <h2 className="text-sm font-semibold text-stone-900">{item.title}</h2>
+        <div className="min-w-0 space-y-0.5 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Icon size={15} className={cn("shrink-0", item.iconClassName)} />
+            <h2 className="text-sm font-semibold text-stone-900 leading-none">{item.title}</h2>
+            {hasEvidence && onShowEvidence && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShowEvidence(item.title, item.examples || []);
+                }}
+                className="inline-flex items-center justify-center text-stone-400 hover:text-stone-600 focus:outline-hidden transition-colors cursor-pointer"
+                title="View evidence"
+                aria-label={`View evidence for ${item.title}`}
+              >
+                <Info size={13} />
+              </button>
+            )}
           </div>
           <p className="text-[12px] leading-snug text-stone-700">{item.body}</p>
         </div>
@@ -187,86 +210,84 @@ function AnalysisStatusRow({
   );
 }
 
-function DeeperStatusRow({
+function EvidenceModal({
+  isOpen,
+  onClose,
   title,
-  icon: Icon,
-  iconClassName,
-  data,
+  examples,
 }: {
+  isOpen: boolean;
+  onClose: () => void;
   title: string;
-  icon: typeof Compass;
-  iconClassName: string;
-  data: DeeperAnalysisRow;
+  examples: Array<{
+    date: string;
+    time: string | null;
+    parsedSummary?: string;
+    parsedInfo?: string;
+    reason: string;
+    confidence?: number | null;
+  }>;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const statusLabel = data.status === "good" ? "Good" : "Watch";
-  const hasExamples = data.examples && data.examples.length > 0;
+  if (!isOpen) return null;
 
   return (
-    <section
-      data-testid={`deeper-row-${title.toLowerCase().replace(/\s+/g, "-")}`}
-      onClick={() => {
-        if (hasExamples) setIsExpanded(!isExpanded);
-      }}
-      className={cn(
-        "space-y-2.5 transition-all duration-200 select-none",
-        rowClasses(data.status),
-        hasExamples ? "cursor-pointer hover:bg-stone-50/30" : "cursor-default"
-      )}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-xs p-4"
+      onClick={onClose}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Icon size={15} className={cn("mt-0.5 shrink-0", iconClassName)} />
-            <h2 className="text-sm font-semibold text-stone-900">{title}</h2>
-            {hasExamples && (
-              <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider bg-white/80 border border-stone-200/50 px-1 py-0.2 rounded leading-none">
-                {isExpanded ? "Collapse" : `+${data.examples.length} Evidence`}
-              </span>
-            )}
-          </div>
-          <p className="text-[12px] leading-snug text-stone-700">{data.message}</p>
+      <div
+        className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-5 shadow-lg space-y-4 max-h-[85vh] overflow-y-auto animate-fadeIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+          <h3 className="text-sm font-bold text-stone-950">{title} Evidence</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-stone-450 hover:text-stone-600 text-xs font-semibold px-2 py-1 rounded-md hover:bg-stone-100 transition-colors"
+          >
+            Close
+          </button>
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none",
-            pillClasses(data.status),
-          )}
-        >
-          {statusLabel}
-        </span>
-      </div>
 
-      {isExpanded && hasExamples && (
-        <div className="space-y-2 border-t border-stone-200/40 pt-2 animate-fadeIn">
-          {data.examples.slice(0, 3).map((ex, idx) => {
+        <div className="space-y-3">
+          {examples.map((ex, idx) => {
             const timeStr = ex.time ? `, ${ex.time}` : "";
             const formattedDate = formatDate(ex.date) + timeStr;
+            const parsedSummary = ex.parsedSummary || ex.parsedInfo || "N/A";
+            const confidencePercent = typeof ex.confidence === "number"
+              ? `${Math.round(ex.confidence * 100)}%`
+              : null;
+
             return (
               <div
                 key={idx}
-                className="bg-white/80 border border-stone-100 rounded-md p-2 text-[11.5px] space-y-1 shadow-2xs"
+                className="rounded-lg border border-stone-150 bg-stone-50/40 p-3 space-y-2 text-[12px]"
               >
-                <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                  {formattedDate}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                    {formattedDate}
+                  </span>
+                  {confidencePercent && (
+                    <span className="text-[9px] font-medium text-stone-500 bg-stone-200/50 px-1.5 py-0.5 rounded">
+                      Confidence: {confidencePercent}
+                    </span>
+                  )}
                 </div>
-                <div className="text-stone-850">
-                  <span className="text-stone-400 text-[9px] font-bold uppercase mr-1">Log:</span>
-                  &quot;{ex.rawNote}&quot;
+
+                <div className="text-stone-850 font-medium leading-snug">
+                  {parsedSummary}
                 </div>
-                <div className="text-stone-700">
-                  <span className="text-stone-400 text-[9px] font-bold uppercase mr-1">Parsed:</span>
-                  {ex.parsedInfo}
-                </div>
-                <div className="text-indigo-800 text-[11px] bg-indigo-50/40 rounded px-1.5 py-0.5 inline-block font-medium">
-                  <span className="font-semibold text-indigo-900">Reason:</span> {ex.reason}
+
+                <div className="border-t border-stone-200/40 pt-1.5 text-stone-600 leading-snug">
+                  <span className="font-semibold text-stone-700">Reason:</span> {ex.reason}
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
 
@@ -280,6 +301,17 @@ export function AnalysisDashboard({
   dailyHistory?: DailyHistoryItem[];
 }) {
   const totalDaysInPeriod = 14;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalExamples, setModalExamples] = useState<Array<{
+    date: string;
+    time: string | null;
+    parsedSummary?: string;
+    parsedInfo?: string;
+    reason: string;
+    confidence?: number | null;
+  }>>([]);
+
   const currentWaterTarget = useMemo(() => {
     for (let idx = dailyHistory.length - 1; idx >= 0; idx -= 1) {
       const candidate = dailyHistory[idx]?.waterTarget;
@@ -355,38 +387,6 @@ export function AnalysisDashboard({
   const proteinAnalysis = report?.proteinAnalysis || fallbackAI?.proteinAnalysis;
   const macroAnalysis = report?.macroAnalysis || fallbackAI?.macroAnalysis;
 
-  const overallAnalysis = report?.overallAnalysis || {
-    status: stats.consistencyScore >= 0.7 ? "good" : "watch",
-    message: stats.consistencyScore >= 0.7
-      ? "Tracking consistency is good; align intake with active fitness goals."
-      : "Logging is sparse; track more days to establish a clear trend.",
-    examples: [],
-  };
-
-  const loggingHabitAnalysis = report?.loggingHabitAnalysis || {
-    status: stats.consistencyScore >= 0.8 ? "good" : "watch",
-    message: stats.consistencyScore >= 0.8
-      ? "Daily meal logs are frequent and timestamped consistently."
-      : "Try to log meals closer to when they occur to preserve timing details.",
-    examples: [],
-  };
-
-  const mealChoiceAnalysis = report?.mealChoiceAnalysis || {
-    status: stats.averageProteinG >= 100 ? "good" : "watch",
-    message: stats.averageProteinG >= 100
-      ? "Meal selections provide high protein density to support muscle mass."
-      : "Focus on pairing high-protein sources with calorie-dense meals.",
-    examples: [],
-  };
-
-  const exerciseHabitAnalysis = report?.exerciseHabitAnalysis || {
-    status: stats.averageExerciseCalories >= 150 ? "good" : "watch",
-    message: stats.averageExerciseCalories >= 150
-      ? "Logged workout energy matches profile baseline activity levels."
-      : "Record workout sessions regularly to ensure precise TDEE calculations.",
-    examples: [],
-  };
-
   const consistencyPills = useMemo(() => {
     const pills = Array.from({ length: totalDaysInPeriod }).map((_, idx) => {
       if (idx < dailyHistory.length) {
@@ -402,8 +402,8 @@ export function AnalysisDashboard({
     [stats.energySplit.entries],
   );
 
-  const analysisRows = useMemo<AnalysisRowItem[]>(() => {
-    const rows: AnalysisRowItem[] = [];
+  const analysisRows = useMemo<UnifiedRowItem[]>(() => {
+    const rows: UnifiedRowItem[] = [];
 
     if (calorieAnalysis) {
       const calorieTone: StatusTone =
@@ -492,9 +492,6 @@ export function AnalysisDashboard({
     }
 
     if (macroAnalysis) {
-      const energyShares = Object.fromEntries(
-        stats.energySplit.entries.map((entry) => [entry.label, entry.percentage]),
-      ) as Record<EnergySplitEntry["label"], number>;
       const dominantSource =
         [...stats.energySplit.entries].sort((a, b) => b.percentage - a.percentage)[0] ?? null;
       const macroGood =
@@ -502,10 +499,7 @@ export function AnalysisDashboard({
           ? true
           : macroAnalysis.status === "watch"
             ? false
-            : energyShares.alcohol < 10 &&
-              energyShares.carbs <= 55 &&
-              energyShares.fat <= 40 &&
-              energyShares.protein >= 15;
+            : true;
       const macroFollowup =
         trimClause(macroAnalysis.message) ||
         resolveLegacyMessage([macroAnalysis.insights, macroAnalysis.recommendation]);
@@ -529,8 +523,85 @@ export function AnalysisDashboard({
       });
     }
 
+    const loggingHabitAnalysis = report?.loggingHabitAnalysis || {
+      status: stats.consistencyScore >= 0.8 ? "good" : "watch",
+      message: stats.consistencyScore >= 0.8
+        ? "Daily meal logs are frequent and timestamped consistently."
+        : "Try to log meals closer to when they occur to preserve timing details.",
+      examples: [],
+    };
+
+    const toneLogging: StatusTone = loggingHabitAnalysis.status === "good" ? "good" : "watch";
+    rows.push({
+      key: "logging",
+      title: "Logging Habit",
+      icon: BookOpen,
+      iconClassName: "text-stone-500",
+      status: loggingHabitAnalysis.status === "good" ? "Good" : "Watch",
+      tone: toneLogging,
+      body: loggingHabitAnalysis.message,
+      examples: loggingHabitAnalysis.examples,
+    });
+
+    const mealChoiceAnalysis = report?.mealChoiceAnalysis || {
+      status: stats.averageProteinG >= 100 ? "good" : "watch",
+      message: stats.averageProteinG >= 100
+        ? "Meal selections provide high protein density to support muscle mass."
+        : "Focus on pairing high-protein sources with calorie-dense meals.",
+      examples: [],
+    };
+
+    const toneMeals: StatusTone = mealChoiceAnalysis.status === "good" ? "good" : "watch";
+    rows.push({
+      key: "meals",
+      title: "Meal Choices",
+      icon: Utensils,
+      iconClassName: "text-amber-500",
+      status: mealChoiceAnalysis.status === "good" ? "Good" : "Watch",
+      tone: toneMeals,
+      body: mealChoiceAnalysis.message,
+      examples: mealChoiceAnalysis.examples,
+    });
+
+    const exerciseHabitAnalysis = report?.exerciseHabitAnalysis || {
+      status: stats.averageExerciseCalories >= 150 ? "good" : "watch",
+      message: stats.averageExerciseCalories >= 150
+        ? "Logged workout energy matches profile baseline activity levels."
+        : "Record workout sessions regularly to ensure precise TDEE calculations.",
+      examples: [],
+    };
+
+    const toneExercise: StatusTone = exerciseHabitAnalysis.status === "good" ? "good" : "watch";
+    rows.push({
+      key: "exercise",
+      title: "Exercise Fit",
+      icon: Activity,
+      iconClassName: "text-emerald-500",
+      status: exerciseHabitAnalysis.status === "good" ? "Good" : "Watch",
+      tone: toneExercise,
+      body: exerciseHabitAnalysis.message,
+      examples: exerciseHabitAnalysis.examples,
+    });
+
     return rows;
-  }, [calorieAnalysis, currentWaterTarget, energySplitEntries, macroAnalysis, proteinAnalysis, stats, waterAnalysis]);
+  }, [
+    calorieAnalysis,
+    proteinAnalysis,
+    waterAnalysis,
+    macroAnalysis,
+    report,
+    stats,
+    currentWaterTarget,
+    energySplitEntries
+  ]);
+
+  const goodCount = useMemo(() => {
+    return analysisRows.filter((r) => r.tone === "good").length;
+  }, [analysisRows]);
+
+  const watchCount = useMemo(() => {
+    return analysisRows.filter((r) => r.tone === "watch").length;
+  }, [analysisRows]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">
@@ -559,49 +630,50 @@ export function AnalysisDashboard({
         </div>
       </div>
 
-      {/* 2. CORE PERSPECTIVES PANEL */}
+      {/* 2. HEALTH SNAPSHOT CARD */}
+      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm flex items-center justify-between text-xs text-stone-700 font-medium">
+        <div className="flex items-center gap-1">
+          <span className="font-bold text-stone-900 text-sm">7</span> checks
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-600/25" />
+            <span className="font-bold text-emerald-700">{goodCount}</span> Good
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600/25" />
+            <span className="font-bold text-red-700">{watchCount}</span> Watch
+          </div>
+        </div>
+        <div className="text-stone-500">
+          <span className="font-bold text-stone-700">{stats.completeDays}</span> / 14 logged
+        </div>
+      </div>
+
+      {/* 3. UNIFIED ANALYSIS rows PANEL */}
       <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm">
         <div className="space-y-2">
           {analysisRows.map((item) => (
-            <AnalysisStatusRow key={item.key} item={item} />
+            <UnifiedAnalysisRow
+              key={item.key}
+              item={item}
+              onShowEvidence={(title, examples) => {
+                setModalTitle(title);
+                setModalExamples(examples);
+                setIsModalOpen(true);
+              }}
+            />
           ))}
         </div>
       </div>
 
-      {/* 3. DEEPER REVIEW PANEL */}
-      <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 shadow-sm space-y-3">
-        <div className="border-b border-stone-200/60 pb-1.5">
-          <h2 className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-            Deeper Review
-          </h2>
-        </div>
-        <div className="space-y-2">
-          <DeeperStatusRow
-            title="Overall Direction"
-            icon={Compass}
-            iconClassName="text-indigo-500"
-            data={overallAnalysis}
-          />
-          <DeeperStatusRow
-            title="Logging Habit"
-            icon={BookOpen}
-            iconClassName="text-stone-500"
-            data={loggingHabitAnalysis}
-          />
-          <DeeperStatusRow
-            title="Meal Choices"
-            icon={Utensils}
-            iconClassName="text-amber-500"
-            data={mealChoiceAnalysis}
-          />
-          <DeeperStatusRow
-            title="Exercise Fit"
-            icon={Activity}
-            iconClassName="text-emerald-500"
-            data={exerciseHabitAnalysis}
-          />
-        </div>
-      </div>
+      {/* Evidence Modal Component */}
+      <EvidenceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalTitle}
+        examples={modalExamples}
+      />
     </div>
   );
 }

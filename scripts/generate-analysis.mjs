@@ -195,9 +195,9 @@ const categoryAnalysisSchema = z.object({
 const deeperCategoryExampleSchema = z.object({
   date: z.string().min(1),
   time: z.string().nullable(),
-  rawNote: z.string().min(1),
-  parsedInfo: z.string().min(1),
+  parsedSummary: z.string().min(1),
   reason: z.string().min(1),
+  confidence: z.number().nullable().optional(),
 });
 
 const deeperCategorySchema = z.object({
@@ -216,7 +216,6 @@ const analysisReportPayloadSchema = z.object({
   calorieAnalysis: categoryAnalysisSchema,
   proteinAnalysis: categoryAnalysisSchema,
   macroAnalysis: categoryAnalysisSchema,
-  overallAnalysis: deeperCategorySchema,
   loggingHabitAnalysis: deeperCategorySchema,
   mealChoiceAnalysis: deeperCategorySchema,
   exerciseHabitAnalysis: deeperCategorySchema,
@@ -255,17 +254,28 @@ function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage)
       const itemSrc = item && typeof item === "object" ? item : {};
       const date = typeof itemSrc.date === "string" ? itemSrc.date.trim() : "";
       const time = typeof itemSrc.time === "string" ? itemSrc.time.trim() : null;
-      const rawNote = typeof itemSrc.rawNote === "string" ? itemSrc.rawNote.trim() : typeof itemSrc.raw_note === "string" ? itemSrc.raw_note.trim() : "";
-      const parsedInfo = typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() : typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+
+      const parsedSummary = typeof itemSrc.parsedSummary === "string" ? itemSrc.parsedSummary.trim() :
+                            typeof itemSrc.parsed_summary === "string" ? itemSrc.parsed_summary.trim() :
+                            typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() :
+                            typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+
       const reason = typeof itemSrc.reason === "string" ? itemSrc.reason.trim() : "";
-      return { date, time, rawNote, parsedInfo, reason };
+
+      let confidence = null;
+      if (itemSrc.confidence !== undefined && itemSrc.confidence !== null) {
+        const parsedConf = Number(itemSrc.confidence);
+        if (Number.isFinite(parsedConf)) confidence = parsedConf;
+      }
+
+      return { date, time, parsedSummary, reason, confidence };
     })
-    .filter((ex) => ex.date.length > 0 && ex.rawNote.length > 0);
+    .filter((ex) => ex.date.length > 0 && ex.parsedSummary.length > 0);
 
   return {
     status,
     message,
-    examples: examples.slice(0, 3),
+    examples,
   };
 }
 
@@ -326,11 +336,6 @@ function normalizeAnalysisReportResult(value) {
     "Energy split needs a clearer read from the available logs.",
   );
 
-  const overallAnalysis = normalizeDeeperCategoryAnalysis(
-    record.overallAnalysis,
-    "watch",
-    "Overall progression needs to be evaluated from more logs."
-  );
   const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.loggingHabitAnalysis,
     "watch",
@@ -357,7 +362,6 @@ function normalizeAnalysisReportResult(value) {
     calorieAnalysis,
     proteinAnalysis,
     macroAnalysis,
-    overallAnalysis,
     loggingHabitAnalysis,
     mealChoiceAnalysis,
     exerciseHabitAnalysis,
@@ -793,19 +797,6 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
     "status": "good" | "watch",
     "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
   },
-  "overallAnalysis": {
-    "status": "good" | "watch",
-    "message": "One compact sentence assessing the whole-period read across intake, hydration, exercise, and goal fit.",
-    "examples": [
-      {
-        "date": "YYYY-MM-DD",
-        "time": "HH:MM" or null,
-        "rawNote": "Exact raw note snippet from logs",
-        "parsedInfo": "Parsed summary of the item",
-        "reason": "Why this specific log is evidence of overall direction fit"
-      }
-    ]
-  },
   "loggingHabitAnalysis": {
     "status": "good" | "watch",
     "message": "One compact sentence assessing log frequency, specificity, and timestamping.",
@@ -813,9 +804,9 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
       {
         "date": "YYYY-MM-DD",
         "time": "HH:MM" or null,
-        "rawNote": "Exact raw note snippet from logs",
-        "parsedInfo": "Parsed summary of the item",
-        "reason": "Why this specific log shows high/low specificity or timeliness"
+        "parsedSummary": "Clean parsed summary of the item or action",
+        "reason": "Why this specific log shows high/low specificity or timeliness",
+        "confidence": number or null
       }
     ]
   },
@@ -826,9 +817,9 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
       {
         "date": "YYYY-MM-DD",
         "time": "HH:MM" or null,
-        "rawNote": "Exact raw note snippet from logs",
-        "parsedInfo": "Parsed summary of the item",
-        "reason": "Why this meal is evidence of quality or repeated dense patterns"
+        "parsedSummary": "Clean parsed summary of the item or action",
+        "reason": "Why this meal is evidence of quality or repeated dense patterns",
+        "confidence": number or null
       }
     ]
   },
@@ -839,9 +830,9 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
       {
         "date": "YYYY-MM-DD",
         "time": "HH:MM" or null,
-        "rawNote": "Exact raw note snippet from logs",
-        "parsedInfo": "Parsed summary of the item",
-        "reason": "Why this log is evidence of exercise alignment or gap"
+        "parsedSummary": "Clean parsed summary of the item or action",
+        "reason": "Why this log is evidence of exercise alignment or gap",
+        "confidence": number or null
       }
     ]
   }
@@ -861,6 +852,10 @@ STYLE RULES:
 - Avoid repeating all the numbers already shown in the UI.
 - Keep each category message to one sentence only.
 - For "examples" arrays in deeper analysis objects, provide up to 3 real, specific log items as evidence. Do not make up examples that do not exist in the COMPLETE LOG TIMELINE.
+- Do NOT output "rawNote" or "raw_note" inside the examples. Use "parsedSummary" instead to describe the log item cleanly (e.g., "Egg fried rice (600 kcal)" or "+400ml water").
+- Ensure the mealChoiceAnalysis message addresses food-quality patterns (sugar, fried foods, fiber/veggies, protein pairing, alcohol, snack density) directly.
+- Ensure the loggingHabitAnalysis message addresses log frequency, specificity, and timestamping directly.
+- Ensure the exerciseHabitAnalysis message addresses how logged exercise frequency/type aligns with the user's goal directly.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

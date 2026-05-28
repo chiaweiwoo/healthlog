@@ -147,16 +147,16 @@ describe("7-Day Analysis Schemas", () => {
       ],
       profileGaps: [],
       confidence: "high" as const,
-      overallAnalysis: {
+      loggingHabitAnalysis: {
         status: "good" as const,
         message: "Consistency is excellent; align goals.",
         examples: [
           {
             date: "2026-05-25",
             time: "08:30",
-            rawNote: "eggs",
-            parsedInfo: "eggs - 140 kcal",
+            parsedSummary: "eggs - 140 kcal",
             reason: "High consistency breakfast",
+            confidence: 0.95,
           }
         ],
       },
@@ -164,8 +164,10 @@ describe("7-Day Analysis Schemas", () => {
 
     const parsed = analysisReportPayloadSchema.parse(fullPayload);
     expect(parsed.confidence).toBe("high");
-    expect(parsed.overallAnalysis?.status).toBe("good");
-    expect(parsed.overallAnalysis?.examples).toHaveLength(1);
+    expect(parsed.loggingHabitAnalysis?.status).toBe("good");
+    expect(parsed.loggingHabitAnalysis?.examples).toHaveLength(1);
+    expect(parsed.loggingHabitAnalysis?.examples?.[0].parsedSummary).toBe("eggs - 140 kcal");
+    expect(parsed.loggingHabitAnalysis?.examples?.[0].confidence).toBe(0.95);
   });
 });
 
@@ -185,16 +187,16 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
         { parameter: "Weight", whyItMatters: "MSJ calculation accuracy", improveAdvice: "Add weight" }
       ],
       confidence: "MEDIUM",
-      overallAnalysis: {
+      loggingHabitAnalysis: {
         status: "  WATCH  ",
         message: "   Logging is sparse. ",
         examples: [
           {
             date: "2026-05-25",
             time: "08:30",
-            raw_note: "  skip breakfast  ",
-            parsed_info: "note - 0 kcal",
+            parsed_summary: "  note - 0 kcal  ",
             reason: "Missing macro values",
+            confidence: "0.8",
           }
         ],
       },
@@ -209,10 +211,11 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     expect(normalized.profileGaps).toHaveLength(1);
     expect(normalized.profileGaps[0].parameter).toBe("Weight");
     expect(normalized.confidence).toBe("medium");
-    expect(normalized.overallAnalysis.status).toBe("watch");
-    expect(normalized.overallAnalysis.message).toBe("Logging is sparse.");
-    expect(normalized.overallAnalysis.examples).toHaveLength(1);
-    expect(normalized.overallAnalysis.examples[0].rawNote).toBe("skip breakfast");
+    expect(normalized.loggingHabitAnalysis.status).toBe("watch");
+    expect(normalized.loggingHabitAnalysis.message).toBe("Logging is sparse.");
+    expect(normalized.loggingHabitAnalysis.examples).toHaveLength(1);
+    expect(normalized.loggingHabitAnalysis.examples[0].parsedSummary).toBe("note - 0 kcal");
+    expect(normalized.loggingHabitAnalysis.examples[0].confidence).toBe(0.8);
   });
 
   it("defaults gracefully when missing fields entirely", () => {
@@ -224,8 +227,8 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     expect(normalized.focusAreas).toEqual([]);
     expect(normalized.profileGaps).toEqual([]);
     expect(normalized.confidence).toBe("low");
-    expect(normalized.overallAnalysis.status).toBe("watch");
-    expect(normalized.overallAnalysis.message).toBe("Overall progression needs to be evaluated from more logs.");
-    expect(normalized.overallAnalysis.examples).toEqual([]);
+    expect(normalized.loggingHabitAnalysis.status).toBe("watch");
+    expect(normalized.loggingHabitAnalysis.message).toBe("Logging habits need to be evaluated from more logs.");
+    expect(normalized.loggingHabitAnalysis.examples).toEqual([]);
   });
 });

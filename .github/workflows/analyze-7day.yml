@@ -1,12 +1,14 @@
 name: Analyze HealthLog Period
 
 on:
+  schedule:
+    - cron: '0 19 * * *' # Run daily at 3:00 am SGT (UTC+8)
   workflow_dispatch:
     inputs:
       days:
         description: 'Number of days to analyze'
         required: true
-        default: '7'
+        default: '14'
 
 jobs:
   analyze:
@@ -34,4 +36,4 @@ jobs:
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_BASE_URL: ${{ secrets.LANGFUSE_BASE_URL }}
-          ANALYSIS_PERIOD_DAYS: ${{ github.event.inputs.days }}
+          ANALYSIS_PERIOD_DAYS: ${{ github.event.inputs.days || '14' }}

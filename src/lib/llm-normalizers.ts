@@ -471,17 +471,28 @@ function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" 
       const itemSrc = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       const date = typeof itemSrc.date === "string" ? itemSrc.date.trim() : "";
       const time = typeof itemSrc.time === "string" ? itemSrc.time.trim() : null;
-      const rawNote = typeof itemSrc.rawNote === "string" ? itemSrc.rawNote.trim() : typeof itemSrc.raw_note === "string" ? itemSrc.raw_note.trim() : "";
-      const parsedInfo = typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() : typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+
+      const parsedSummary = typeof itemSrc.parsedSummary === "string" ? itemSrc.parsedSummary.trim() :
+                            typeof itemSrc.parsed_summary === "string" ? itemSrc.parsed_summary.trim() :
+                            typeof itemSrc.parsedInfo === "string" ? itemSrc.parsedInfo.trim() :
+                            typeof itemSrc.parsed_info === "string" ? itemSrc.parsed_info.trim() : "";
+
       const reason = typeof itemSrc.reason === "string" ? itemSrc.reason.trim() : "";
-      return { date, time, rawNote, parsedInfo, reason };
+
+      let confidence: number | null = null;
+      if (itemSrc.confidence !== undefined && itemSrc.confidence !== null) {
+        const parsedConf = Number(itemSrc.confidence);
+        if (Number.isFinite(parsedConf)) confidence = parsedConf;
+      }
+
+      return { date, time, parsedSummary, reason, confidence };
     })
-    .filter((ex) => ex.date.length > 0 && ex.rawNote.length > 0);
+    .filter((ex) => ex.date.length > 0 && ex.parsedSummary.length > 0);
 
   return {
     status,
     message,
-    examples: examples.slice(0, 3),
+    examples,
   };
 }
 
@@ -541,11 +552,6 @@ export function normalizeAnalysisReportResult(value: unknown) {
     "Energy split needs a clearer read from the available logs.",
   );
 
-  const overallAnalysis = normalizeDeeperCategoryAnalysis(
-    record.overallAnalysis,
-    "watch",
-    "Overall progression needs to be evaluated from more logs."
-  );
   const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.loggingHabitAnalysis,
     "watch",
@@ -572,7 +578,6 @@ export function normalizeAnalysisReportResult(value: unknown) {
     calorieAnalysis,
     proteinAnalysis,
     macroAnalysis,
-    overallAnalysis,
     loggingHabitAnalysis,
     mealChoiceAnalysis,
     exerciseHabitAnalysis,

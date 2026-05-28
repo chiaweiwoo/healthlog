@@ -228,9 +228,9 @@ export const categoryAnalysisSchema = z.object({
 export const deeperCategoryExampleSchema = z.object({
   date: z.string(),
   time: z.string().nullable(),
-  rawNote: z.string(),
-  parsedInfo: z.string(),
+  parsedSummary: z.string(),
   reason: z.string(),
+  confidence: z.number().nullable().optional(),
 });
 
 export const deeperCategorySchema = z.object({
@@ -251,7 +251,6 @@ export const analysisReportPayloadSchema = z.object({
   calorieAnalysis: categoryAnalysisSchema.optional(),
   proteinAnalysis: categoryAnalysisSchema.optional(),
   macroAnalysis: categoryAnalysisSchema.optional(),
-  overallAnalysis: deeperCategorySchema.optional(),
   loggingHabitAnalysis: deeperCategorySchema.optional(),
   mealChoiceAnalysis: deeperCategorySchema.optional(),
   exerciseHabitAnalysis: deeperCategorySchema.optional(),
