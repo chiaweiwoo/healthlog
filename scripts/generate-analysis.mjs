@@ -4,10 +4,10 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-27-analysis-v2";
+const PROMPT_VERSION = "2026-05-28-analysis-v3";
 const MODEL_NAME = "gemini-3.5-flash";
 
-const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 7;
+const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
 
 // 1. Validate Environment Variables
 const requiredEnv = [
@@ -151,14 +151,44 @@ const profileGapSchema = z.object({
   improveAdvice: z.string().min(1),
 });
 
+const waterAnalysisSchema = z.object({
+  isGood: z.boolean(),
+  assessment: z.string().min(1),
+  insights: z.string().min(1),
+  recommendation: z.string().min(1),
+});
+
+const calorieAnalysisSchema = z.object({
+  outcome: z.enum(["deficit", "surplus", "maintenance"]),
+  assessment: z.string().min(1),
+  alerts: z.array(z.string().min(1)),
+  insights: z.string().min(1),
+  recommendation: z.string().min(1),
+});
+
+const proteinAnalysisSchema = z.object({
+  assessment: z.string().min(1),
+  alerts: z.array(z.string().min(1)),
+  insights: z.string().min(1),
+  recommendation: z.string().min(1),
+});
+
+const macroAnalysisSchema = z.object({
+  assessment: z.string().min(1),
+  insights: z.string().min(1),
+  recommendation: z.string().min(1),
+});
+
 const analysisReportPayloadSchema = z.object({
-  stats: z.any(),
-  evidence: z.any(),
   summary: z.string().min(1),
   rootCauses: z.array(z.string().min(1)),
   focusAreas: z.array(focusAreaSchema),
   profileGaps: z.array(profileGapSchema),
   confidence: z.enum(["low", "medium", "high"]),
+  waterAnalysis: waterAnalysisSchema,
+  calorieAnalysis: calorieAnalysisSchema,
+  proteinAnalysis: proteinAnalysisSchema,
+  macroAnalysis: macroAnalysisSchema,
 });
 
 // Normalizer implementation matching llm-normalizers.ts
@@ -197,12 +227,48 @@ function normalizeAnalysisReportResult(value) {
     ? confidenceValue
     : "low";
 
+  const waterSrc = record.waterAnalysis && typeof record.waterAnalysis === "object" ? record.waterAnalysis : {};
+  const waterAnalysis = {
+    isGood: typeof waterSrc.isGood === "boolean" ? waterSrc.isGood : false,
+    assessment: typeof waterSrc.assessment === "string" ? waterSrc.assessment.trim() : "Optimal",
+    insights: typeof waterSrc.insights === "string" ? waterSrc.insights.trim() : "",
+    recommendation: typeof waterSrc.recommendation === "string" ? waterSrc.recommendation.trim() : "",
+  };
+
+  const calSrc = record.calorieAnalysis && typeof record.calorieAnalysis === "object" ? record.calorieAnalysis : {};
+  const calorieAnalysis = {
+    outcome: ["deficit", "surplus", "maintenance"].includes(calSrc.outcome) ? calSrc.outcome : "deficit",
+    assessment: typeof calSrc.assessment === "string" ? calSrc.assessment.trim() : "In Balance",
+    alerts: Array.isArray(calSrc.alerts) ? calSrc.alerts.map(a => String(a).trim()).filter(Boolean) : [],
+    insights: typeof calSrc.insights === "string" ? calSrc.insights.trim() : "",
+    recommendation: typeof calSrc.recommendation === "string" ? calSrc.recommendation.trim() : "",
+  };
+
+  const protSrc = record.proteinAnalysis && typeof record.proteinAnalysis === "object" ? record.proteinAnalysis : {};
+  const proteinAnalysis = {
+    assessment: typeof protSrc.assessment === "string" ? protSrc.assessment.trim() : "Balanced",
+    alerts: Array.isArray(protSrc.alerts) ? protSrc.alerts.map(a => String(a).trim()).filter(Boolean) : [],
+    insights: typeof protSrc.insights === "string" ? protSrc.insights.trim() : "",
+    recommendation: typeof protSrc.recommendation === "string" ? protSrc.recommendation.trim() : "",
+  };
+
+  const macroSrc = record.macroAnalysis && typeof record.macroAnalysis === "object" ? record.macroAnalysis : {};
+  const macroAnalysis = {
+    assessment: typeof macroSrc.assessment === "string" ? macroSrc.assessment.trim() : "Healthy",
+    insights: typeof macroSrc.insights === "string" ? macroSrc.insights.trim() : "",
+    recommendation: typeof macroSrc.recommendation === "string" ? macroSrc.recommendation.trim() : "",
+  };
+
   return {
     summary,
     rootCauses,
     focusAreas,
     profileGaps,
     confidence,
+    waterAnalysis,
+    calorieAnalysis,
+    proteinAnalysis,
+    macroAnalysis,
   };
 }
 
@@ -544,12 +610,12 @@ ${highCalorieLowProteinCandidates.map(serializeFoodItem).join("\n") || "None"}
 === CRITICAL REQUIREMENT FOR LIMITED DATA ===
 - If the number of complete days is LESS THAN ${thresholdDays} (we have ${completeDaysCount} days), the overall data is highly limited.
 - In this case, you MUST set the confidence field to "low".
-- You MUST also explicitly address this limited logging in the "summary" and under "profileGaps" or "rootCauses", recommending specific logging habits to gain a full weekly picture.
+- You MUST also explicitly address this limited logging in all sections, recommending specific logging habits to gain a full 14-day picture.
 
 === OUTPUT FORMAT ===
 You must return a raw JSON object only. No markdown wrappers. Follow this exact JSON structure:
 {
-  "summary": "Short, clear plain-language summary of the week's nutritional outcome. Focus heavily on how outcomes relate directly to the user's goals (e.g. fat loss, maintenance, muscle gain, hydration). Highlight the limited data if complete days are < ${thresholdDays}.",
+  "summary": "Short, clear plain-language summary of the overall 14-day outcome.",
   "rootCauses": [
     "Evidence-backed driver 1 (e.g. 'High calorie surplus on Tuesday driven by 1200 kcal burger entry')",
     "Evidence-backed driver 2 (e.g. 'Low protein average due to low protein content in top calorie items')"
@@ -560,12 +626,41 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   ],
   "profileGaps": [
     {
-      "parameter": "Name of missing parameter (e.g. Height, Weight, Activity Level, Goals)",
-      "whyItMatters": "Why this missing information limits precision (e.g., MSJ BMR formula requires this for baseline energy quota)",
-      "improveAdvice": "Exact instruction to improve (e.g., 'Update your age and sex on the Profile screen to activate Mifflin-St Jeor formulas')"
+      "parameter": "Name of missing parameter",
+      "whyItMatters": "Why this missing information limits precision",
+      "improveAdvice": "Exact instruction to improve on the Profile screen"
     }
   ],
-  "confidence": "low" | "medium" | "high"
+  "confidence": "low" | "medium" | "high",
+  "waterAnalysis": {
+    "isGood": true,
+    "assessment": "Short status label (e.g. 'Optimal Hydration', 'Dehydrated')",
+    "insights": "Evaluation of average daily water intake and patterns.",
+    "recommendation": "Actionable coaching recommendation."
+  },
+  "calorieAnalysis": {
+    "outcome": "deficit" | "surplus" | "maintenance",
+    "assessment": "Short status label (e.g. 'Optimal Deficit', 'Excessive Surplus')",
+    "alerts": [
+      "Calorie spike or anomaly alert 1",
+      "Calorie spike or anomaly alert 2"
+    ],
+    "insights": "Detailed analysis of TDEE vs daily calorie intake.",
+    "recommendation": "Actionable calorie target advice."
+  },
+  "proteinAnalysis": {
+    "assessment": "Short status label (e.g. 'Optimal', 'Insufficient')",
+    "alerts": [
+      "Protein timing or quantity warning 1"
+    ],
+    "insights": "Evaluation of daily average protein intake relative to requirements.",
+    "recommendation": "Coaching recommendation on swaps or timing."
+  },
+  "macroAnalysis": {
+    "assessment": "Short status label (e.g. 'Balanced Ratio', 'High Fat Ratio')",
+    "insights": "Deep dive into macro energy distribution ratio.",
+    "recommendation": "Specific actionable ratio target advice."
+  }
 }
 `;
 

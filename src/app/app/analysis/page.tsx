@@ -61,17 +61,17 @@ export default async function AnalysisPage() {
     };
   });
 
-  // 2. Fetch daily summaries ending today (inclusive) to display in diagrams
-  const past7DaysInclusive = [];
+  // 2. Fetch daily summaries ending today (inclusive) to display in the dashboard
+  const past14DaysInclusive = [];
   const [year, month, day] = todayStr.split("-").map(Number);
   const todayDate = new Date(Date.UTC(year, month - 1, day));
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 13; i >= 0; i--) {
     const d = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000);
-    past7DaysInclusive.push(d.toISOString().split("T")[0]);
+    past14DaysInclusive.push(d.toISOString().split("T")[0]);
   }
-  const startDate = past7DaysInclusive[0];
-  const endDate = past7DaysInclusive[past7DaysInclusive.length - 1];
-
+  const startDate = past14DaysInclusive[0];
+  const endDate = past14DaysInclusive[past14DaysInclusive.length - 1];
+ 
   const supabase = getSupabaseAdmin();
   const { data: dbSummaries, error: summariesErr } = await supabase
     .from("daily_summaries")
@@ -79,23 +79,23 @@ export default async function AnalysisPage() {
     .gte("entry_date", startDate)
     .lte("entry_date", endDate)
     .order("entry_date", { ascending: true });
-
+ 
   if (summariesErr) {
-    console.error("Error fetching daily summaries for charts:", summariesErr);
+    console.error("Error fetching daily summaries for history:", summariesErr);
   }
-
+ 
   // Calculate profile-based default values for incomplete/unlogged days
   const profileBmr = calculateBmr(profile).bmr ?? 1500;
   const profileTdeeObj = calculateTdee(profile);
   const profileTdee = profileTdeeObj.tdee ?? 2000;
   const profileBaseTdee = profileTdeeObj.baseTdee ?? 2000;
   const profileWaterTarget = deriveWaterTarget(profile).value ?? 2000;
-
+ 
   const summariesByDate = Object.fromEntries(
     (dbSummaries || []).map((row) => [row.entry_date, row])
   );
-
-  const dailyHistory = past7DaysInclusive.map((date) => {
+ 
+  const dailyHistory = past14DaysInclusive.map((date) => {
     const summary = summariesByDate[date];
     const bmr = summary && summary.bmr ? Number(summary.bmr) : profileBmr;
     const baseTdee = summary && summary.base_tdee ? Number(summary.base_tdee) : profileBaseTdee;
@@ -111,11 +111,11 @@ export default async function AnalysisPage() {
       tdee = baseTdee || profileTdee;
       tefCalories = 0;
     }
-
+ 
     const waterTargetVal = summary && summary.profile_snapshot?.waterTarget?.value
       ? Number(summary.profile_snapshot.waterTarget.value)
       : profileWaterTarget;
-
+ 
     return {
       date,
       isLogged: !!summary,

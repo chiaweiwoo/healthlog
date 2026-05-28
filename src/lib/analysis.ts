@@ -5,7 +5,7 @@ import { Profile, AnalysisStats, AnalysisEvidence, ParsedDailyItem } from "@/lib
 import { deriveFoodNutrition } from "@/lib/calculations";
 
 // Configurable sliding window size for the analysis reports
-export const ANALYSIS_PERIOD_DAYS = 7;
+export const ANALYSIS_PERIOD_DAYS = 14;
 
 // Helper to get past calendar days range before a given date
 export function getPastDaysRange(todayStr: string, periodDays: number = ANALYSIS_PERIOD_DAYS): string[] {
