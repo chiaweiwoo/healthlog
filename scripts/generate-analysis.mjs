@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v9";
+const PROMPT_VERSION = "2026-05-28-analysis-v10";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -239,7 +239,17 @@ function isValidGoodMessage(msg) {
   return hasPositive || !isValidWatchMessage(msg);
 }
 
-function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage) {
+function containsLoggingCaveat(msg) {
+  const m = msg.toLowerCase();
+  const caveatPhrases = [
+    "log daily", "track more days", "sparse", "limited data", "more logs",
+    "confirm averages", "clearer read", "available logs", "more days",
+    "log consistently", "track consistently", "more log", "track more"
+  ];
+  return caveatPhrases.some(p => m.includes(p));
+}
+
+function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage, isLoggingCategory = false) {
   const src = value && typeof value === "object" ? value : {};
   const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
   const status = ["good", "watch"].includes(statusValue) ? statusValue : fallbackStatus;
@@ -251,6 +261,10 @@ function normalizeDeeperCategoryAnalysis(value, fallbackStatus, fallbackMessage)
   if (status === "watch" && !isValidWatchMessage(message)) {
     message = fallbackMessage;
   } else if (status === "good" && !isValidGoodMessage(message)) {
+    message = fallbackMessage;
+  }
+
+  if (!isLoggingCategory && containsLoggingCaveat(message)) {
     message = fallbackMessage;
   }
 
@@ -324,38 +338,45 @@ function normalizeAnalysisReportResult(value) {
   const waterAnalysis = normalizeDeeperCategoryAnalysis(
     record.waterAnalysis,
     "watch",
-    "Hydration needs a clearer read from the available logs.",
+    "Hydration needs a clearer read to assess liquid intake alignment.",
+    false,
   );
   const calorieAnalysis = normalizeDeeperCategoryAnalysis(
     record.calorieAnalysis,
     "watch",
-    "Calories need a clearer read from the available logs.",
+    "Calories need a clearer read to assess target alignment.",
+    false,
   );
   const proteinAnalysis = normalizeDeeperCategoryAnalysis(
     record.proteinAnalysis,
     "watch",
-    "Protein needs a clearer read from the available logs.",
+    "Protein needs a specific read to assess muscle goal alignment.",
+    false,
   );
   const macroAnalysis = normalizeDeeperCategoryAnalysis(
     record.macroAnalysis,
     "watch",
-    "Energy split needs a clearer read from the available logs.",
+    "Energy split needs a target check to assess macro balance.",
+    false,
   );
 
   const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.loggingHabitAnalysis,
     "watch",
-    "Logging habits need to be evaluated from more logs."
+    "Logging habits need to be evaluated from more logs.",
+    true,
   );
   const mealChoiceAnalysis = normalizeDeeperCategoryAnalysis(
     record.mealChoiceAnalysis,
     "watch",
-    "Meal choices need to be evaluated from more logs."
+    "Meal choices need a clear log of food-quality patterns.",
+    false,
   );
   const exerciseHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.exerciseHabitAnalysis,
     "watch",
-    "Exercise patterns need to be evaluated from more logs."
+    "Exercise patterns need a target check to assess activity alignment.",
+    false,
   );
 
   return {
@@ -881,6 +902,8 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
 }
 
 === SELF-CHECK BEFORE FINALIZING ===
+- Each category is strictly independent and evaluates only its own domain.
+- Logging-only phrases (e.g., "log daily", "track more days", "sparse", "limited data", "more logs", "confirm averages") are strictly forbidden in all non-logging category messages and are allowed ONLY in Logging Habit.
 - Each category status and message sentiment agree (no "watch" copy that reads as praise; no "good" copy that names a gap).
 - Every examples entry exists in the COMPLETE LOG TIMELINE above. Do not invent dates, items, or volumes.
 - Each category message is exactly one sentence within the 5-12 word range.
@@ -888,6 +911,14 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
 - All output messages and reasons are in English regardless of source-note language.
 
 STYLE RULES:
+- Category Independence: Each category must evaluate only its own domain from its own perspective. Do not leak logging incompleteness (such as asking the user to log more, track daily, or complain about sparse logs) into non-logging categories (Calorie Outcome, Protein Intake, Water Intake, Energy Split, Meal Choices, Exercise Fit). Non-logging categories must assume the logged data is the baseline for their specific evaluation.
+- Limited logging/tracking coverage affects ONLY overall confidence, summary, profileGaps, and loggingHabitAnalysis.
+- Calorie Outcome must evaluate calorie target and surplus/deficit alignment only.
+- Protein Intake must evaluate protein target and adequacy only.
+- Water Intake must evaluate hydration and liquid volume target only.
+- Energy Split must evaluate dominant calorie-source decomposition only.
+- Meal Choices must evaluate food-quality choices (sugars, fats, vegetables) only.
+- Exercise Fit must evaluate physical activity and logged workout alignment only.
 - Be crisp. Avoid filler, motivational fluff, and textbook explanations.
 - Write like a smart coach giving a fast read, not an article.
 - Use only two status states: "good" and "watch".

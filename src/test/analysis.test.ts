@@ -251,12 +251,45 @@ describe("normalizeAnalysisReportResult Normalizer", () => {
     const normalized = normalizeAnalysisReportResult(input);
 
     expect(normalized.exerciseHabitAnalysis.status).toBe("watch");
-    expect(normalized.exerciseHabitAnalysis.message).toBe("Exercise patterns need to be evaluated from more logs.");
+    expect(normalized.exerciseHabitAnalysis.message).toBe("Exercise patterns need a target check to assess activity alignment.");
 
     expect(normalized.calorieAnalysis.status).toBe("good");
-    expect(normalized.calorieAnalysis.message).toBe("Calories need a clearer read from the available logs.");
+    expect(normalized.calorieAnalysis.message).toBe("Calories need a clearer read to assess target alignment.");
 
     expect(normalized.proteinAnalysis.status).toBe("watch");
-    expect(normalized.proteinAnalysis.message).toBe("Protein needs a clearer read from the available logs.");
+    expect(normalized.proteinAnalysis.message).toBe("Protein needs a specific read to assess muscle goal alignment.");
+  });
+
+  it("prevents logging-incompleteness caveats leaking into non-logging categories", () => {
+    const input = {
+      proteinAnalysis: {
+        status: "good",
+        message: "Good protein; log consistently to confirm",
+      },
+      waterAnalysis: {
+        status: "good",
+        message: "Great hydration; track more days",
+      },
+      mealChoiceAnalysis: {
+        status: "watch",
+        message: "Meal choices need more logs",
+      },
+      loggingHabitAnalysis: {
+        status: "good",
+        message: "Log meals daily",
+      },
+      exerciseHabitAnalysis: {
+        status: "watch",
+        message: "Steps are strong, but add planned workouts.",
+      }
+    };
+
+    const normalized = normalizeAnalysisReportResult(input);
+
+    expect(normalized.proteinAnalysis.message).toBe("Protein needs a specific read to assess muscle goal alignment.");
+    expect(normalized.waterAnalysis.message).toBe("Hydration needs a clearer read to assess liquid intake alignment.");
+    expect(normalized.mealChoiceAnalysis.message).toBe("Meal choices need a clear log of food-quality patterns.");
+    expect(normalized.loggingHabitAnalysis.message).toBe("Log meals daily");
+    expect(normalized.exerciseHabitAnalysis.message).toBe("Steps are strong, but add planned workouts.");
   });
 });

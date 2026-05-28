@@ -460,7 +460,17 @@ function isValidGoodMessage(msg: string): boolean {
   return hasPositive || !isValidWatchMessage(msg);
 }
 
-function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string) {
+function containsLoggingCaveat(msg: string): boolean {
+  const m = msg.toLowerCase();
+  const caveatPhrases = [
+    "log daily", "track more days", "sparse", "limited data", "more logs",
+    "confirm averages", "clearer read", "available logs", "more days",
+    "log consistently", "track consistently", "more log", "track more"
+  ];
+  return caveatPhrases.some(p => m.includes(p));
+}
+
+function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" | "watch", fallbackMessage: string, isLoggingCategory = false) {
   const src = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const statusValue = typeof src.status === "string" ? src.status.toLowerCase().trim() : "";
   const status = ["good", "watch"].includes(statusValue) ? (statusValue as "good" | "watch") : fallbackStatus;
@@ -472,6 +482,10 @@ function normalizeDeeperCategoryAnalysis(value: unknown, fallbackStatus: "good" 
   if (status === "watch" && !isValidWatchMessage(message)) {
     message = fallbackMessage;
   } else if (status === "good" && !isValidGoodMessage(message)) {
+    message = fallbackMessage;
+  }
+
+  if (!isLoggingCategory && containsLoggingCaveat(message)) {
     message = fallbackMessage;
   }
 
@@ -544,38 +558,45 @@ export function normalizeAnalysisReportResult(value: unknown) {
   const waterAnalysis = normalizeDeeperCategoryAnalysis(
     record.waterAnalysis,
     "watch",
-    "Hydration needs a clearer read from the available logs.",
+    "Hydration needs a clearer read to assess liquid intake alignment.",
+    false,
   );
   const calorieAnalysis = normalizeDeeperCategoryAnalysis(
     record.calorieAnalysis,
     "watch",
-    "Calories need a clearer read from the available logs.",
+    "Calories need a clearer read to assess target alignment.",
+    false,
   );
   const proteinAnalysis = normalizeDeeperCategoryAnalysis(
     record.proteinAnalysis,
     "watch",
-    "Protein needs a clearer read from the available logs.",
+    "Protein needs a specific read to assess muscle goal alignment.",
+    false,
   );
   const macroAnalysis = normalizeDeeperCategoryAnalysis(
     record.macroAnalysis,
     "watch",
-    "Energy split needs a clearer read from the available logs.",
+    "Energy split needs a target check to assess macro balance.",
+    false,
   );
 
   const loggingHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.loggingHabitAnalysis,
     "watch",
-    "Logging habits need to be evaluated from more logs."
+    "Logging habits need to be evaluated from more logs.",
+    true,
   );
   const mealChoiceAnalysis = normalizeDeeperCategoryAnalysis(
     record.mealChoiceAnalysis,
     "watch",
-    "Meal choices need to be evaluated from more logs."
+    "Meal choices need a clear log of food-quality patterns.",
+    false,
   );
   const exerciseHabitAnalysis = normalizeDeeperCategoryAnalysis(
     record.exerciseHabitAnalysis,
     "watch",
-    "Exercise patterns need to be evaluated from more logs."
+    "Exercise patterns need a target check to assess activity alignment.",
+    false,
   );
 
   return {

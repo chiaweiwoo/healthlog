@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calendar, Flame, Dumbbell, Droplets, PieChart, BookOpen, Utensils, Activity, Info } from "lucide-react";
+import { Calendar, Flame, Dumbbell, Droplets, PieChart, BookOpen, Utensils, Activity } from "lucide-react";
 import { AnalysisStats, FocusArea, ProfileGap } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
@@ -139,31 +139,35 @@ function UnifiedAnalysisRow({
   onShowEvidence?: (title: string, examples: Exclude<UnifiedRowItem["examples"], undefined>) => void;
 }) {
   const Icon = item.icon;
+  const isClickable = hasEvidence && onShowEvidence;
 
   return (
     <section
       data-testid={`analysis-row-${item.key}`}
-      className={cn("space-y-1", rowClasses(item.tone))}
+      onClick={() => {
+        if (isClickable) {
+          onShowEvidence(item.title, item.examples || []);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onShowEvidence(item.title, item.examples || []);
+        }
+      }}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      className={cn(
+        "space-y-1 select-none outline-hidden",
+        rowClasses(item.tone),
+        isClickable && "cursor-pointer hover:shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all duration-150"
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Icon size={15} className={cn("shrink-0", item.iconClassName)} />
             <h2 className="text-sm font-semibold text-stone-900 leading-none">{item.title}</h2>
-            {hasEvidence && onShowEvidence && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShowEvidence(item.title, item.examples || []);
-                }}
-                className="inline-flex items-center justify-center text-stone-400 hover:text-stone-600 focus:outline-hidden transition-colors cursor-pointer"
-                title="View evidence & trends"
-                aria-label={`View evidence for ${item.title}`}
-              >
-                <Info size={13} />
-              </button>
-            )}
           </div>
           <p className="text-[12px] leading-snug text-stone-700">{item.body}</p>
         </div>
