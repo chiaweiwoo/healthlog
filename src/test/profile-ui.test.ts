@@ -179,6 +179,15 @@ describe("profile-driven setup UI", () => {
           averageCarbsG: 57,
           totalAlcoholG: 0,
           averageAlcoholG: 0,
+          energySplit: {
+            totalCalories: 1050,
+            entries: [
+              { label: "protein", calories: 633, percentage: 60 },
+              { label: "carbs", calories: 228, percentage: 22 },
+              { label: "fat", calories: 189, percentage: 18 },
+              { label: "alcohol", calories: 0, percentage: 0 },
+            ],
+          },
           averageWaterMl: 3570,
           averageExerciseCalories: 0,
           consistencyScore: 0.29,
@@ -209,9 +218,49 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("data-testid=\"analysis-row-macros\"");
     expect(html).toContain("3570 ml/day");
     expect(html).toContain("3200 ml");
-    expect(html).toContain("Split is 24% carbs, 9% fat, 67% protein.");
+    expect(html).toContain("Energy split is 60% protein, 22% carbs, 18% fat.");
     expect(html).toContain("Average intake is above your current calorie quota.");
     expect(html).not.toContain("rounded-lg border border-indigo-100/60 bg-indigo-50/20");
     expect(html).not.toContain("Carb 24%  Fat 9%  Protein 67%");
+  });
+
+  it("includes alcohol in the energy split sentence when alcohol contributes calories", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AnalysisDashboard, {
+        stats: {
+          periodStart: "2026-05-14",
+          periodEnd: "2026-05-27",
+          completeDays: 4,
+          totalIntakeCalories: 14728,
+          averageIntakeCalories: 3682,
+          averageQuotaCalories: 2811,
+          averageNetCalories: 871,
+          totalProteinG: 400,
+          averageProteinG: 100,
+          totalFatG: 200,
+          averageFatG: 50,
+          totalCarbsG: 800,
+          averageCarbsG: 200,
+          totalAlcoholG: 56,
+          averageAlcoholG: 14,
+          energySplit: {
+            totalCalories: 1948,
+            entries: [
+              { label: "protein", calories: 400, percentage: 21 },
+              { label: "carbs", calories: 800, percentage: 41 },
+              { label: "fat", calories: 450, percentage: 23 },
+              { label: "alcohol", calories: 98, percentage: 15 },
+            ],
+          },
+          averageWaterMl: 2800,
+          averageExerciseCalories: 0,
+          consistencyScore: 0.29,
+        },
+        report: null,
+        dailyHistory: [],
+      }),
+    );
+
+    expect(html).toContain("Energy split is 21% protein, 41% carbs, 23% fat, 15% alcohol.");
   });
 });

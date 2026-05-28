@@ -269,13 +269,24 @@ CI should run lint, typecheck, tests, and production build.
 - After adding a new table or column that app code depends on, verify the live
   project has it and reload the PostgREST schema cache before assuming writes
   will succeed.
-- The 7-day analysis script reviews the 7 calendar days before the current local
-  day, not including "today".
+- The current analysis script reviews the 14 calendar days before the current
+  local day, not including "today".
 - In the current analysis script, "complete days" means days with active parsed
   entries. That is a logging coverage heuristic, not a guarantee of fully
   complete daily intake/output capture.
-- The 7-day analysis script must force low confidence when fewer than 4 such
+- The current analysis script must force low confidence when fewer than 7 such
   days are present in the target window.
+- The Analysis page is a compact rolling review, not a coaching wall. Keep one
+  clean outer card with compact status rows instead of many nested cards or
+  decorative visualizations.
+- Analysis rows use only two visible states: `Good` and `Watch`. Let row tint
+  and status color carry urgency; keep the body sentence plain, short, and
+  informative rather than richly formatted.
+- The Analysis page should help the user feel "I get it" quickly. Favor one
+  precise sentence with the key number over longer advice blocks.
+- The Analysis "Energy split" row is based on calorie contribution, not gram
+  weight. Use protein = 4 kcal/g, carbs = 4 kcal/g, fat = 9 kcal/g, alcohol =
+  7 kcal/g, and include alcohol in the decomposition when present.
 - When changing prompt contracts, update the normalizers and tests in the same pass
 - When the user is iterating on shipped UI tweaks and asks for changes in this repo, default to committing and pushing at the end of each completed pass unless they explicitly ask to keep it local. Do not repeatedly stop at "not pushed yet" for these small follow-up refinements.
 - Do NOT verify or poll Vercel deployment status after pushing to GitHub. Running Vercel CLI checks or waiting for builds consumes excessive context tokens and time. Simply verify the local build compiles cleanly, push changes, and let Vercel handle automatic deployment.

@@ -74,6 +74,8 @@ type AnalysisRowItem = {
   body: string;
 };
 
+type EnergySplitEntry = AnalysisStats["energySplit"]["entries"][number];
+
 function formatDate(dateStr: string) {
   try {
     const date = new Date(dateStr);
@@ -212,13 +214,22 @@ export function AnalysisDashboard({
         ? "Hydration is below your current target."
         : "Hydration is running unusually high above target.";
 
-    const totalMacrosG =
-      (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
-    const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
-    const isMacroGood = carbsPct <= 50;
-    const macroMessage = isMacroGood
-      ? "Macro split looks reasonably balanced."
-      : "Carbohydrates are carrying most of the intake.";
+    const energyEntries = stats.energySplit.entries;
+    const proteinShare = energyEntries.find((entry) => entry.label === "protein")?.percentage ?? 0;
+    const carbsShare = energyEntries.find((entry) => entry.label === "carbs")?.percentage ?? 0;
+    const fatShare = energyEntries.find((entry) => entry.label === "fat")?.percentage ?? 0;
+    const alcoholShare = energyEntries.find((entry) => entry.label === "alcohol")?.percentage ?? 0;
+    const isMacroGood = alcoholShare < 10 && carbsShare <= 55 && fatShare <= 40 && proteinShare >= 15;
+    const macroMessage =
+      alcoholShare >= 10
+        ? `Alcohol is contributing ${alcoholShare}% of intake calories.`
+        : proteinShare < 15
+          ? `Protein is contributing only ${proteinShare}% of intake calories.`
+          : carbsShare > 55
+            ? `Carbohydrates are contributing ${carbsShare}% of intake calories.`
+            : fatShare > 40
+              ? `Fat is contributing ${fatShare}% of intake calories.`
+              : "Energy sources look reasonably balanced.";
 
     return {
       waterAnalysis: {
@@ -255,14 +266,10 @@ export function AnalysisDashboard({
     return pills;
   }, [dailyHistory, stats.completeDays]);
 
-  const macroMetrics = useMemo(() => {
-    const totalMacrosG =
-      (stats.averageProteinG || 0) + (stats.averageFatG || 0) + (stats.averageCarbsG || 0) || 1;
-    const proteinPct = Math.round(((stats.averageProteinG || 0) / totalMacrosG) * 100);
-    const fatPct = Math.round(((stats.averageFatG || 0) / totalMacrosG) * 100);
-    const carbsPct = Math.round(((stats.averageCarbsG || 0) / totalMacrosG) * 100);
-    return { proteinPct, fatPct, carbsPct };
-  }, [stats]);
+  const energySplitEntries = useMemo(
+    () => stats.energySplit.entries.filter((entry) => entry.calories > 0),
+    [stats.energySplit.entries],
+  );
 
   const analysisRows = useMemo<AnalysisRowItem[]>(() => {
     const rows: AnalysisRowItem[] = [];
@@ -356,37 +363,47 @@ export function AnalysisDashboard({
     }
 
     if (macroAnalysis) {
-      const dominantMacro = [
-        { label: "carbs", value: macroMetrics.carbsPct },
-        { label: "fat", value: macroMetrics.fatPct },
-        { label: "protein", value: macroMetrics.proteinPct },
-      ].sort((a, b) => b.value - a.value)[0];
+      const energyShares = Object.fromEntries(
+        stats.energySplit.entries.map((entry) => [entry.label, entry.percentage]),
+      ) as Record<EnergySplitEntry["label"], number>;
+      const dominantSource =
+        [...stats.energySplit.entries].sort((a, b) => b.percentage - a.percentage)[0] ?? null;
       const macroGood =
         macroAnalysis.status === "good"
           ? true
           : macroAnalysis.status === "watch"
             ? false
-            : macroMetrics.carbsPct <= 50;
+            : energyShares.alcohol < 10 &&
+              energyShares.carbs <= 55 &&
+              energyShares.fat <= 40 &&
+              energyShares.protein >= 15;
       const macroFollowup =
         trimClause(macroAnalysis.message) ||
         resolveLegacyMessage([macroAnalysis.insights, macroAnalysis.recommendation]);
+      const splitSummary =
+        energySplitEntries.length > 0
+          ? energySplitEntries
+              .map((entry) => `${entry.percentage}% ${entry.label}`)
+              .join(", ")
+          : null;
+      const fallbackMacroMessage = dominantSource
+        ? `${dominantSource.label[0].toUpperCase()}${dominantSource.label.slice(1)} is contributing the biggest share of intake calories.`
+        : "Energy decomposition needs more logged intake data.";
       rows.push({
         key: "macros",
-        title: "Nutrient ratios",
+        title: "Energy split",
         icon: PieChart,
         iconClassName: "text-emerald-500",
         status: macroGood ? "Good" : "Watch",
         tone: macroGood ? "good" : "watch",
-        body: `Split is ${macroMetrics.carbsPct}% carbs, ${macroMetrics.fatPct}% fat, ${macroMetrics.proteinPct}% protein. ${
-          macroGood
-            ? `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is leading, but the mix still looks reasonable.`
-            : macroFollowup || `${dominantMacro.label[0].toUpperCase()}${dominantMacro.label.slice(1)} is doing most of the work here.`
-        }`,
+        body: splitSummary
+          ? `Energy split is ${splitSummary}.${macroFollowup ? ` ${macroFollowup}` : ` ${fallbackMacroMessage}`}`
+          : macroFollowup || fallbackMacroMessage,
       });
     }
 
     return rows;
-  }, [calorieAnalysis, currentWaterTarget, macroAnalysis, macroMetrics, proteinAnalysis, stats, waterAnalysis]);
+  }, [calorieAnalysis, currentWaterTarget, energySplitEntries, macroAnalysis, proteinAnalysis, stats, waterAnalysis]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">

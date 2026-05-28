@@ -4,6 +4,7 @@ import { getProfile } from "@/lib/db";
 import { isProfileComplete, deriveWaterTarget } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getRealTimeAnalysisStats } from "@/lib/analysis";
+import { buildAnalysisEnergySplit } from "@/lib/analysis";
 import { calculateBmr, calculateTdee } from "@/lib/calculations";
 import { format } from "date-fns";
 
@@ -47,6 +48,12 @@ export default async function AnalysisPage() {
         averageCarbsG: 0,
         totalAlcoholG: 0,
         averageAlcoholG: 0,
+        energySplit: buildAnalysisEnergySplit({
+          averageProteinG: 0,
+          averageCarbsG: 0,
+          averageFatG: 0,
+          averageAlcoholG: 0,
+        }),
         averageWaterMl: 0,
         averageExerciseCalories: 0,
         consistencyScore: 0,

@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   analysisStatsSchema,
   analysisEvidenceSchema,
   analysisReportPayloadSchema,
 } from "@/lib/schemas";
 import { normalizeAnalysisReportResult } from "@/lib/llm-normalizers";
+import { buildAnalysisEnergySplit } from "@/lib/analysis";
+
+vi.mock("server-only", () => ({}));
 
 describe("7-Day Analysis Schemas", () => {
   it("validates a compliant stats schema", () => {
@@ -24,6 +27,12 @@ describe("7-Day Analysis Schemas", () => {
       averageCarbsG: 200,
       totalAlcoholG: 0,
       averageAlcoholG: 0,
+      energySplit: buildAnalysisEnergySplit({
+        averageProteinG: 100,
+        averageCarbsG: 200,
+        averageFatG: 60,
+        averageAlcoholG: 0,
+      }),
       averageWaterMl: 2500,
       averageExerciseCalories: 300,
       consistencyScore: 0.71,
@@ -32,6 +41,24 @@ describe("7-Day Analysis Schemas", () => {
     const parsed = analysisStatsSchema.parse(stats);
     expect(parsed.completeDays).toBe(5);
     expect(parsed.consistencyScore).toBe(0.71);
+    expect(parsed.energySplit.entries.find((entry) => entry.label === "fat")?.percentage).toBe(31);
+  });
+
+  it("builds energy split from calorie contribution and includes alcohol when present", () => {
+    const split = buildAnalysisEnergySplit({
+      averageProteinG: 150,
+      averageCarbsG: 200,
+      averageFatG: 50,
+      averageAlcoholG: 14,
+    });
+
+    expect(split.totalCalories).toBe(1948);
+    expect(split.entries).toEqual([
+      { label: "protein", calories: 600, percentage: 31 },
+      { label: "carbs", calories: 800, percentage: 41 },
+      { label: "fat", calories: 450, percentage: 23 },
+      { label: "alcohol", calories: 98, percentage: 5 },
+    ]);
   });
 
   it("validates a compliant evidence schema", () => {
@@ -83,6 +110,12 @@ describe("7-Day Analysis Schemas", () => {
         averageCarbsG: 200,
         totalAlcoholG: 0,
         averageAlcoholG: 0,
+        energySplit: buildAnalysisEnergySplit({
+          averageProteinG: 100,
+          averageCarbsG: 200,
+          averageFatG: 60,
+          averageAlcoholG: 0,
+        }),
         averageWaterMl: 2500,
         averageExerciseCalories: 300,
         consistencyScore: 0.71,

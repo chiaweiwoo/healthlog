@@ -1,11 +1,54 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { Profile, AnalysisStats, AnalysisEvidence, ParsedDailyItem } from "@/lib/schemas";
+import { Profile, AnalysisStats, AnalysisEvidence, AnalysisEnergySplit, ParsedDailyItem } from "@/lib/schemas";
 import { deriveFoodNutrition } from "@/lib/calculations";
 
 // Configurable sliding window size for the analysis reports
 export const ANALYSIS_PERIOD_DAYS = 14;
+
+const ENERGY_FACTORS = {
+  protein: 4,
+  carbs: 4,
+  fat: 9,
+  alcohol: 7,
+} as const;
+
+export function buildAnalysisEnergySplit(input: {
+  averageProteinG: number;
+  averageCarbsG: number;
+  averageFatG: number;
+  averageAlcoholG: number;
+}): AnalysisEnergySplit {
+  const entries = [
+    { label: "protein" as const, calories: Math.round(input.averageProteinG * ENERGY_FACTORS.protein) },
+    { label: "carbs" as const, calories: Math.round(input.averageCarbsG * ENERGY_FACTORS.carbs) },
+    { label: "fat" as const, calories: Math.round(input.averageFatG * ENERGY_FACTORS.fat) },
+    { label: "alcohol" as const, calories: Math.round(input.averageAlcoholG * ENERGY_FACTORS.alcohol) },
+  ];
+
+  const totalCalories = entries.reduce((sum, entry) => sum + entry.calories, 0);
+  const withPercentages = entries.map((entry) => ({
+    ...entry,
+    percentage: totalCalories > 0 ? Math.round((entry.calories / totalCalories) * 100) : 0,
+  }));
+
+  const percentageGap =
+    totalCalories > 0 ? 100 - withPercentages.reduce((sum, entry) => sum + entry.percentage, 0) : 0;
+  if (percentageGap !== 0 && withPercentages.length > 0) {
+    const largestEntry = [...withPercentages]
+      .sort((a, b) => b.calories - a.calories)[0];
+    const target = withPercentages.find((entry) => entry.label === largestEntry.label);
+    if (target) {
+      target.percentage += percentageGap;
+    }
+  }
+
+  return {
+    totalCalories,
+    entries: withPercentages,
+  };
+}
 
 // Helper to get past calendar days range before a given date
 export function getPastDaysRange(todayStr: string, periodDays: number = ANALYSIS_PERIOD_DAYS): string[] {
@@ -118,6 +161,12 @@ interface SummaryDbRow {
   const averageFatG = Math.round((totalFatG / divisor) * 10) / 10;
   const averageCarbsG = Math.round((totalCarbsG / divisor) * 10) / 10;
   const averageAlcoholG = Math.round((totalAlcoholG / divisor) * 10) / 10;
+  const energySplit = buildAnalysisEnergySplit({
+    averageProteinG,
+    averageCarbsG,
+    averageFatG,
+    averageAlcoholG,
+  });
   const averageWaterMl = Math.round(totalWaterMl / divisor);
   const averageExerciseCalories = Math.round(totalExerciseCalories / divisor);
   const consistencyScore = Math.round((completeDaysCount / ANALYSIS_PERIOD_DAYS) * 100) / 100;
@@ -138,6 +187,7 @@ interface SummaryDbRow {
     averageCarbsG,
     totalAlcoholG: Math.round(totalAlcoholG * 10) / 10,
     averageAlcoholG,
+    energySplit,
     averageWaterMl,
     averageExerciseCalories,
     consistencyScore,

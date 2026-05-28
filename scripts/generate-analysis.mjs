@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v5";
+const PROMPT_VERSION = "2026-05-28-analysis-v6";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -87,6 +87,41 @@ const atwaterFactors = {
   fat: 9,
   alcohol: 7,
 };
+
+function buildAnalysisEnergySplit({
+  averageProteinG,
+  averageCarbsG,
+  averageFatG,
+  averageAlcoholG,
+}) {
+  const entries = [
+    { label: "protein", calories: Math.round(averageProteinG * atwaterFactors.protein) },
+    { label: "carbs", calories: Math.round(averageCarbsG * atwaterFactors.carbs) },
+    { label: "fat", calories: Math.round(averageFatG * atwaterFactors.fat) },
+    { label: "alcohol", calories: Math.round(averageAlcoholG * atwaterFactors.alcohol) },
+  ];
+
+  const totalCalories = entries.reduce((sum, entry) => sum + entry.calories, 0);
+  const withPercentages = entries.map((entry) => ({
+    ...entry,
+    percentage: totalCalories > 0 ? Math.round((entry.calories / totalCalories) * 100) : 0,
+  }));
+
+  const percentageGap =
+    totalCalories > 0 ? 100 - withPercentages.reduce((sum, entry) => sum + entry.percentage, 0) : 0;
+  if (percentageGap !== 0 && withPercentages.length > 0) {
+    const largestEntry = [...withPercentages].sort((a, b) => b.calories - a.calories)[0];
+    const target = withPercentages.find((entry) => entry.label === largestEntry.label);
+    if (target) {
+      target.percentage += percentageGap;
+    }
+  }
+
+  return {
+    totalCalories,
+    entries: withPercentages,
+  };
+}
 
 function isKnownNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
@@ -241,7 +276,7 @@ function normalizeAnalysisReportResult(value) {
   const macroAnalysis = normalizeCategoryAnalysis(
     record.macroAnalysis,
     "watch",
-    "Macro balance needs a clearer read from the available logs.",
+    "Energy split needs a clearer read from the available logs.",
   );
 
   return {
@@ -420,6 +455,12 @@ async function run() {
     const averageFatG = Math.round((totalFatG / completeDaysCount) * 10) / 10;
     const averageCarbsG = Math.round((totalCarbsG / completeDaysCount) * 10) / 10;
     const averageAlcoholG = Math.round((totalAlcoholG / completeDaysCount) * 10) / 10;
+    const energySplit = buildAnalysisEnergySplit({
+      averageProteinG,
+      averageCarbsG,
+      averageFatG,
+      averageAlcoholG,
+    });
     const averageWaterMl = Math.round(totalWaterMl / completeDaysCount);
     const averageExerciseCalories = Math.round(totalExerciseCalories / completeDaysCount);
     const consistencyScore = Math.round((completeDaysCount / ANALYSIS_PERIOD_DAYS) * 100) / 100;
@@ -440,6 +481,7 @@ async function run() {
       averageCarbsG,
       totalAlcoholG: Math.round(totalAlcoholG * 10) / 10,
       averageAlcoholG,
+      energySplit,
       averageWaterMl,
       averageExerciseCalories,
       consistencyScore,
@@ -580,6 +622,12 @@ ${JSON.stringify(profileSummary, null, 2)}
 - Complete days logged: ${completeDaysCount} of ${ANALYSIS_PERIOD_DAYS} target days (Consistency: ${consistencyScore * 100}%)
 - Intake Stats: ${JSON.stringify(stats, null, 2)}
 
+IMPORTANT FOR ENERGY SPLIT:
+- \`stats.energySplit\` is already the correct calorie-contribution decomposition.
+- It uses protein = 4 kcal/g, carbs = 4 kcal/g, fat = 9 kcal/g, alcohol = 7 kcal/g.
+- If alcohol is present, it is part of the energy split and should be treated as a calorie source.
+- Do not infer this category from raw gram totals. Use \`stats.energySplit\` only.
+
 === ANOMALIES & CONTRIBUTORS EVIDENCE ===
 - Top Calorie Foods:
 ${topCalorieFoods.map(serializeFoodItem).join("\n") || "None"}
@@ -631,7 +679,7 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   },
   "macroAnalysis": {
     "status": "good" | "watch",
-    "message": "Exactly one short sentence, under 18 words, grounded in the stats."
+    "message": "Exactly one short sentence, under 18 words, grounded in stats.energySplit calorie contribution."
   }
 }
 
@@ -642,6 +690,7 @@ STYLE RULES:
 - Mention the most important number or ratio in each category.
 - If a category is fine, say why briefly and stop.
 - Do not return separate alerts, assessments, recommendations, or multi-part coaching inside category objects.
+- For macroAnalysis, describe calorie-source decomposition, not gram balance. Mention alcohol share when it matters.
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);

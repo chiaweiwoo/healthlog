@@ -75,8 +75,16 @@ also recorded in `llm_runs`, and raw body/profile notes are preserved in
 - Mobile warning details open in a tap-friendly dialog
 - Baseline lifestyle and profile context can be managed from the profile page
 - The mobile dashboard prefers dense list rows over decorative metric cards
-- The 7-day analysis job reviews the last 7 calendar days before the current local day and currently treats "complete days" as days with active parsed entries
-- The 7-day analysis job forces low confidence when fewer than 4 days are present in that window
+- The Analysis page is a compact rolling review, not a card-heavy coaching surface
+- Analysis uses one clean outer card with compact `Good` / `Watch` rows and short, precise body copy
+- The Analysis "Energy split" row uses calorie contribution, not gram percentages:
+  - protein = 4 kcal/g
+  - carbs = 4 kcal/g
+  - fat = 9 kcal/g
+  - alcohol = 7 kcal/g
+- Alcohol is included in the energy decomposition when present because the row is about calorie sources
+- The current analysis job reviews the last 14 calendar days before the current local day and treats "complete days" as days with active parsed entries
+- The current analysis job forces low confidence when fewer than 7 days are present in that window
 
 ## Good Practices
 

@@ -158,6 +158,17 @@ export type ProfileOverrideKey = z.infer<typeof profileOverrideKeySchema>;
 export type ProfileOverrides = z.infer<typeof profileOverridesSchema>;
 export type ProfileSnapshot = z.infer<typeof profileSnapshotSchema>;
 
+export const analysisEnergySplitEntrySchema = z.object({
+  label: z.enum(["protein", "carbs", "fat", "alcohol"]),
+  calories: z.number().nonnegative(),
+  percentage: z.number().min(0).max(100),
+});
+
+export const analysisEnergySplitSchema = z.object({
+  totalCalories: z.number().nonnegative(),
+  entries: z.array(analysisEnergySplitEntrySchema),
+});
+
 export const analysisStatsSchema = z.object({
   periodStart: isoDateSchema,
   periodEnd: isoDateSchema,
@@ -174,6 +185,7 @@ export const analysisStatsSchema = z.object({
   averageCarbsG: z.number().nonnegative(),
   totalAlcoholG: z.number().nonnegative(),
   averageAlcoholG: z.number().nonnegative(),
+  energySplit: analysisEnergySplitSchema,
   averageWaterMl: z.number().nonnegative(),
   averageExerciseCalories: z.number().nonnegative(),
   consistencyScore: z.number().min(0).max(1),
@@ -213,3 +225,4 @@ export type ProfileGap = z.infer<typeof profileGapSchema>;
 export type AnalysisStats = z.infer<typeof analysisStatsSchema>;
 export type AnalysisEvidence = z.infer<typeof analysisEvidenceSchema>;
 export type AnalysisReportPayload = z.infer<typeof analysisReportPayloadSchema>;
+export type AnalysisEnergySplit = z.infer<typeof analysisEnergySplitSchema>;
