@@ -220,10 +220,10 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("Protein Intake");
     expect(html).toContain("Water Intake");
     expect(html).toContain("Energy Split");
-    expect(html).toContain("3570 ml/day");
-    expect(html).toContain("3200 ml");
-    expect(html).toContain("60% protein, 22% carbs, 18% fat.");
-    expect(html).toContain("Average intake is above your current calorie quota.");
+    expect(html).toContain("Surplus is high; trim dense extras.");
+    expect(html).toContain("Protein looks solid; keep it steady.");
+    expect(html).toContain("Hydration is on track; keep it up.");
+    expect(html).toContain("Energy split looks balanced overall.");
     expect(html).not.toContain("rounded-lg border border-indigo-100/60 bg-indigo-50/20");
     expect(html).not.toContain("Carb 24%  Fat 9%  Protein 67%");
   });
@@ -265,6 +265,6 @@ describe("profile-driven setup UI", () => {
       }),
     );
 
-    expect(html).toContain("21% protein, 41% carbs, 23% fat, 15% alcohol.");
+    expect(html).toContain("Alcohol share is high; cut drink calories.");
   });
 });

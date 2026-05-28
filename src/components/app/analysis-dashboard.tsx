@@ -103,7 +103,7 @@ function firstSentence(text: string | null | undefined) {
   return (match ? match[0] : normalized).trim();
 }
 
-function trimClause(text: string | null | undefined, maxLength = 64) {
+function trimClause(text: string | null | undefined, maxLength = 72) {
   const normalized = firstSentence(text);
   if (!normalized) return null;
   if (normalized.length <= maxLength) return normalized;
@@ -196,23 +196,23 @@ export function AnalysisDashboard({
 
     const isCalorieGood = stats.averageNetCalories !== null && stats.averageNetCalories <= 0;
     const calorieMessage = isCalorieGood
-      ? `Average intake is staying within or below your current calorie quota.`
-      : `Average intake is above your current calorie quota.`;
+      ? "Intake is on target; keep this pace."
+      : "Surplus is high; trim dense extras.";
 
     const targetProtein = 100;
     const isProteinGood = stats.averageProteinG >= targetProtein;
     const proteinMessage = isProteinGood
-      ? "Protein intake looks solid for everyday recovery and satiety."
-      : "Protein intake is light for recovery and satiety.";
+      ? "Protein looks solid; keep it steady."
+      : "Protein is light; add a lean serving.";
 
     const hydrationTarget = currentWaterTarget ?? 2000;
     const hydrationRate = Math.round((stats.averageWaterMl / hydrationTarget) * 100);
     const isWaterGood = hydrationRate >= 90 && hydrationRate <= 140;
     const waterMessage = isWaterGood
-      ? "Hydration is on track against your current target."
+      ? "Hydration is on track; keep it up."
       : hydrationRate < 90
-        ? "Hydration is below your current target."
-        : "Hydration is running unusually high above target.";
+        ? "Hydration is low; add water earlier."
+        : "Hydration is high; spread intake out.";
 
     const energyEntries = stats.energySplit.entries;
     const proteinShare = energyEntries.find((entry) => entry.label === "protein")?.percentage ?? 0;
@@ -222,14 +222,14 @@ export function AnalysisDashboard({
     const isMacroGood = alcoholShare < 10 && carbsShare <= 55 && fatShare <= 40 && proteinShare >= 15;
     const macroMessage =
       alcoholShare >= 10
-        ? `Alcohol is contributing ${alcoholShare}% of intake calories.`
+        ? "Alcohol share is high; cut drink calories."
         : proteinShare < 15
-          ? `Protein is contributing only ${proteinShare}% of intake calories.`
+          ? "Protein share is low; add lean protein."
           : carbsShare > 55
-            ? `Carbohydrates are contributing ${carbsShare}% of intake calories.`
+            ? "Carbs lead calories; rebalance meals."
             : fatShare > 40
-              ? `Fat is contributing ${fatShare}% of intake calories.`
-              : "Energy sources look reasonably balanced.";
+              ? "Fat is heavy; trim rich items."
+              : "Energy split looks balanced overall.";
 
     return {
       waterAnalysis: {
@@ -304,9 +304,9 @@ export function AnalysisDashboard({
         iconClassName: "text-orange-500",
         status: calorieTone === "good" ? "Good" : "Watch",
         tone: calorieTone,
-        body: `${calorieNet}. Intake ${stats.averageIntakeCalories} kcal${
+        body: calorieFollowup || `${calorieNet}. Intake ${stats.averageIntakeCalories} kcal${
           stats.averageQuotaCalories != null ? ` vs target ${stats.averageQuotaCalories} kcal.` : "."
-        }${calorieFollowup ? ` ${calorieFollowup}` : ""}`,
+        }`,
       });
     }
 
@@ -331,7 +331,7 @@ export function AnalysisDashboard({
         iconClassName: "text-stone-600",
         status: isProteinGood ? "Good" : "Watch",
         tone: isProteinGood ? "good" : "watch",
-        body: `${stats.averageProteinG} g/day average.${proteinFollowup ? ` ${proteinFollowup}` : ""}`,
+        body: proteinFollowup || `${stats.averageProteinG} g/day average.`,
       });
     }
 
@@ -356,9 +356,7 @@ export function AnalysisDashboard({
         iconClassName: "text-sky-500",
         status: waterTone === "good" ? "Good" : "Watch",
         tone: waterTone,
-        body: `${stats.averageWaterMl} ml/day vs ${waterTarget} ml target (${completionRate}%).${
-          waterFollowup ? ` ${waterFollowup}` : ""
-        }`,
+        body: waterFollowup || `${stats.averageWaterMl} ml/day vs ${waterTarget} ml target (${completionRate}%).`,
       });
     }
 
@@ -396,9 +394,7 @@ export function AnalysisDashboard({
         iconClassName: "text-emerald-500",
         status: macroGood ? "Good" : "Watch",
         tone: macroGood ? "good" : "watch",
-        body: splitSummary
-          ? `${splitSummary}.${macroFollowup ? ` ${macroFollowup}` : ` ${fallbackMacroMessage}`}`
-          : macroFollowup || fallbackMacroMessage,
+        body: macroFollowup || (splitSummary ? `${splitSummary}. ${fallbackMacroMessage}` : fallbackMacroMessage),
       });
     }
 

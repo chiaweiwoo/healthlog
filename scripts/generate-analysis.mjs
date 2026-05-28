@@ -4,7 +4,7 @@ import { Langfuse } from "langfuse";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-const PROMPT_VERSION = "2026-05-28-analysis-v7";
+const PROMPT_VERSION = "2026-05-28-analysis-v8";
 const MODEL_NAME = "gemini-3.5-flash";
 
 const ANALYSIS_PERIOD_DAYS = Number(process.env.ANALYSIS_PERIOD_DAYS) || 14;
@@ -644,6 +644,7 @@ ${highCalorieLowProteinCandidates.map(serializeFoodItem).join("\n") || "None"}
 - If the number of complete days is LESS THAN ${thresholdDays} (we have ${completeDaysCount} days), the overall data is highly limited.
 - In this case, you MUST set the confidence field to "low".
 - You MUST also explicitly address this limited logging in all sections, recommending specific logging habits to gain a full 14-day picture.
+- Even with limited data, category messages must still give a useful next step. Do not waste the short message on "limited data", "sparse tracking", or "need more days" unless there is no usable signal at all.
 
 === OUTPUT FORMAT ===
 You must return a raw JSON object only. No markdown wrappers. Follow this exact JSON structure:
@@ -667,19 +668,19 @@ You must return a raw JSON object only. No markdown wrappers. Follow this exact 
   "confidence": "low" | "medium" | "high",
   "waterAnalysis": {
     "status": "good" | "watch",
-    "message": "One very short clause, under 8 words."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
   },
   "calorieAnalysis": {
     "status": "good" | "watch",
-    "message": "One very short clause, under 8 words."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
   },
   "proteinAnalysis": {
     "status": "good" | "watch",
-    "message": "One very short clause, under 8 words."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
   },
   "macroAnalysis": {
     "status": "good" | "watch",
-    "message": "One very short clause, under 8 words."
+    "message": "One compact sentence, 5 to 12 words, including the takeaway and suggestion."
   }
 }
 
@@ -687,12 +688,24 @@ STYLE RULES:
 - Be crisp. Avoid filler, motivational fluff, and textbook explanations.
 - Write like a smart coach giving a fast read, not an article.
 - Use only two status states: "good" and "watch".
-- The UI already shows the main number. Use the message only as a short interpretation.
+- The UI shows the main numbers separately. Use the message as the entire displayed sentence for saved reports.
 - If a category is fine, say why briefly and stop.
 - Do not return separate alerts, assessments, recommendations, or multi-part coaching inside category objects.
 - For macroAnalysis, describe calorie-source decomposition, not gram balance. Mention alcohol share when it matters.
-- Prefer fragments like "Above target.", "Hydration on track.", "Carbs are leading.", "Good baseline."
-- Never restate the full metric line or repeat multiple numbers in the message.
+- For "watch", include a concrete next-step suggestion.
+- For "good", reinforce what is working in a short way.
+- Do not complain about limited data inside category messages when a real signal exists.
+- Avoid repeating all the numbers already shown in the UI.
+- Keep each category message to one sentence only.
+- Good examples:
+  - "Surplus is high; trim dense extras."
+  - "Protein looks solid; keep it steady."
+  - "Hydration is on track; keep it up."
+  - "Carbs lead calories; rebalance meals."
+- Bad examples:
+  - "High average; requires consistent 14-day logs."
+  - "Good hydration, but track more days."
+  - "Carbs and fats dominate limited data."
 `;
 
     console.log(`[${ANALYSIS_PERIOD_DAYS}-Day Analysis] Calling Gemini Model: ${MODEL_NAME}...`);
