@@ -715,21 +715,21 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
       </div>
 
       <div className="space-y-8">
-        {/* TDEE Quota Breakdown Card with Simple Pie Chart */}
-        <div className="bg-white border border-stone-200/60 rounded-lg p-4 shadow-inner space-y-4">
-          <div className="flex items-center justify-between text-xs font-bold text-stone-700 pb-1 border-b border-stone-100">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded bg-zinc-700" />
-              TDEE Quota (Average Allocation)
+        {/* TDEE Quota Breakdown Card - Ultra Compact Pie + Text List */}
+        <div className="bg-white border border-stone-200/60 rounded-lg p-3 shadow-inner">
+          <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 pb-1.5 border-b border-stone-100">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded bg-zinc-700" />
+              TDEE Quota Average Allocation
             </span>
-            <span className="text-stone-400 font-normal">
-              {useFallbackOnly ? "Profile Default Target" : `Avg over ${loggedDays.length} logged day${loggedDays.length === 1 ? "" : "s"}`}
+            <span className="text-stone-400 font-normal text-[10px]">
+              {useFallbackOnly ? "Profile Default" : `Avg over ${loggedDays.length} logged day${loggedDays.length === 1 ? "" : "s"}`}
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
-            {/* Left: Simple Pie Chart */}
-            <div className="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
+          <div className="flex items-center gap-5 pt-2.5">
+            {/* Left: Ultra-Compact SVG Pie Chart */}
+            <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
               <svg viewBox="0 0 100 100" className="w-full h-full font-sans select-none overflow-visible">
                 <circle cx="50" cy="50" r="25" fill="none" stroke="#f5f5f4" strokeWidth="50" />
                 
@@ -788,45 +788,35 @@ function TrendCharts({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
               </svg>
             </div>
 
-            {/* Right: Legend & Metrics List */}
-            <div className="flex-1 w-full space-y-2">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
-                  <span className="h-2.5 w-2.5 rounded-full bg-zinc-700 shrink-0" />
-                  <div className="text-left leading-none">
-                    <p className="font-bold text-stone-700">{avgBmr} kcal</p>
-                    <span className="text-[9px] text-stone-400 font-semibold">BMR ({formatPct(pctBmr)}%)</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-400 shrink-0" />
-                  <div className="text-left leading-none">
-                    <p className="font-bold text-stone-600">{avgNeat} kcal</p>
-                    <span className="text-[9px] text-stone-400 font-semibold">NEAT ({formatPct(pctNeat)}%)</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-300 shrink-0" />
-                  <div className="text-left leading-none">
-                    <p className="font-bold text-amber-600">{avgTef} kcal</p>
-                    <span className="text-[9px] text-stone-400 font-semibold">TEF ({formatPct(pctTef)}%)</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 p-1.5 rounded-lg bg-stone-50 border border-stone-200/40">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" />
-                  <div className="text-left leading-none">
-                    <p className="font-bold text-emerald-600">{avgEat} kcal</p>
-                    <span className="text-[9px] text-stone-400 font-semibold">EAT ({formatPct(pctEat)}%)</span>
-                  </div>
-                </div>
+            {/* Right: Compact Annotations List */}
+            <div className="flex-1 text-[11px] text-stone-600 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-zinc-700 shrink-0" /> BMR (Sleep)
+                </span>
+                <span className="font-bold text-stone-700">{avgBmr} kcal ({formatPct(pctBmr)}%)</span>
               </div>
-
-              <div className="flex justify-between items-center text-xs font-bold text-stone-700 bg-stone-50/80 border border-stone-200/60 rounded-lg p-2 mt-2">
-                <span>Total TDEE (Daily Quota)</span>
-                <span className="text-stone-900 font-extrabold">{avgTdee} kcal</span>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" /> NEAT (Activity)
+                </span>
+                <span className="font-bold text-stone-700">{avgNeat} kcal ({formatPct(pctNeat)}%)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-amber-300 shrink-0" /> TEF (Digestion)
+                </span>
+                <span className="font-bold text-stone-700">{avgTef} kcal ({formatPct(pctTef)}%)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" /> EAT (Exercise)
+                </span>
+                <span className="font-bold text-stone-700">{avgEat} kcal ({formatPct(pctEat)}%)</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-xs font-bold text-stone-800">
+                <span>Total Daily Quota</span>
+                <span>{avgTdee} kcal</span>
               </div>
             </div>
           </div>
