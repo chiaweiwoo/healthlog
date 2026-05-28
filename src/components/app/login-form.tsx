@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ type LoginValues = {
 export function LoginForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [checkingSession, setCheckingSession] = useState(true);
   const form = useForm<LoginValues>({
     defaultValues: { username: "", password: "" },
   });
 
   useEffect(() => {
+    let active = true;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("signedOut") === "1") {
@@ -28,9 +30,29 @@ export function LoginForm() {
         const url = new URL(window.location.href);
         url.searchParams.delete("signedOut");
         window.history.replaceState(null, "", url.toString());
+        setCheckingSession(false);
+        return;
       }
+
+      fetch("/api/session")
+        .then((res) => res.json())
+        .then((body: { authenticated: boolean }) => {
+          if (!active) return;
+          if (body?.authenticated) {
+            toast.success("Restoring session...");
+            router.replace("/app");
+          } else {
+            setCheckingSession(false);
+          }
+        })
+        .catch(() => {
+          if (active) setCheckingSession(false);
+        });
     }
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const onSubmit = form.handleSubmit((values) => {
     const toastId = toast.loading("Signing in...");
@@ -58,6 +80,17 @@ export function LoginForm() {
       }
     });
   });
+
+  if (checkingSession) {
+    return (
+      <Card className="overflow-hidden">
+        <CardContent className="flex flex-col items-center justify-center p-12 space-y-3">
+          <div className="w-6 h-6 border-2 border-stone-300 border-t-emerald-700 rounded-full animate-spin" />
+          <p className="text-sm font-medium text-stone-500">Checking session...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="overflow-hidden">
