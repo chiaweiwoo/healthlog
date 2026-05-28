@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import {
   Calendar,
   AlertTriangle,
-  Sparkles,
   Flame,
   Dumbbell,
   Droplets,
@@ -232,307 +231,199 @@ export function AnalysisDashboard({
         </div>
       </div>
 
-      {/* 2. CORE PERSPECTIVES STACK (SINGLE-COLUMN, HIGHLY DENSE) */}
-
-      {/* CARD 1: Calorie Outcomes & Balance */}
-      {calorieAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
-          <SectionHeader
-            icon={<Flame size={16} className="text-orange-500" />}
-            caption="Energy Balance"
-            title="Calorie Outcomes"
-            iconBg="bg-orange-50"
-            action={
+      {/* 2. UNIFIED ANALYSIS DASHBOARD PANEL (NO SEPARATE CARDS) */}
+      <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
+        
+        {/* SECTION A: Calorie Outcome / Energy Balance */}
+        {calorieAnalysis && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flame size={15} className="text-orange-500 shrink-0" />
+                <span className="text-xs font-bold text-stone-800">Calorie Outcome</span>
+              </div>
               <span className={cn(
-                "px-2 py-0.5 text-[10px] font-bold border rounded-full capitalize",
+                "px-2 py-0.5 text-[9px] font-bold border rounded-full capitalize leading-none",
                 calorieAnalysis.outcome === "deficit"
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-amber-50 text-amber-700 border-amber-200"
               )}>
                 {calorieAnalysis.outcome === "deficit" ? "Deficit" : "Surplus"}
               </span>
-            }
-          />
+            </div>
 
-          <div className="space-y-2">
-            {/* Compressed Metrics Row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-600 px-0.5 font-medium">
               <div>
-                <span className="font-semibold text-stone-900">Intake:</span> {stats.averageIntakeCalories} kcal
+                <span className="text-stone-500 font-semibold uppercase tracking-wider text-[9px]">Intake</span> {stats.averageIntakeCalories} kcal
               </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
+              <div className="h-2.5 w-[1px] bg-stone-200" />
               <div>
-                <span className="font-semibold text-stone-900">TDEE Quota:</span> {stats.averageQuotaCalories || "N/A"} kcal
+                <span className="text-stone-500 font-semibold uppercase tracking-wider text-[9px]">TDEE Target</span> {stats.averageQuotaCalories || "N/A"} kcal
               </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
+              <div className="h-2.5 w-[1px] bg-stone-200" />
               <div>
-                <span className="font-semibold text-stone-900">Net:</span>{" "}
+                <span className="text-stone-500 font-semibold uppercase tracking-wider text-[9px]">Net</span>{" "}
                 <span className={cn(
                   "font-bold",
                   stats.averageNetCalories !== null && stats.averageNetCalories <= 0 ? "text-emerald-600" : "text-amber-600"
                 )}>
                   {stats.averageNetCalories !== null 
                     ? stats.averageNetCalories <= 0 
-                      ? `-${Math.abs(stats.averageNetCalories)} Deficit` 
-                      : `+${stats.averageNetCalories} Surplus`
+                      ? `-${Math.abs(stats.averageNetCalories)} kcal Deficit` 
+                      : `+${stats.averageNetCalories} kcal Surplus`
                     : "N/A"}
                 </span>
               </div>
             </div>
 
-            {/* Quota Progress Bar (Thin line) */}
-            {stats.averageQuotaCalories !== null && (
-              <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full transition-all duration-500",
-                    stats.averageIntakeCalories <= stats.averageQuotaCalories ? "bg-emerald-500" : "bg-amber-400"
-                  )}
-                  style={{ width: `${Math.min((stats.averageIntakeCalories / stats.averageQuotaCalories) * 100, 100)}%` }}
-                />
-              </div>
-            )}
-
-            {/* AI Insights and Alerts (Rendered only on Surplus or Warning alerts) */}
+            {/* AI Coaching Advice */}
             {showCalorieInsights && (
-              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
-                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
-                  <span>AI Coaching Advice</span>
-                </div>
-                
-                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2 text-xs">
+                <p className="text-stone-700 leading-relaxed text-[11px]">
                   {calorieAnalysis.insights} {calorieAnalysis.recommendation}
                 </p>
-                
                 {calorieAnalysis.alerts && calorieAnalysis.alerts.length > 0 && (
-                  <div className="space-y-1 pt-0.5 border-t border-indigo-100/30">
-                    <ul className="space-y-1 pl-0.5">
-                      {calorieAnalysis.alerts.map((alert, idx) => (
-                        <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 items-start">
-                          <AlertTriangle size={11} className="mt-0.5 shrink-0 text-amber-600" />
-                          <span>{alert}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="mt-1 pt-1 border-t border-indigo-100/30 space-y-0.5">
+                    {calorieAnalysis.alerts.map((alert, idx) => (
+                      <div key={idx} className="flex gap-1 text-[10px] text-amber-800 items-center">
+                        <AlertTriangle size={10} className="shrink-0 text-amber-600" />
+                        <span>{alert}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* CARD 2: Protein Intake */}
-      {proteinAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
-          <SectionHeader
-            icon={<Dumbbell size={16} className="text-stone-600" />}
-            caption="Intake Composition"
-            title="Protein Intake"
-            iconBg="bg-stone-100"
-            action={
+        <div className="border-t border-stone-200/60" />
+
+        {/* SECTION B: Protein Intake */}
+        {proteinAnalysis && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Dumbbell size={15} className="text-stone-600 shrink-0" />
+                <span className="text-xs font-bold text-stone-800">Protein Intake</span>
+              </div>
               <span className={cn(
-                "px-2 py-0.5 text-[10px] font-bold border rounded-full",
+                "px-2 py-0.5 text-[9px] font-bold border rounded-full leading-none",
                 isProteinGood
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-amber-50 text-amber-700 border-amber-200"
               )}>
                 {isProteinGood ? "Optimal" : "Low Protein"}
               </span>
-            }
-          />
-
-          <div className="space-y-2">
-            {/* Compressed Metrics Row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
-              <div>
-                <span className="font-semibold text-stone-900">Avg Protein:</span> {stats.averageProteinG}g
-              </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
-              <div>
-                <span className="font-semibold text-stone-900">Energy Share:</span>{" "}
-                {stats.averageIntakeCalories > 0 
-                  ? `${Math.round(((stats.averageProteinG * 4) / stats.averageIntakeCalories) * 100)}%` 
-                  : "N/A"}
-              </div>
             </div>
 
-            {/* Protein Target Bar */}
-            <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-stone-300 rounded-full" 
-                style={{ width: `${Math.min((stats.averageProteinG / 100) * 100, 100)}%` }} 
-              />
+            <div className="text-xs text-stone-600 px-0.5 font-medium">
+              Protein avg is <span className="font-bold text-stone-900">{stats.averageProteinG}g</span>
             </div>
 
-            {/* AI Insights & Alerts (Rendered only on low protein or warnings) */}
+            {/* AI Coaching Advice */}
             {showProteinInsights && (
-              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
-                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
-                  <span>AI Coaching Advice</span>
-                </div>
-                
-                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2 text-xs">
+                <p className="text-stone-700 leading-relaxed text-[11px]">
                   {proteinAnalysis.insights} {proteinAnalysis.recommendation}
                 </p>
-
-                {proteinAnalysis.alerts && proteinAnalysis.alerts.length > 0 && (
-                  <div className="space-y-1 pt-0.5 border-t border-indigo-100/30">
-                    <ul className="space-y-1 pl-0.5">
-                      {proteinAnalysis.alerts.map((alert, idx) => (
-                        <li key={idx} className="flex gap-1.5 text-[11px] text-amber-800 items-start">
-                          <AlertTriangle size={11} className="mt-0.5 shrink-0 text-amber-600" />
-                          <span>{alert}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* CARD 3: Hydration Status */}
-      {waterAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
-          <SectionHeader
-            icon={<Droplets size={16} className="text-sky-500" />}
-            caption="Hydration Balance"
-            title="Water Intake"
-            iconBg="bg-sky-50"
-            action={
+        <div className="border-t border-stone-200/60" />
+
+        {/* SECTION C: Water Intake */}
+        {waterAnalysis && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Droplets size={15} className="text-sky-500 shrink-0" />
+                <span className="text-xs font-bold text-stone-800">Water Intake</span>
+              </div>
               <span className={cn(
-                "px-2 py-0.5 text-[10px] font-bold border rounded-full",
+                "px-2 py-0.5 text-[9px] font-bold border rounded-full leading-none",
                 waterAnalysis.isGood
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-amber-50 text-amber-700 border-amber-200"
               )}>
                 {waterAnalysis.isGood ? "Sufficient" : "Dehydrated"}
               </span>
-            }
-          />
-
-          <div className="space-y-2">
-            {/* Compressed Metrics Row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
-              <div>
-                <span className="font-semibold text-stone-900">Avg Fluids:</span> {stats.averageWaterMl} ml
-              </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
-              <div>
-                <span className="font-semibold text-stone-900">Daily Target:</span> 2000 ml
-              </div>
             </div>
 
-            {/* Hydration Bar */}
-            <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-sky-500 transition-all duration-500"
-                style={{ width: `${Math.min((stats.averageWaterMl / 2000) * 100, 100)}%` }}
-              />
-            </div>
-
-            {/* AI Insights & Recommendation (Hidden if hydration is sufficient) */}
-            {showWaterInsights && (
-              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
-                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
-                  <span>AI Coaching Advice</span>
+            {(() => {
+              const completionRate = Math.round((stats.averageWaterMl / 2000) * 100);
+              return (
+                <div className="text-xs text-stone-600 px-0.5 font-medium">
+                  Completion rate <span className="font-bold text-stone-900">{completionRate}%</span> (Average: {stats.averageWaterMl} ml / Target: 2000 ml)
                 </div>
-                
-                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+              );
+            })()}
+
+            {/* AI Coaching Advice */}
+            {showWaterInsights && (
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2 text-xs">
+                <p className="text-stone-700 leading-relaxed text-[11px]">
                   {waterAnalysis.insights} {waterAnalysis.recommendation}
                 </p>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* CARD 4: Macronutrient Ratios */}
-      {macroAnalysis && (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 shadow-sm space-y-2.5">
-          <SectionHeader
-            icon={<PieChart size={16} className="text-emerald-500" />}
-            caption="Nutrient Ratio"
-            title="Macronutrient Ratios"
-            iconBg="bg-emerald-50"
-            action={
-              <span className="px-2 py-0.5 text-[10px] font-bold border border-stone-200 bg-white text-stone-600 rounded-full">
+        <div className="border-t border-stone-200/60" />
+
+        {/* SECTION D: Nutrient Ratios (Macronutrients) */}
+        {macroAnalysis && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PieChart size={15} className="text-emerald-500 shrink-0" />
+                <span className="text-xs font-bold text-stone-800">Nutrient Ratios</span>
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-bold border border-stone-200 bg-white text-stone-600 rounded-full leading-none">
                 {macroAnalysis.assessment}
               </span>
-            }
-          />
+            </div>
 
-          <div className="space-y-2">
-            {/* Compressed Metrics Row (All macros on a single clean line!) */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 px-0.5">
-              <div>
-                <span className="font-semibold text-stone-900">Carbs:</span> {macroMetrics.carbsPct}% ({Math.round(stats.averageCarbsG)}g)
+            {/* Split Stacked Bar Chart */}
+            <div className="space-y-1.5">
+              <div className="h-2 w-full bg-stone-200/80 rounded-full overflow-hidden flex border border-stone-200/20">
+                <div className="h-full bg-amber-300 transition-all duration-500" style={{ width: `${macroMetrics.carbsPct}%` }} />
+                <div className="h-full bg-stone-400/80 transition-all duration-500" style={{ width: `${macroMetrics.fatPct}%` }} />
+                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${macroMetrics.proteinPct}%` }} />
               </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
-              <div>
-                <span className="font-semibold text-stone-900">Fat:</span> {macroMetrics.fatPct}% ({Math.round(stats.averageFatG)}g)
-              </div>
-              <div className="h-3 w-[1px] bg-stone-200" />
-              <div>
-                <span className="font-semibold text-stone-900">Protein:</span> {macroMetrics.proteinPct}% ({Math.round(stats.averageProteinG)}g)
+              
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-1 px-0.5">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                  <span>Carbs: {macroMetrics.carbsPct}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-stone-400/80" />
+                  <span>Fat: {macroMetrics.fatPct}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  <span>Protein: {macroMetrics.proteinPct}%</span>
+                </div>
               </div>
             </div>
 
-            {/* AI Insights & Recommendation (Hidden if balanced/healthy macros) */}
+            {/* AI Coaching Advice */}
             {showMacroInsights && (
-              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2.5 space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-indigo-900 leading-none">
-                  <Sparkles size={12} className="text-indigo-600 shrink-0" />
-                  <span>AI Coaching Advice</span>
-                </div>
-                
-                <p className="text-stone-700 leading-relaxed text-[11.5px]">
+              <div className="rounded-lg border border-indigo-100/60 bg-indigo-50/20 p-2 text-xs">
+                <p className="text-stone-700 leading-relaxed text-[11px]">
                   {macroAnalysis.insights} {macroAnalysis.recommendation}
                 </p>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-    </div>
-  );
-}
-
-function SectionHeader({
-  icon,
-  caption,
-  title,
-  action,
-  iconBg = "bg-stone-50",
-}: {
-  icon: React.ReactNode;
-  caption: string;
-  title: string;
-  action?: React.ReactNode;
-  iconBg?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <div className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200/60",
-          iconBg
-        )}>
-          {icon}
-        </div>
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 leading-none">{caption}</span>
-          <p className="text-sm font-bold leading-tight text-stone-900 mt-0.5">{title}</p>
-        </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+
     </div>
   );
 }
