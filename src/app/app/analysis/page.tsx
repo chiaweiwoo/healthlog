@@ -61,10 +61,16 @@ export default async function AnalysisPage() {
     };
   });
 
-  // 2. Fetch daily summaries for the past 7 days to display in diagrams
-  const past7Days = getPastDaysRange(todayStr, 7);
-  const startDate = past7Days[0];
-  const endDate = past7Days[past7Days.length - 1];
+  // 2. Fetch daily summaries ending today (inclusive) to display in diagrams
+  const past7DaysInclusive = [];
+  const [year, month, day] = todayStr.split("-").map(Number);
+  const todayDate = new Date(Date.UTC(year, month - 1, day));
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000);
+    past7DaysInclusive.push(d.toISOString().split("T")[0]);
+  }
+  const startDate = past7DaysInclusive[0];
+  const endDate = past7DaysInclusive[past7DaysInclusive.length - 1];
 
   const supabase = getSupabaseAdmin();
   const { data: dbSummaries, error: summariesErr } = await supabase
@@ -89,7 +95,7 @@ export default async function AnalysisPage() {
     (dbSummaries || []).map((row) => [row.entry_date, row])
   );
 
-  const dailyHistory = past7Days.map((date) => {
+  const dailyHistory = past7DaysInclusive.map((date) => {
     const summary = summariesByDate[date];
     const bmr = summary && summary.bmr ? Number(summary.bmr) : profileBmr;
     const baseTdee = summary && summary.base_tdee ? Number(summary.base_tdee) : profileBaseTdee;

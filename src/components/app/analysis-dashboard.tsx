@@ -107,6 +107,9 @@ export function AnalysisDashboard({
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-6">
       
+      {/* DAILY ENERGY & WATER TRENDS GRAPH */}
+      <TrendCharts dailyHistory={dailyHistory} />
+
       {/* 1. HEADER SECTION CARD */}
       <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-3.5">
         <div className="flex items-start justify-between gap-3">
@@ -193,9 +196,6 @@ export function AnalysisDashboard({
       {/* 3. CONDITIONAL RENDERING BASED ON ACTIVE TAB */}
       {activeTab === "stats" ? (
         <div className="space-y-6">
-          
-          {/* DAILY ENERGY & WATER TRENDS GRAPH */}
-          <TrendCharts dailyHistory={dailyHistory} />
           
           {/* ENERGY CARD */}
           <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4 shadow-sm space-y-4">
