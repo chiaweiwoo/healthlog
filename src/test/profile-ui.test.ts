@@ -160,111 +160,33 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("Go to Profile");
   });
 
-  it("renders analysis categories as one compact divided list without the old coaching callout", () => {
+  it("renders analysis dashboard with the two trend charts", () => {
+    const dailyHistory = [
+      { date: "2026-05-14", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-15", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-16", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-17", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-18", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-19", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-20", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-21", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-22", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-23", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-24", isLogged: true, calories: 1800, proteinG: 120, fatG: 60, carbsG: 180, alcoholG: 0, waterMl: 2500, exerciseCalories: 300, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2500, waterTarget: 3200 },
+      { date: "2026-05-25", isLogged: true, calories: 2400, proteinG: 100, fatG: 80, carbsG: 250, alcoholG: 0, waterMl: 3000, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
+      { date: "2026-05-26", isLogged: true, calories: 2000, proteinG: 130, fatG: 70, carbsG: 200, alcoholG: 0, waterMl: 2800, exerciseCalories: 200, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2400, waterTarget: 3200 },
+      { date: "2026-05-27", isLogged: true, calories: 2200, proteinG: 140, fatG: 75, carbsG: 210, alcoholG: 0, waterMl: 3200, exerciseCalories: 150, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2350, waterTarget: 3200 },
+    ];
+
     const html = renderToStaticMarkup(
-      React.createElement(AnalysisDashboard, {
-        stats: {
-          periodStart: "2026-05-14",
-          periodEnd: "2026-05-27",
-          completeDays: 4,
-          totalIntakeCalories: 14728,
-          averageIntakeCalories: 3682,
-          averageQuotaCalories: 2811,
-          averageNetCalories: 871,
-          totalProteinG: 632.8,
-          averageProteinG: 158.2,
-          totalFatG: 84,
-          averageFatG: 21,
-          totalCarbsG: 228,
-          averageCarbsG: 57,
-          totalAlcoholG: 0,
-          averageAlcoholG: 0,
-          energySplit: {
-            totalCalories: 1050,
-            entries: [
-              { label: "protein", calories: 633, percentage: 60 },
-              { label: "carbs", calories: 228, percentage: 22 },
-              { label: "fat", calories: 189, percentage: 18 },
-              { label: "alcohol", calories: 0, percentage: 0 },
-            ],
-          },
-          averageWaterMl: 3570,
-          averageExerciseCalories: 0,
-          consistencyScore: 0.29,
-        },
-        report: null,
-        dailyHistory: [
-          { date: "2026-05-14", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-15", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-16", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-17", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-18", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-19", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-20", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-21", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-22", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-23", isLogged: false, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-24", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-25", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-26", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-          { date: "2026-05-27", isLogged: true, calories: 0, proteinG: 0, fatG: 0, carbsG: 0, alcoholG: 0, waterMl: 0, exerciseCalories: 0, bmr: 1500, baseTdee: 2200, tefCalories: 0, tdee: 2200, waterTarget: 3200 },
-        ],
-      }),
+      React.createElement(AnalysisDashboard, { dailyHistory }),
     );
 
-    expect(html).toContain("data-testid=\"analysis-row-calories\"");
-    expect(html).toContain("data-testid=\"analysis-row-protein\"");
-    expect(html).toContain("data-testid=\"analysis-row-water\"");
-    expect(html).toContain("data-testid=\"analysis-row-macros\"");
-    expect(html).toContain("Calorie Outcome");
-    expect(html).toContain("Protein Intake");
-    expect(html).toContain("Water Intake");
-    expect(html).toContain("Energy Split");
-    expect(html).toContain("Surplus is high; trim dense extras.");
-    expect(html).toContain("Protein looks solid; keep it steady.");
-    expect(html).toContain("Hydration is on track; keep it up.");
-    expect(html).toContain("Energy split looks balanced overall.");
-    expect(html).not.toContain("rounded-lg border border-indigo-100/60 bg-indigo-50/20");
-    expect(html).not.toContain("Carb 24%  Fat 9%  Protein 67%");
-  });
-
-  it("includes alcohol in the energy split sentence when alcohol contributes calories", () => {
-    const html = renderToStaticMarkup(
-      React.createElement(AnalysisDashboard, {
-        stats: {
-          periodStart: "2026-05-14",
-          periodEnd: "2026-05-27",
-          completeDays: 4,
-          totalIntakeCalories: 14728,
-          averageIntakeCalories: 3682,
-          averageQuotaCalories: 2811,
-          averageNetCalories: 871,
-          totalProteinG: 400,
-          averageProteinG: 100,
-          totalFatG: 200,
-          averageFatG: 50,
-          totalCarbsG: 800,
-          averageCarbsG: 200,
-          totalAlcoholG: 56,
-          averageAlcoholG: 14,
-          energySplit: {
-            totalCalories: 1948,
-            entries: [
-              { label: "protein", calories: 400, percentage: 21 },
-              { label: "carbs", calories: 800, percentage: 41 },
-              { label: "fat", calories: 450, percentage: 23 },
-              { label: "alcohol", calories: 98, percentage: 15 },
-            ],
-          },
-          averageWaterMl: 2800,
-          averageExerciseCalories: 0,
-          consistencyScore: 0.29,
-        },
-        report: null,
-        dailyHistory: [],
-      }),
-    );
-
-    expect(html).toContain("Alcohol share is high; cut drink calories.");
+    expect(html).toContain("Analysis");
+    expect(html).toContain("Calorie Deficit / Surplus");
+    expect(html).toContain("Intake Calories Breakdown");
+    expect(html).toContain("14-Day Trend");
+    expect(html).not.toContain("data-testid=\"analysis-row-calories\"");
+    expect(html).not.toContain("Calorie Outcome");
   });
 });

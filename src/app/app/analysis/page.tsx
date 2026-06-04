@@ -3,8 +3,6 @@ import { ProfileSetupOverlay } from "@/components/app/profile-setup-overlay";
 import { getProfile } from "@/lib/db";
 import { isProfileComplete, deriveWaterTarget } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getRealTimeAnalysisStats } from "@/lib/analysis";
-import { buildAnalysisEnergySplit } from "@/lib/analysis";
 import { calculateBmr, calculateTdee } from "@/lib/calculations";
 import { format } from "date-fns";
 
@@ -27,48 +25,8 @@ export default async function AnalysisPage() {
   }
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  
-  // 1. Calculate real-time stats and contributor evidence from DB dynamically (no cache)
-  const { stats } = await getRealTimeAnalysisStats(profile, todayStr).catch((err) => {
-    console.error("Error calculating real-time stats:", err);
-    return {
-      stats: {
-        periodStart: todayStr,
-        periodEnd: todayStr,
-        completeDays: 0,
-        totalIntakeCalories: 0,
-        averageIntakeCalories: 0,
-        averageQuotaCalories: null,
-        averageNetCalories: null,
-        totalProteinG: 0,
-        averageProteinG: 0,
-        totalFatG: 0,
-        averageFatG: 0,
-        totalCarbsG: 0,
-        averageCarbsG: 0,
-        totalAlcoholG: 0,
-        averageAlcoholG: 0,
-        energySplit: buildAnalysisEnergySplit({
-          averageProteinG: 0,
-          averageCarbsG: 0,
-          averageFatG: 0,
-          averageAlcoholG: 0,
-        }),
-        averageWaterMl: 0,
-        averageExerciseCalories: 0,
-        consistencyScore: 0,
-      },
-      evidence: {
-        topCalorieFoods: [],
-        alcoholContributors: [],
-        waterContributors: [],
-        exerciseContributors: [],
-        highCalorieLowProteinCandidates: [],
-      },
-    };
-  });
 
-  // 2. Fetch daily summaries ending today (inclusive) to display in the dashboard
+  // Fetch daily summaries for the last 14 days
   const past14DaysInclusive = [];
   const [year, month, day] = todayStr.split("-").map(Number);
   const todayDate = new Date(Date.UTC(year, month - 1, day));
@@ -90,8 +48,8 @@ export default async function AnalysisPage() {
   if (summariesErr) {
     console.error("Error fetching daily summaries for history:", summariesErr);
   }
- 
-  // Calculate profile-based default values for incomplete/unlogged days
+
+  // Profile-based fallback values for days with no summary
   const profileBmr = calculateBmr(profile).bmr ?? 1500;
   const profileTdeeObj = calculateTdee(profile);
   const profileTdee = profileTdeeObj.tdee ?? 2000;
@@ -141,27 +99,9 @@ export default async function AnalysisPage() {
     };
   });
 
-  // 3. Fetch the latest compiled AI report if available
-  const { data: report, error } = await supabase
-    .from("analysis_reports")
-    .select("*")
-    .order("period_end", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Error fetching analysis report:", error);
-  }
-
-  // Always render the AnalysisDashboard, passing the dailyHistory trend data
   return (
     <main>
-      <AnalysisDashboard 
-        stats={stats} 
-        report={report?.payload || null} 
-        dailyHistory={dailyHistory}
-      />
+      <AnalysisDashboard dailyHistory={dailyHistory} />
     </main>
   );
 }
