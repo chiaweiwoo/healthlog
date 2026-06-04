@@ -2,13 +2,16 @@
 
 import { useState, useMemo } from "react";
 import {
+  ComposedChart,
   BarChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   ReferenceLine,
   Cell,
   ResponsiveContainer,
+  Customized,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -46,21 +49,101 @@ function formatDateShort(dateStr: string) {
   });
 }
 
+function getSundayIndices(data: Array<{ date: string }>) {
+  return data
+    .map((d, i) => {
+      const [y, m, day] = d.date.split("-").map(Number);
+      return { i, dow: new Date(Date.UTC(y, m - 1, day)).getUTCDay() };
+    })
+    .filter(({ dow }) => dow === 0)
+    .map(({ i }) => i);
+}
+
+type AxisItem = {
+  ticks: Array<{ coordinate: number }>;
+  y: number;
+  height: number;
+};
+
+function WeekSeparatorLines({
+  sundayIndices,
+  xAxisMap,
+  yAxisMap,
+}: {
+  sundayIndices: number[];
+  xAxisMap?: Record<string | number, AxisItem>;
+  yAxisMap?: Record<string | number, AxisItem>;
+}) {
+  if (!xAxisMap || !yAxisMap || sundayIndices.length === 0) return null;
+  const xAxis = Object.values(xAxisMap)[0];
+  const yAxis = Object.values(yAxisMap)[0];
+  if (!xAxis?.ticks?.length || !yAxis) return null;
+
+  const ticks = xAxis.ticks;
+  const y1 = yAxis.y;
+  const y2 = yAxis.y + yAxis.height;
+
+  return (
+    <g>
+      {sundayIndices.map((idx) => {
+        if (idx + 1 >= ticks.length) return null;
+        const x = (ticks[idx].coordinate + ticks[idx + 1].coordinate) / 2;
+        return (
+          <line
+            key={idx}
+            x1={x}
+            y1={y1}
+            x2={x}
+            y2={y2}
+            stroke="#78716c"
+            strokeWidth={1}
+            strokeDasharray="3 3"
+            opacity={0.35}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
 function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-  const data = useMemo(
-    () =>
-      dailyHistory.slice(-14).map((day) => ({
-        dayLabel: getDayLetter(day.date),
-        date: day.date,
-        balance: day.isLogged ? Math.round(day.calories - day.tdee) : 0,
-        calories: day.calories,
-        tdee: Math.round(day.tdee),
-        isLogged: day.isLogged,
-      })),
-    [dailyHistory],
-  );
+  const data = useMemo(() => {
+    const base = dailyHistory.slice(-14).map((day) => ({
+      dayLabel: getDayLetter(day.date),
+      date: day.date,
+      balance: day.isLogged ? Math.round(day.calories - day.tdee) : null,
+      calories: day.calories,
+      tdee: Math.round(day.tdee),
+      isLogged: day.isLogged,
+    }));
+
+    // 7-day rolling average (logged days only, require ≥2 logged in window)
+    return base.map((d, i) => {
+      const windowSlice = base.slice(Math.max(0, i - 6), i + 1);
+      const logged = windowSlice.filter((w) => w.balance !== null);
+      const movingAvg =
+        logged.length >= 2
+          ? Math.round(
+              logged.reduce((sum, w) => sum + (w.balance as number), 0) /
+                logged.length,
+            )
+          : null;
+      return { ...d, movingAvg };
+    });
+  }, [dailyHistory]);
+
+  const sundayIndices = useMemo(() => getSundayIndices(data), [data]);
+
+  // Weight trend based on the most recent 7-day moving average
+  // Formula: 1 kg body fat ≈ 7700 kcal
+  const weightTrend = useMemo(() => {
+    const last = [...data].reverse().find((d) => d.movingAvg !== null);
+    if (!last || last.movingAvg === null) return null;
+    const weeklyKg = (last.movingAvg * 7) / 7700;
+    return { avgKcal: last.movingAvg, weeklyKg };
+  }, [data]);
 
   const effectiveIdx = selectedIdx ?? data.length - 1;
   const selected = data[effectiveIdx];
@@ -76,11 +159,12 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
 
       <div className="select-none cursor-pointer">
         <ResponsiveContainer width="100%" height={150}>
-          <BarChart
+          <ComposedChart
             data={data}
             margin={{ top: 8, right: 4, left: -16, bottom: 0 }}
             onClick={(state: unknown) => {
-              const idx = (state as { activeTooltipIndex?: number | null })?.activeTooltipIndex;
+              const idx = (state as { activeTooltipIndex?: number | null })
+                ?.activeTooltipIndex;
               if (typeof idx === "number") setSelectedIdx(idx);
             }}
           >
@@ -105,19 +189,38 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
                 <Cell
                   key={idx}
                   fill={
-                    !entry.isLogged
-                      ? "#e7e5e4"
+                    entry.balance === null
+                      ? "transparent"
                       : entry.balance >= 0
                         ? "#10b981"
                         : "#ef4444"
                   }
-                  opacity={
-                    selectedIdx !== null && selectedIdx !== idx ? 0.5 : 1
-                  }
+                  opacity={selectedIdx !== null && selectedIdx !== idx ? 0.5 : 1}
                 />
               ))}
             </Bar>
-          </BarChart>
+            <Line
+              dataKey="movingAvg"
+              type="monotone"
+              stroke="#78716c"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              dot={false}
+              connectNulls={false}
+            />
+            <Customized
+              component={
+                ((props: Record<string, unknown>) => (
+                  <WeekSeparatorLines
+                    sundayIndices={sundayIndices}
+                    xAxisMap={props.xAxisMap as Record<string | number, AxisItem>}
+                    yAxisMap={props.yAxisMap as Record<string | number, AxisItem>}
+                  />
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              )) as any
+              }
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
@@ -130,10 +233,10 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
             <p
               className={cn(
                 "text-[13px] font-semibold mt-0.5",
-                selected.balance >= 0 ? "text-emerald-700" : "text-red-700",
+                (selected.balance ?? 0) >= 0 ? "text-emerald-700" : "text-red-700",
               )}
             >
-              {selected.balance >= 0
+              {(selected.balance ?? 0) >= 0
                 ? `+${selected.balance} kcal surplus`
                 : `${selected.balance} kcal deficit`}
             </p>
@@ -150,6 +253,29 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
           </>
         )}
       </div>
+
+      {weightTrend && (
+        <div className="px-3 py-1.5 rounded-lg bg-stone-100/70 border border-stone-200/50 text-center">
+          <p className="text-[11px] text-stone-600">
+            <span className="font-semibold">
+              {weightTrend.avgKcal >= 0
+                ? `+${weightTrend.avgKcal}`
+                : `${weightTrend.avgKcal}`}{" "}
+              kcal/day (7d avg)
+            </span>
+            {" · "}
+            <span
+              className={cn(
+                "font-semibold",
+                weightTrend.weeklyKg < 0 ? "text-emerald-700" : "text-amber-700",
+              )}
+            >
+              ~{Math.abs(weightTrend.weeklyKg).toFixed(2)} kg/week{" "}
+              {weightTrend.weeklyKg < 0 ? "loss" : "gain"}
+            </span>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -172,6 +298,8 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
       })),
     [dailyHistory],
   );
+
+  const sundayIndices = useMemo(() => getSundayIndices(data), [data]);
 
   const effectiveIdx = selectedIdx ?? data.length - 1;
   const selected = data[effectiveIdx];
@@ -250,6 +378,18 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
                 />
               ))}
             </Bar>
+            <Customized
+              component={
+                ((props: Record<string, unknown>) => (
+                  <WeekSeparatorLines
+                    sundayIndices={sundayIndices}
+                    xAxisMap={props.xAxisMap as Record<string | number, AxisItem>}
+                    yAxisMap={props.yAxisMap as Record<string | number, AxisItem>}
+                  />
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              )) as any
+              }
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
