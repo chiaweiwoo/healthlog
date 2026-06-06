@@ -108,34 +108,53 @@ function WeekSeparatorLines({
   );
 }
 
-function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
+export function buildCalorieBalanceData(
+  dailyHistory: DailyHistoryItem[],
+  today: string,
+) {
+  const base = dailyHistory.slice(-14).map((day) => ({
+    dayLabel: getDayLetter(day.date),
+    date: day.date,
+    balance: day.isLogged ? Math.round(day.calories - day.tdee) : null,
+    calories: day.calories,
+    tdee: Math.round(day.tdee),
+    isLogged: day.isLogged,
+  }));
+
+  return base.map((day, index) => {
+    if (day.date >= today) return { ...day, movingAvg: null };
+
+    const windowSlice = base.slice(Math.max(0, index - 6), index + 1);
+    const loggedCompletedDays = windowSlice.filter(
+      (candidate) => candidate.date < today && candidate.balance !== null,
+    );
+    const movingAvg =
+      loggedCompletedDays.length >= 2
+        ? Math.round(
+            loggedCompletedDays.reduce(
+              (sum, candidate) => sum + (candidate.balance as number),
+              0,
+            ) / loggedCompletedDays.length,
+          )
+        : null;
+
+    return { ...day, movingAvg };
+  });
+}
+
+function CalorieBalanceChart({
+  dailyHistory,
+  today,
+}: {
+  dailyHistory: DailyHistoryItem[];
+  today: string;
+}) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-  const data = useMemo(() => {
-    const base = dailyHistory.slice(-14).map((day) => ({
-      dayLabel: getDayLetter(day.date),
-      date: day.date,
-      balance: day.isLogged ? Math.round(day.calories - day.tdee) : null,
-      calories: day.calories,
-      tdee: Math.round(day.tdee),
-      isLogged: day.isLogged,
-    }));
-
-    // 7-day rolling average (logged days only, require ≥2 logged in window)
-    return base.map((d, i) => {
-      const windowSlice = base.slice(Math.max(0, i - 6), i + 1);
-      const logged = windowSlice.filter((w) => w.balance !== null);
-      const movingAvg =
-        logged.length >= 2
-          ? Math.round(
-              logged.reduce((sum, w) => sum + (w.balance as number), 0) /
-                logged.length,
-            )
-          : null;
-      return { ...d, movingAvg };
-    });
-  }, [dailyHistory]);
-
+  const data = useMemo(
+    () => buildCalorieBalanceData(dailyHistory, today),
+    [dailyHistory, today],
+  );
   const sundayIndices = useMemo(() => getSundayIndices(data), [data]);
 
   // Weight trend based on the most recent 7-day moving average
@@ -169,9 +188,10 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
                 deficit; a positive value is a surplus.
               </p>
               <p>
-                The dashed line averages the logged daily balances within that
-                date and the previous six calendar days. It appears once at least
-                two logged days are available in the window.
+                The dashed line averages logged, completed days within each
+                trailing seven-calendar-day window. Today stays visible as a bar
+                but is excluded because the day is still in progress. The line
+                appears once at least two completed logged days are available.
               </p>
               <p>
                 The weekly weight estimate multiplies the latest daily average by
@@ -506,11 +526,17 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
   );
 }
 
-export function AnalysisDashboard({ dailyHistory = [] }: { dailyHistory?: DailyHistoryItem[] }) {
+export function AnalysisDashboard({
+  dailyHistory = [],
+  today = dailyHistory.at(-1)?.date ?? "",
+}: {
+  dailyHistory?: DailyHistoryItem[];
+  today?: string;
+}) {
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">
       <h1 className="text-base font-bold text-stone-900">Analysis</h1>
-      <CalorieBalanceChart dailyHistory={dailyHistory} />
+      <CalorieBalanceChart dailyHistory={dailyHistory} today={today} />
       <MacroBreakdownChart dailyHistory={dailyHistory} />
     </div>
   );

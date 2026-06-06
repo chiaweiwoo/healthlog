@@ -3,7 +3,11 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DailyDashboard } from "@/components/app/daily-dashboard";
 import { ProfileDashboard } from "@/components/app/profile-dashboard";
-import { AnalysisDashboard } from "@/components/app/analysis-dashboard";
+import {
+  AnalysisDashboard,
+  buildCalorieBalanceData,
+  type DailyHistoryItem,
+} from "@/components/app/analysis-dashboard";
 
 const getProfileMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
@@ -191,5 +195,35 @@ describe("profile-driven setup UI", () => {
     expect(html).toContain("14-Day Trend");
     expect(html).not.toContain("data-testid=\"analysis-row-calories\"");
     expect(html).not.toContain("Calorie Outcome");
+  });
+
+  it("excludes today from the moving average while retaining its bar value", () => {
+    const baseDay: DailyHistoryItem = {
+      date: "2026-06-04",
+      isLogged: true,
+      calories: 2100,
+      proteinG: 120,
+      fatG: 65,
+      carbsG: 210,
+      alcoholG: 0,
+      waterMl: 2500,
+      exerciseCalories: 200,
+      bmr: 1500,
+      baseTdee: 2100,
+      tefCalories: 180,
+      tdee: 2500,
+      waterTarget: 3000,
+    };
+    const dailyHistory = [
+      baseDay,
+      { ...baseDay, date: "2026-06-05", calories: 2200 },
+      { ...baseDay, date: "2026-06-06", calories: 4000 },
+    ];
+
+    const data = buildCalorieBalanceData(dailyHistory, "2026-06-06");
+
+    expect(data[1]?.movingAvg).toBe(-350);
+    expect(data[2]?.balance).toBe(1500);
+    expect(data[2]?.movingAvg).toBeNull();
   });
 });

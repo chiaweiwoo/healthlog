@@ -4,7 +4,6 @@ import { getProfile } from "@/lib/db";
 import { isProfileComplete, deriveWaterTarget } from "@/lib/profile-memory";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { calculateBmr, calculateTdee } from "@/lib/calculations";
-import { format } from "date-fns";
 
 export const revalidate = 0; // Ensure the page is always dynamic
 
@@ -24,7 +23,12 @@ export default async function AnalysisPage() {
     );
   }
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   // Fetch daily summaries for the last 14 days
   const past14DaysInclusive = [];
@@ -101,7 +105,7 @@ export default async function AnalysisPage() {
 
   return (
     <main>
-      <AnalysisDashboard dailyHistory={dailyHistory} />
+      <AnalysisDashboard dailyHistory={dailyHistory} today={todayStr} />
     </main>
   );
 }
