@@ -184,7 +184,10 @@ describe("profile-driven setup UI", () => {
 
     expect(html).toContain("Analysis");
     expect(html).toContain("Calorie Deficit / Surplus");
-    expect(html).toContain("Intake Calories Breakdown");
+    expect(html).toContain("Macro Intake Breakdown");
+    expect(html).toContain("How the 7-day trend works");
+    expect(html).toContain("Choose a macro to view separately");
+    expect(html).toContain("Show protein only");
     expect(html).toContain("14-Day Trend");
     expect(html).not.toContain("data-testid=\"analysis-row-calories\"");
     expect(html).not.toContain("Calorie Outcome");

@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Customized,
 } from "recharts";
+import { InfoButton } from "@/components/app/info-button";
 import { cn } from "@/lib/utils";
 
 export type DailyHistoryItem = {
@@ -33,6 +34,7 @@ export type DailyHistoryItem = {
 };
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
+const CALORIES_PER_KG = 7700;
 
 function getDayLetter(dateStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -141,7 +143,7 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
   const weightTrend = useMemo(() => {
     const last = [...data].reverse().find((d) => d.movingAvg !== null);
     if (!last || last.movingAvg === null) return null;
-    const weeklyKg = (last.movingAvg * 7) / 7700;
+    const weeklyKg = (last.movingAvg * 7) / CALORIES_PER_KG;
     return { avgKcal: last.movingAvg, weeklyKg };
   }, [data]);
 
@@ -150,11 +152,40 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
 
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 space-y-3 shadow-xs">
-      <div>
-        <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
-          14-Day Trend
-        </span>
-        <h2 className="text-sm font-bold text-stone-900">Calorie Deficit / Surplus</h2>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
+            14-Day Trend
+          </span>
+          <h2 className="text-sm font-bold text-stone-900">Calorie Deficit / Surplus</h2>
+        </div>
+        <InfoButton
+          title="How the 7-day trend works"
+          className="-mr-1 -mt-1"
+          description={
+            <>
+              <p>
+                Each bar is daily intake minus daily TDEE. A negative value is a
+                deficit; a positive value is a surplus.
+              </p>
+              <p>
+                The dashed line averages the logged daily balances within that
+                date and the previous six calendar days. It appears once at least
+                two logged days are available in the window.
+              </p>
+              <p>
+                The weekly weight estimate multiplies the latest daily average by
+                seven, then divides by 7,700 kcal per kg. 7,000 kcal is a common
+                rounded shortcut, but this app uses 7,700.
+              </p>
+              <p>
+                This is a rough energy-equivalent estimate, not a prediction of
+                scale weight. Water, glycogen, digestion, and metabolic adaptation
+                can produce different short-term results.
+              </p>
+            </>
+          }
+        />
       </div>
 
       <div className="select-none cursor-pointer">
@@ -280,20 +311,41 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
   );
 }
 
+const MACROS = {
+  proteinG: {
+    label: "Protein",
+    shortLabel: "P",
+    color: "#818cf8",
+    activeClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  },
+  fatG: {
+    label: "Fat",
+    shortLabel: "F",
+    color: "#fbbf24",
+    activeClass: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  carbsG: {
+    label: "Carbs",
+    shortLabel: "C",
+    color: "#34d399",
+    activeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+} as const;
+
+type MacroKey = keyof typeof MACROS;
+
 function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[] }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [focusedMacro, setFocusedMacro] = useState<MacroKey | null>(null);
 
   const data = useMemo(
     () =>
       dailyHistory.slice(-14).map((day) => ({
         dayLabel: getDayLetter(day.date),
         date: day.date,
-        protein: day.isLogged ? Math.round(day.proteinG * 4) : 0,
-        fat: day.isLogged ? Math.round(day.fatG * 9) : 0,
-        carbs: day.isLogged ? Math.round(day.carbsG * 4) : 0,
-        proteinG: day.proteinG,
-        fatG: day.fatG,
-        carbsG: day.carbsG,
+        proteinG: day.isLogged ? Math.round(day.proteinG) : 0,
+        fatG: day.isLogged ? Math.round(day.fatG) : 0,
+        carbsG: day.isLogged ? Math.round(day.carbsG) : 0,
         isLogged: day.isLogged,
       })),
     [dailyHistory],
@@ -303,7 +355,9 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
 
   const effectiveIdx = selectedIdx ?? data.length - 1;
   const selected = data[effectiveIdx];
-  const totalKcal = selected ? selected.protein + selected.fat + selected.carbs : 0;
+  const hasMacroData =
+    selected &&
+    (selected.proteinG > 0 || selected.fatG > 0 || selected.carbsG > 0);
 
   const handleClick = (state: unknown) => {
     const idx = (state as { activeTooltipIndex?: number | null })?.activeTooltipIndex;
@@ -312,26 +366,46 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
 
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 space-y-3 shadow-xs">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">
             14-Day Trend
           </span>
-          <h2 className="text-sm font-bold text-stone-900">Intake Calories Breakdown</h2>
+          <h2 className="text-sm font-bold text-stone-900">Macro Intake Breakdown</h2>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-stone-500 pt-1 shrink-0">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm bg-indigo-400 inline-block" />
-            Protein
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm bg-amber-400 inline-block" />
-            Fat
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm bg-emerald-400 inline-block" />
-            Carbs
-          </span>
+        <div
+          className="flex items-center gap-1 self-end sm:pt-0.5 sm:shrink-0"
+          aria-label="Choose a macro to view separately"
+        >
+          {(Object.entries(MACROS) as [MacroKey, (typeof MACROS)[MacroKey]][]).map(
+            ([key, macro]) => {
+              const isFocused = focusedMacro === key;
+              const isDimmed = focusedMacro !== null && !isFocused;
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={isFocused}
+                  title={`Show ${macro.label.toLowerCase()} only`}
+                  onClick={() => setFocusedMacro(isFocused ? null : key)}
+                  className={cn(
+                    "inline-flex min-h-7 items-center gap-1 rounded-full border border-transparent px-2 text-[10px] font-medium transition",
+                    isFocused
+                      ? macro.activeClass
+                      : "text-stone-500 hover:border-stone-200 hover:bg-white",
+                    isDimmed && "opacity-40",
+                  )}
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-sm"
+                    style={{ backgroundColor: macro.color }}
+                  />
+                  {macro.label}
+                </button>
+              );
+            },
+          )}
         </div>
       </div>
 
@@ -353,31 +427,31 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
               axisLine={false}
               tickLine={false}
               tickCount={4}
+              tickFormatter={(value: number) => `${value}g`}
             />
-            <Bar dataKey="protein" stackId="a" fill="#818cf8" maxBarSize={18}>
-              {data.map((_, idx) => (
-                <Cell
-                  key={idx}
-                  opacity={selectedIdx !== null && selectedIdx !== idx ? 0.4 : 1}
-                />
+            {(Object.entries(MACROS) as [MacroKey, (typeof MACROS)[MacroKey]][])
+              .filter(([key]) => focusedMacro === null || focusedMacro === key)
+              .map(([key, macro], visibleIndex, visibleMacros) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  stackId="macros"
+                  fill={macro.color}
+                  radius={
+                    visibleIndex === visibleMacros.length - 1 ? [2, 2, 0, 0] : 0
+                  }
+                  maxBarSize={18}
+                >
+                  {data.map((_, idx) => (
+                    <Cell
+                      key={idx}
+                      opacity={
+                        selectedIdx !== null && selectedIdx !== idx ? 0.4 : 1
+                      }
+                    />
+                  ))}
+                </Bar>
               ))}
-            </Bar>
-            <Bar dataKey="fat" stackId="a" fill="#fbbf24" maxBarSize={18}>
-              {data.map((_, idx) => (
-                <Cell
-                  key={idx}
-                  opacity={selectedIdx !== null && selectedIdx !== idx ? 0.4 : 1}
-                />
-              ))}
-            </Bar>
-            <Bar dataKey="carbs" stackId="a" fill="#34d399" radius={[2, 2, 0, 0]} maxBarSize={18}>
-              {data.map((_, idx) => (
-                <Cell
-                  key={idx}
-                  opacity={selectedIdx !== null && selectedIdx !== idx ? 0.4 : 1}
-                />
-              ))}
-            </Bar>
             <Customized
               component={
                 ((props: Record<string, unknown>) => (
@@ -395,13 +469,15 @@ function MacroBreakdownChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
       </div>
 
       <div className="bg-white rounded-lg border border-stone-200/60 px-3 py-2 text-center min-h-[52px] flex flex-col justify-center">
-        {selected?.isLogged && totalKcal > 0 ? (
+        {selected?.isLogged && hasMacroData ? (
           <>
             <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               {formatDateShort(selected.date)}
             </p>
             <p className="text-[13px] font-semibold text-stone-800 mt-0.5">
-              {totalKcal} kcal total
+              {focusedMacro
+                ? `${MACROS[focusedMacro].label} ${selected[focusedMacro]}g`
+                : "Daily macro readings"}
             </p>
             <p className="text-[11px] text-stone-500 mt-0.5">
               P {selected.proteinG}g · F {selected.fatG}g · C {selected.carbsG}g
