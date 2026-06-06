@@ -222,9 +222,11 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
                   fill={
                     entry.balance === null
                       ? "transparent"
-                      : entry.balance >= 0
-                        ? "#10b981"
-                        : "#ef4444"
+                      : entry.balance > 0
+                        ? "#ef4444"
+                        : entry.balance < 0
+                          ? "#10b981"
+                          : "#a8a29e"
                   }
                   opacity={selectedIdx !== null && selectedIdx !== idx ? 0.5 : 1}
                 />
@@ -264,7 +266,11 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
             <p
               className={cn(
                 "text-[13px] font-semibold mt-0.5",
-                (selected.balance ?? 0) >= 0 ? "text-emerald-700" : "text-red-700",
+                (selected.balance ?? 0) > 0
+                  ? "text-red-700"
+                  : (selected.balance ?? 0) < 0
+                    ? "text-emerald-700"
+                    : "text-stone-600",
               )}
             >
               {(selected.balance ?? 0) >= 0
@@ -298,7 +304,11 @@ function CalorieBalanceChart({ dailyHistory }: { dailyHistory: DailyHistoryItem[
             <span
               className={cn(
                 "font-semibold",
-                weightTrend.weeklyKg < 0 ? "text-emerald-700" : "text-amber-700",
+                weightTrend.weeklyKg < 0
+                  ? "text-emerald-700"
+                  : weightTrend.weeklyKg > 0
+                    ? "text-red-700"
+                    : "text-stone-600",
               )}
             >
               ~{Math.abs(weightTrend.weeklyKg).toFixed(2)} kg/week{" "}
