@@ -104,6 +104,89 @@ describe("normalizeDailyResult", () => {
     expect(parsed.items[0]?.nutrition?.carbsG).toBe(1);
   });
 
+  it("recovers beverage volume when Gemini nests waterMl under nutrition", () => {
+    const normalized = normalizeDailyResult({
+      actionType: "create",
+      items: [
+        {
+          kind: "water",
+          label: "Water",
+          quantity: "600ml",
+          nutrition: {
+            calories: 0,
+            proteinG: 0,
+            fatG: 0,
+            carbsG: 0,
+            alcoholG: 0,
+            waterMl: 600,
+          },
+          confidence: 1,
+          warnings: [],
+        },
+      ],
+      confidence: 1,
+      warnings: [],
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.items[0]?.waterMl).toBe(600);
+  });
+
+  it("recovers beverage volume from metadata as a final fallback", () => {
+    const normalized = normalizeDailyResult({
+      actionType: "create",
+      items: [
+        {
+          kind: "food",
+          label: "Oolong tea",
+          quantity: "1.5L",
+          nutrition: {
+            calories: 5,
+            proteinG: 0,
+            fatG: 0,
+            carbsG: 1,
+            alcoholG: 0,
+          },
+          metadata: { waterMl: 1500 },
+          confidence: 0.95,
+          warnings: [],
+        },
+      ],
+      confidence: 0.95,
+      warnings: [],
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.items[0]?.waterMl).toBe(1500);
+  });
+
+  it("derives explicit fluid volume from quantity when waterMl is omitted", () => {
+    const normalized = normalizeDailyResult({
+      actionType: "create",
+      items: [
+        {
+          kind: "food",
+          label: "Tea",
+          quantity: "1.5L",
+          nutrition: {
+            calories: 0,
+            proteinG: 0,
+            fatG: 0,
+            carbsG: 0,
+            alcoholG: 0,
+          },
+          confidence: 0.95,
+          warnings: [],
+        },
+      ],
+      confidence: 0.95,
+      warnings: [],
+    });
+
+    const parsed = dailyParseResultSchema.parse(normalized);
+    expect(parsed.items[0]?.waterMl).toBe(1500);
+  });
+
   it("normalizes invalid non-empty times before schema parsing", () => {
     const normalized = normalizeDailyResult({
       occurredTime: "25:99",

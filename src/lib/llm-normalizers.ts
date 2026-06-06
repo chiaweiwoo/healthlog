@@ -98,6 +98,21 @@ function normalizeNumber(value: unknown) {
   return null;
 }
 
+function normalizeVolumeMl(value: unknown) {
+  if (typeof value !== "string") return null;
+  const match = value
+    .trim()
+    .match(/(\d+(?:[.,]\d+)?)\s*(ml|millilit(?:er|re)s?|l|lit(?:er|re)s?)\b/i);
+  if (!match) return null;
+
+  const amount = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(amount)) return null;
+  return match[2].toLowerCase() === "l" ||
+    match[2].toLowerCase().startsWith("lit")
+    ? amount * 1000
+    : amount;
+}
+
 function normalizeConfidence(value: unknown, fallback = 0.6) {
   if (typeof value === "number" && Number.isFinite(value)) {
     if (value >= 0 && value <= 1) return value;
@@ -294,6 +309,10 @@ export function normalizeDailyResult(raw: unknown) {
   const items = rawItems.map((item, index) => {
     const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
     const nutritionSource = getNutritionSource(source);
+    const metadataSource =
+      source.metadata && typeof source.metadata === "object"
+        ? (source.metadata as Record<string, unknown>)
+        : {};
     const kindInput = typeof source.kind === "string" ? source.kind.toLowerCase() : typeof source.type === "string" ? source.type.toLowerCase() : "note";
     const kind = kindInput === "meal" ? "food" : kindInput === "drink" ? "water" : kindInput;
     const normalizedItem = {
@@ -329,7 +348,18 @@ export function normalizeDailyResult(raw: unknown) {
             nutritionSource.alcoholContentG,
         ),
       },
-      waterMl: normalizeNumber(source.waterMl ?? source.water ?? source.volumeMl),
+      waterMl: normalizeNumber(
+        source.waterMl ??
+          source.water ??
+          source.volumeMl ??
+          nutritionSource.waterMl ??
+          nutritionSource.water_ml ??
+          nutritionSource.volumeMl ??
+          metadataSource.waterMl ??
+          metadataSource.water_ml ??
+          metadataSource.volumeMl ??
+          normalizeVolumeMl(source.quantity ?? source.amount ?? source.serving),
+      ),
       exerciseCalories: normalizeNumber(source.exerciseCalories ?? source.caloriesBurned ?? source.burnedCalories),
       confidence: normalizeConfidence(source.confidence, normalizeConfidence(record.confidence, 0.6)),
       warnings: normalizeWarnings(source.warnings),

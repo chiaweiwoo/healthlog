@@ -13,7 +13,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 type LlmScenario = "daily_quick" | "daily_grounded" | "body";
 
-const PROMPT_VERSION = "2026-05-28-audit-v1";
+const PROMPT_VERSION = "2026-06-06-fluid-volume-v1";
 const LLM_TIMEOUT_MS = 20_000;
 
 const modelsByScenario: Record<LlmScenario, string> = {
@@ -284,6 +284,7 @@ Nutrition keys are:
 - alcoholG
 
 Water uses waterMl. For beverages/drinks (e.g., soy milk, milk, coffee, tea, soda, soup), even if their kind is classified as "food" (because they have calories), always estimate and include their liquid volume in "waterMl" (e.g., one cup = 250ml, one can = 330ml) so they count towards daily liquid/water intake.
+waterMl is an item-level field: it must be a sibling of "nutrition", never nested inside "nutrition" or "metadata". When the note gives an explicit ml or litre amount, copy the converted value exactly into item.waterMl (e.g., "1.5L tea" -> "waterMl": 1500).
 Exercise uses exerciseCalories.
 Use ${(input.profile?.country ?? DEFAULT_COUNTRY)}${input.profile?.city ? "/" + input.profile.city : ""} food context by default unless the note clearly says otherwise.
 If uncertain, keep the item visible, lower confidence, and add warnings with improveWith.
@@ -334,6 +335,24 @@ Example JSON:
       "remarks": "Morning meal",
       "metadata": {
         "sourceContext": "Singapore hawker"
+      }
+    },
+    {
+      "kind": "food",
+      "label": "Unsweetened oolong tea",
+      "quantity": "600ml",
+      "nutrition": {
+        "calories": 2,
+        "proteinG": 0,
+        "fatG": 0,
+        "carbsG": 0,
+        "alcoholG": 0
+      },
+      "waterMl": 600,
+      "confidence": 0.98,
+      "warnings": [],
+      "metadata": {
+        "sourceContext": "beverage"
       }
     }
   ],
