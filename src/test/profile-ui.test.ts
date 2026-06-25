@@ -223,7 +223,10 @@ describe("profile-driven setup UI", () => {
     const data = buildCalorieBalanceData(dailyHistory, "2026-06-06");
 
     expect(data[1]?.movingAvg).toBe(-350);
+    expect(data[1]?.chartMovingAvg).toBe(350);
     expect(data[2]?.balance).toBe(1500);
+    expect(data[2]?.chartBalance).toBe(-1500);
     expect(data[2]?.movingAvg).toBeNull();
+    expect(data[2]?.chartMovingAvg).toBeNull();
   });
 });

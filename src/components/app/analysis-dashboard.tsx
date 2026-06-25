@@ -116,13 +116,16 @@ export function buildCalorieBalanceData(
     dayLabel: getDayLetter(day.date),
     date: day.date,
     balance: day.isLogged ? Math.round(day.calories - day.tdee) : null,
+    chartBalance: day.isLogged ? Math.round(day.tdee - day.calories) : null,
     calories: day.calories,
     tdee: Math.round(day.tdee),
     isLogged: day.isLogged,
   }));
 
   return base.map((day, index) => {
-    if (day.date >= today) return { ...day, movingAvg: null };
+    if (day.date >= today) {
+      return { ...day, movingAvg: null, chartMovingAvg: null };
+    }
 
     const windowSlice = base.slice(Math.max(0, index - 6), index + 1);
     const loggedCompletedDays = windowSlice.filter(
@@ -138,7 +141,11 @@ export function buildCalorieBalanceData(
           )
         : null;
 
-    return { ...day, movingAvg };
+    return {
+      ...day,
+      movingAvg,
+      chartMovingAvg: movingAvg === null ? null : -movingAvg,
+    };
   });
 }
 
@@ -184,8 +191,9 @@ function CalorieBalanceChart({
           description={
             <>
               <p>
-                Each bar is daily intake minus daily TDEE. A negative value is a
-                deficit; a positive value is a surplus.
+                Each bar compares daily intake with daily TDEE. For readability,
+                deficits are shown above zero in green, while surpluses are shown
+                below zero in red.
               </p>
               <p>
                 The dashed line averages logged, completed days within each
@@ -230,12 +238,12 @@ function CalorieBalanceChart({
               axisLine={false}
               tickLine={false}
               tickCount={5}
-              tickFormatter={(v: number) =>
-                v === 0 ? "0" : `${v > 0 ? "+" : ""}${v}`
+              tickFormatter={(value: number) =>
+                value === 0 ? "0" : `${Math.abs(value)}`
               }
             />
             <ReferenceLine y={0} stroke="#d6d3d1" strokeWidth={1.5} />
-            <Bar dataKey="balance" maxBarSize={18} radius={[2, 2, 2, 2]}>
+            <Bar dataKey="chartBalance" maxBarSize={18} radius={[2, 2, 2, 2]}>
               {data.map((entry, idx) => (
                 <Cell
                   key={idx}
@@ -253,7 +261,7 @@ function CalorieBalanceChart({
               ))}
             </Bar>
             <Line
-              dataKey="movingAvg"
+              dataKey="chartMovingAvg"
               type="monotone"
               stroke="#78716c"
               strokeWidth={1.5}
